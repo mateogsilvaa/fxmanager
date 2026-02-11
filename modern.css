@@ -1,112 +1,125 @@
-/*
-  Minimalist, neutral, modern CSS for FX Manager
-  Applies to all pages for a unified look
+/* Dark, modern theme for FX Manager
+   - Desktop shows centered content cards
+   - Bottom navigation appears only on small screens (mobile)
 */
 :root {
-  --primary: #222;
-  --secondary: #fff;
-  --accent: #007aff;
-  --bg: #f7f7f9;
-  --border: #e0e0e0;
-  --radius: 14px;
-  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --bg: #07070b;             /* page background */
+  --card: #0f1113;           /* panels / cards */
+  --text: #e6eef8;           /* primary text */
+  --muted: #8b97a6;          /* secondary text */
+  --accent: #0ab4ef;         /* action color */
+  --danger: #ff6b6b;
+  --border: rgba(255,255,255,0.04);
+  --radius: 12px;
+  --shadow: 0 8px 30px rgba(3,6,12,0.6);
 }
 
 html, body {
+  height: 100%;
   margin: 0;
-  padding: 0;
-  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-  background: var(--bg);
-  color: var(--primary);
-  min-height: 100vh;
+  font-family: Inter, 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial;
+  background: linear-gradient(180deg, #040405 0%, var(--bg) 100%);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-main, .container, .login-container {
-  background: var(--secondary);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  margin: 16px auto;
-  padding: 24px 18px;
+/* Page container: centered on desktop, full-bleed on mobile */
+main, .container {
+  max-width: 1100px;
+  width: calc(100% - 64px);
+  margin: 36px auto;
+  background: transparent; /* use cards inside */
+}
+
+.login-container {
   max-width: 420px;
-  width: 95vw;
+  margin: 64px auto;
+  background: var(--card);
+  padding: 28px;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
 }
 
 h1, h2, h3, h4 {
-  color: var(--primary);
+  color: var(--text);
+  margin: 0 0 12px 0;
   font-weight: 600;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
 }
 
-input, select, button, textarea {
-  font-family: inherit;
-  font-size: 1em;
-  border-radius: 8px;
+/* Form controls */
+input, select, textarea {
+  width: 100%;
+  font: inherit;
+  background: #0b0d0f;
+  color: var(--text);
   border: 1px solid var(--border);
-  padding: 10px 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  box-sizing: border-box;
   margin-bottom: 12px;
-  background: #fafbfc;
-  color: var(--primary);
+}
+input:focus, textarea:focus, select:focus {
   outline: none;
-  transition: border 0.2s;
+  box-shadow: 0 0 0 4px rgba(10,180,239,0.08);
+  border-color: rgba(10,180,239,0.6);
 }
-input:focus, select:focus, textarea:focus {
-  border-color: var(--accent);
-}
+
 button {
-  background: var(--accent);
-  color: #fff;
+  background: linear-gradient(180deg,var(--accent), #008fc1);
+  color: #04111a;
+  padding: 10px 14px;
+  border-radius: 10px;
   border: none;
   cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s;
+  font-weight: 700;
 }
-button:hover {
-  background: #005bb5;
+button:hover { filter: brightness(0.95); }
+
+/* Cards used across pages */
+.card, .equipo-card, .piloto-card, .panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(2,4,8,0.5);
 }
 
-/* Bottom navigation bar */
+.grid-equipos, .grid-pilotos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.equipo-card img, .piloto-card img { max-width: 100%; display:block; border-radius:8px; }
+
+.muted { color: var(--muted); }
+
+/* Bottom navigation: hidden on desktop, visible on small screens */
 .bottom-nav {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  width: 100vw;
-  background: var(--secondary);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
-  display: flex;
-  overflow-x: auto;
-  z-index: 100;
-}
-.bottom-nav a {
-  flex: 1 0 80px;
-  text-align: center;
-  padding: 10px 0 6px 0;
-  color: var(--primary);
-  text-decoration: none;
-  font-size: 1.1em;
-  transition: background 0.15s, color 0.15s;
-  border-bottom: 2px solid transparent;
-}
-.bottom-nav a.active, .bottom-nav a:focus {
-  color: var(--accent);
-  border-bottom: 2px solid var(--accent);
-  background: #f0f6ff;
-}
-.bottom-nav a svg {
-  display: block;
-  margin: 0 auto 2px auto;
-  font-size: 1.3em;
+  display: none; /* desktop default */
 }
 
-@media (max-width: 600px) {
-  main, .container, .login-container {
-    max-width: 100vw;
-    margin: 0;
-    border-radius: 0;
-    box-shadow: none;
-    padding: 18px 4vw 70px 4vw;
-  }
+/* Mobile styles */
+@media (max-width: 900px) {
+  main, .container { width: 100%; margin: 0; padding: 0; }
+  .login-container { border-radius: 0; margin: 0; width: 100%; box-shadow: none; padding: 18px; }
   .bottom-nav {
-    font-size: 0.98em;
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg, rgba(15,17,19,0.98), rgba(12,14,16,0.98));
+    border-top: 1px solid rgba(255,255,255,0.03);
+    z-index: 200;
+    gap: 4px;
+    padding: 8px 6px;
+    justify-content: space-around;
+    backdrop-filter: blur(6px);
   }
+  .bottom-nav a { color: var(--muted); text-decoration: none; font-weight:600; font-size:13px; padding:8px 10px; border-radius:8px; }
+  .bottom-nav a.active { color: var(--accent); background: rgba(10,180,239,0.06); }
 }
+
+/* Utility small screens and accessibility */
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
