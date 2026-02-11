@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Manager | Dirección de Carrera (Admin)</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #111; color: white; margin: 0; padding: 20px; }
+        .navbar { background-color: #e10600; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;}
+        .navbar h2 { margin: 0; font-style: italic; }
+        .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background-color: #222; padding: 20px; border-radius: 8px; border: 1px solid #444; }
+        h3 { color: #e10600; margin-top: 0; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        button { background-color: #e10600; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        button:hover { background-color: #b30500; }
+        .btn-verde { background-color: #00C851; }
+        .btn-verde:hover { background-color: #007E33; }
+        input, select { width: 100%; padding: 10px; margin-bottom: 15px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; box-sizing: border-box;}
+        #log-cambios { max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 14px; background: #000; padding: 10px; border-radius: 5px;}
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <h2>DIRECCIÓN DE CARRERA (FIA)</h2>
+        <button id="btnCerrarSesion" style="background-color: #333;">Desconectar</button>
+    </div>
+
+    <div class="panel-grid">
+        <div class="card">
+            <h3>Estado del Campeonato</h3>
+            <p>Estado actual: <strong id="estado-texto" style="color: yellow;">Cargando...</strong></p>
+            <p style="font-size: 13px; color: #aaa;">Si cierras el mercado, nadie podrá elegir equipo ni comprar mejoras hasta que lo vuelvas a abrir.</p>
+            <button id="btnToggleCampeonato" class="btn-verde">Cambiar Estado</button>
+        </div>
+
+        <div class="card">
+            <h3>Registro de Mejoras (Para Assetto Corsa)</h3>
+            <div id="log-cambios">
+                <p style="color: #666;">Cargando telemetría de los equipos...</p>
+                </div>
+            <button onclick="limpiarLog()" style="margin-top: 10px; background-color: #555;">Marcar todo como aplicado en AC</button>
+        </div>
+
+        <div class="card" style="grid-column: span 2;">
+            <h3>Subir Resultados de Carrera</h3>
+            <div style="display: flex; gap: 15px;">
+                <div style="flex: 1;">
+                    <label>Piloto</label>
+                    <select id="select-piloto">
+                        <option value="">Cargando pilotos...</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label>Posición en AC</label>
+                    <input type="number" id="input-posicion" min="1" max="20" placeholder="Ej: 1">
+                </div>
+                <div style="flex: 1;">
+                    <label>Premio Económico ($)</label>
+                    <input type="number" id="input-premio" placeholder="Ej: 50000">
+                </div>
+            </div>
+            <button id="btnSubirResultado" class="btn-verde">Registrar Resultado y Pagar Equipo</button>
+        </div>
+    </div>
+
+    <script type="module" src="admin.js"></script>
+</body>
+</html>
