@@ -18,7 +18,7 @@ const db = getFirestore(app);
 
 // --- 1. SEGURIDAD: VERIFICAR QUE ERES TÚ ---
 // Cambia esto por tu correo real con el que te registraste en Firebase
-const CORREO_ADMIN = "tu_correo@gmail.com"; 
+const CORREO_ADMIN = "mateogonsilva@gmail.com"; 
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
