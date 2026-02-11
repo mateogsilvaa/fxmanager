@@ -1,7 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-// Fíjate que he añadido addDoc y getDocs aquí arriba:
 import { getFirestore, doc, getDoc, updateDoc, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+// NUEVO: Importamos Storage
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
@@ -16,6 +17,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app); // NUEVO: Encendemos el disco duro
 
 // --- 1. SEGURIDAD: VERIFICAR QUE ERES TÚ ---
 const CORREO_ADMIN = "mateogonsilva@gmail.com"; // <--- PON TU CORREO AQUÍ
@@ -104,26 +106,35 @@ async function cargarEquiposEnSelects() {
 document.getElementById('btnActualizarEquipo').addEventListener('click', async () => {
     const idEquipo = document.getElementById('select-equipo-editar').value;
     const color = document.getElementById('input-color-equipo').value;
-    let urlCoche = document.getElementById('input-foto-coche').value;
+    const archivoCoche = document.getElementById('input-foto-coche').files[0]; // Capturamos el archivo
 
     if (!idEquipo) { alert("Selecciona un equipo primero."); return; }
 
-    // MAGIA DE RUTAS: Si no empieza por http y no está vacío, asumimos que está en la carpeta del repo
-    if (urlCoche !== "" && !urlCoche.startsWith("http")) {
-        // Asegúrate de que el nombre de la carpeta coincide con la tuya (assets/img o images)
-        urlCoche = "assets/img/" + urlCoche; 
-    }
-
     try {
         const equipoRef = doc(db, "equipos", idEquipo);
-        await updateDoc(equipoRef, {
-            color: color,
-            coche_url: urlCoche
-        });
-        alert("¡Diseño de escudería guardado!");
-        document.getElementById('input-foto-coche').value = ""; // Limpiar
+        let datosAActualizar = { color: color };
+
+        // Si el admin ha seleccionado una foto...
+        if (archivoCoche) {
+            alert("Subiendo diseño a la FIA, espera un momento...");
+            // Creamos la ruta en el Storage (ej: coches/ferrari.png)
+            const storageRef = ref(storage, 'coches/' + idEquipo + '_' + archivoCoche.name);
+            // Subimos el archivo
+            await uploadBytes(storageRef, archivoCoche);
+            // Obtenemos la URL pública de la foto
+            const urlDescarga = await getDownloadURL(storageRef);
+            // La añadimos a los datos que vamos a guardar
+            datosAActualizar.coche_url = urlDescarga; 
+        }
+
+        // Guardamos en la base de datos
+        await updateDoc(equipoRef, datosAActualizar);
+        alert("¡Diseño guardado correctamente!");
+        document.getElementById('input-foto-coche').value = ""; // Limpiamos el input
+        
     } catch (error) {
         console.error("Error actualizando equipo: ", error);
+        alert("Hubo un error al subir la foto.");
     }
 });
 
@@ -134,31 +145,37 @@ document.getElementById('btnGuardarPiloto').addEventListener('click', async () =
     const numero = document.getElementById('p-numero').value;
     const bandera = document.getElementById('p-bandera').value;
     const equipoId = document.getElementById('p-equipo').value;
-    let foto = document.getElementById('p-foto').value;
+    const archivoFoto = document.getElementById('p-foto').files[0]; // Capturamos el archivo
 
     if (!nombre || !apellido || !numero || !equipoId) {
         alert("Faltan datos obligatorios del piloto.");
         return;
     }
 
-    // MAGIA DE RUTAS PARA EL PILOTO
-    if (foto !== "" && !foto.startsWith("http")) {
-        foto = "assets/img/" + foto; 
-    }
-
     try {
+        let urlFotoFinal = "https://media.formula1.com/d_default_fallback_profile.png/content/dam/fom-website/drivers/M/MAXVER01_Max_Verstappen/maxver01.png.transform/2col/image.png"; // Foto por defecto
+
+        // Si has subido una foto...
+        if (archivoFoto) {
+            alert("Subiendo la foto del piloto...");
+            const storageRef = ref(storage, 'pilotos/' + apellido + '_' + archivoFoto.name);
+            await uploadBytes(storageRef, archivoFoto);
+            urlFotoFinal = await getDownloadURL(storageRef);
+        }
+
+        // Guardamos todo en Firestore
         await addDoc(collection(db, "pilotos"), {
             nombre: nombre,
             apellido: apellido,
             numero: parseInt(numero),
             bandera: bandera,
             equipo_id: equipoId,
-            foto_url: foto
+            foto_url: urlFotoFinal
         });
 
         alert(`¡${apellido} fichado correctamente!`);
         
-        // Limpiamos el formulario
+        // Limpiamos
         document.getElementById('p-nombre').value = "";
         document.getElementById('p-apellido').value = "";
         document.getElementById('p-numero').value = "";
@@ -166,6 +183,7 @@ document.getElementById('btnGuardarPiloto').addEventListener('click', async () =
 
     } catch (error) {
         console.error("Error fichando piloto: ", error);
+        alert("Error al intentar subir la foto.");
     }
 });
 
