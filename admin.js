@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, updateDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+// Fíjate que he añadido addDoc y getDocs aquí arriba:
+import { getFirestore, doc, getDoc, updateDoc, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
@@ -17,8 +18,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // --- 1. SEGURIDAD: VERIFICAR QUE ERES TÚ ---
-// Cambia esto por tu correo real con el que te registraste en Firebase
-const CORREO_ADMIN = "mateogonsilva@gmail.com"; 
+const CORREO_ADMIN = "mateogonsilva@gmail.com"; // <--- PON TU CORREO AQUÍ
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -33,25 +33,21 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// --- 2. INICIAR EL PANEL ---
 function iniciarPanelAdmin() {
     leerEstadoCampeonato();
-    escucharCambiosEquipos(); // Para tu buzón de Assetto Corsa
+    cargarEquiposEnSelects(); // Cargamos las listas desplegables
 }
 
-// --- 3. CONTROL DEL SEMÁFORO (ABIERTO/CERRADO) ---
+// --- 2. CONTROL DEL CAMPEONATO ---
 let estadoActual = "abierto";
 
 async function leerEstadoCampeonato() {
-    // Necesitas crear un documento en Firebase llamado "campeonato" dentro de una colección "configuracion"
     const docRef = doc(db, "configuracion", "campeonato");
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
         estadoActual = docSnap.data().estado;
         actualizarTextoEstado();
-    } else {
-        document.getElementById('estado-texto').innerText = "Falta crear config en Firebase";
     }
 }
 
@@ -75,19 +71,98 @@ function actualizarTextoEstado() {
 document.getElementById('btnToggleCampeonato').addEventListener('click', async () => {
     const nuevoEstado = estadoActual === "abierto" ? "cerrado" : "abierto";
     const docRef = doc(db, "configuracion", "campeonato");
-    
     await updateDoc(docRef, { estado: nuevoEstado });
     estadoActual = nuevoEstado;
     actualizarTextoEstado();
-    alert("Estado actualizado. Los jugadores ya lo verán reflejado.");
 });
 
-// --- 4. CERRAR SESIÓN ---
+// --- 3. CARGAR EQUIPOS EN LOS DESPLEGABLES ---
+async function cargarEquiposEnSelects() {
+    const selectEditar = document.getElementById('select-equipo-editar');
+    const selectPiloto = document.getElementById('p-equipo');
+    
+    selectEditar.innerHTML = "<option value=''>Elige una escudería...</option>";
+    selectPiloto.innerHTML = "<option value=''>Elige una escudería...</option>";
+
+    const querySnapshot = await getDocs(collection(db, "equipos"));
+    
+    querySnapshot.forEach((documento) => {
+        const id = documento.id;
+        const nombre = documento.data().nombre;
+        
+        const option1 = document.createElement("option");
+        option1.value = id; option1.text = nombre;
+        selectEditar.appendChild(option1);
+
+        const option2 = document.createElement("option");
+        option2.value = id; option2.text = nombre;
+        selectPiloto.appendChild(option2);
+    });
+}
+
+// --- 4. ACTUALIZAR EQUIPO (FOTOS Y COLOR) ---
+document.getElementById('btnActualizarEquipo').addEventListener('click', async () => {
+    const idEquipo = document.getElementById('select-equipo-editar').value;
+    const color = document.getElementById('input-color-equipo').value;
+    const urlCoche = document.getElementById('input-foto-coche').value;
+
+    if (!idEquipo) { alert("Selecciona un equipo primero."); return; }
+
+    try {
+        const equipoRef = doc(db, "equipos", idEquipo);
+        await updateDoc(equipoRef, {
+            color: color,
+            coche_url: urlCoche
+        });
+        alert("¡Diseño de escudería guardado! Ve a la página de Equipos para verlo.");
+    } catch (error) {
+        console.error("Error actualizando equipo: ", error);
+        alert("Error al actualizar la base de datos.");
+    }
+});
+
+// --- 5. FICHAR PILOTO ---
+document.getElementById('btnGuardarPiloto').addEventListener('click', async () => {
+    const nombre = document.getElementById('p-nombre').value;
+    const apellido = document.getElementById('p-apellido').value.toUpperCase(); // Siempre en mayúsculas
+    const numero = document.getElementById('p-numero').value;
+    const bandera = document.getElementById('p-bandera').value;
+    const equipoId = document.getElementById('p-equipo').value;
+    const foto = document.getElementById('p-foto').value;
+
+    if (!nombre || !apellido || !numero || !equipoId) {
+        alert("Faltan datos obligatorios del piloto.");
+        return;
+    }
+
+    try {
+        // En lugar de updateDoc, usamos addDoc para crear un documento NUEVO en la colección pilotos
+        await addDoc(collection(db, "pilotos"), {
+            nombre: nombre,
+            apellido: apellido,
+            numero: parseInt(numero), // Guardarlo como número
+            bandera: bandera,
+            equipo_id: equipoId,
+            foto_url: foto
+        });
+
+        alert(`¡${apellido} fichado correctamente!`);
+        
+        // Limpiamos el formulario para meter el siguiente rápido
+        document.getElementById('p-nombre').value = "";
+        document.getElementById('p-apellido').value = "";
+        document.getElementById('p-numero').value = "";
+        document.getElementById('p-foto').value = "";
+
+    } catch (error) {
+        console.error("Error fichando piloto: ", error);
+        alert("Error al intentar fichar al piloto.");
+    }
+});
+
+// --- 6. CERRAR SESIÓN ---
 document.getElementById('btnCerrarSesion').addEventListener('click', () => {
     signOut(auth).then(() => {
         window.location.href = "index.html";
     });
 });
-
-// Nota: Las funciones de "Subir Resultado" y "Log de cambios" las conectaremos en el siguiente paso
-// cuando creemos la estructura de "Pilotos".
