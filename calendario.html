@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Manager | Calendario</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111; color: white; margin: 0; padding: 20px; text-transform: uppercase; }
+        h1 { text-align: center; color: white; font-style: italic; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 40px;}
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .carrera-card {
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            border-left: 6px solid #555; /* Cambiará a verde si está completada, gris si pendiente */
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        .carrera-card:hover { transform: translateX(5px); }
+
+        .carrera-info { display: flex; align-items: center; gap: 20px; }
+        .ronda { font-size: 24px; font-weight: 900; color: #555; font-style: italic; width: 40px; text-align: center;}
+        
+        .detalles h2 { margin: 0 0 5px 0; font-size: 22px; color: #fff; letter-spacing: 1px; }
+        .detalles p { margin: 0; color: #aaa; font-size: 14px; }
+        .bandera { font-size: 28px; }
+
+        .estado-box { text-align: right; min-width: 200px;}
+        .estado-badge { 
+            display: inline-block; 
+            padding: 5px 10px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            margin-bottom: 10px;
+        }
+        .badge-pendiente { background-color: #333; color: #aaa; }
+        .badge-completada { background-color: #00C851; color: #000; }
+        
+        .podio-texto { font-size: 16px; font-weight: bold; color: #fff; margin: 0; font-style: italic;}
+
+        @media (max-width: 600px) {
+            .carrera-card { flex-direction: column; align-items: flex-start; gap: 15px;}
+            .estado-box { text-align: left; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Calendario Oficial 2026</h1>
+    
+    <div id="contenedor-carreras" class="container">
+        <p style="text-align: center;">Cargando calendario de la FIA...</p>
+    </div>
+
+    <script type="module" src="calendario.js"></script>
+</body>
+</html>

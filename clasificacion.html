@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Manager | Clasificación</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111; color: white; margin: 0; padding: 20px; text-transform: uppercase; }
+        h1 { text-align: center; color: white; font-style: italic; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 40px;}
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        @media (max-width: 800px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        h2 { color: #e10600; font-style: italic; margin-bottom: 20px; font-size: 24px;}
+
+        /* Estilos de las Tablas */
+        table { width: 100%; border-collapse: collapse; background-color: #1a1a1a; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #333; }
+        th { background-color: #222; color: #aaa; font-size: 12px; letter-spacing: 1px; }
+        
+        /* Filas interactivas */
+        tr { transition: background-color 0.2s; }
+        tr:hover { background-color: #2a2a2a; }
+        tr:last-child td { border-bottom: none; }
+
+        /* Detalles de las celdas */
+        .posicion { font-weight: 900; font-size: 18px; width: 40px; text-align: center; color: #fff;}
+        .piloto-nombre { font-weight: 900; font-size: 16px; letter-spacing: 1px;}
+        .equipo-nombre { font-size: 12px; color: #aaa; }
+        .puntos { font-weight: 900; font-size: 20px; color: #00C851; text-align: right; width: 60px; }
+        
+        /* Barrita de color del equipo en la tabla */
+        .color-bar { width: 6px; border-radius: 3px; margin-right: 15px; display: inline-block; height: 20px; vertical-align: middle;}
+
+    </style>
+</head>
+<body>
+
+    <h1>Clasificación Mundial</h1>
+    
+    <div class="container">
+        <div>
+            <h2>Campeonato de Pilotos</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: center;">POS</th>
+                        <th>Piloto</th>
+                        <th style="text-align: right;">PTS</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-pilotos">
+                    <tr><td colspan="3" style="text-align: center;">Cargando telemetría...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div>
+            <h2>Campeonato de Constructores</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: center;">POS</th>
+                        <th>Escudería</th>
+                        <th style="text-align: right;">PTS</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-equipos">
+                    <tr><td colspan="3" style="text-align: center;">Cargando telemetría...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module" src="clasificacion.js"></script>
+</body>
+</html>

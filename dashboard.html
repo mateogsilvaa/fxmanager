@@ -2,15 +2,88 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>FX Manager | Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Manager | Mi Escudería</title>
     <style>
-        body { font-family: sans-serif; background-color: #111; color: white; text-align: center; padding: 50px; }
-        h1 { color: #e10600; font-style: italic; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111; color: white; margin: 0; padding: 20px; }
+        .header-box { background-color: #222; padding: 20px; border-radius: 8px; border-left: 8px solid #555; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);}
+        .header-box h1 { margin: 0; font-style: italic; text-transform: uppercase; font-size: 32px;}
+        .presupuesto-box { text-align: right; }
+        .presupuesto-box h3 { margin: 0; color: #aaa; font-size: 14px; text-transform: uppercase;}
+        .presupuesto-box .dinero { font-size: 36px; font-weight: 900; color: #00C851; font-family: monospace;}
+
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+        .panel { background-color: #1a1a1a; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        .panel h2 { color: #fff; border-bottom: 2px solid #333; padding-bottom: 10px; margin-top: 0; font-style: italic;}
+
+        /* Zona Garaje */
+        .coche-img { width: 100%; height: 200px; object-fit: contain; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8)); margin-bottom: 20px;}
+        .pilotos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .piloto-mini { background: #222; padding: 10px; border-radius: 5px; display: flex; align-items: center; gap: 10px; }
+        .piloto-mini img { width: 50px; height: 50px; border-radius: 5px; object-fit: cover; }
+        
+        /* Zona I+D (Tienda) */
+        .mejora-card { background: #222; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #00C851;}
+        .mejora-info h4 { margin: 0 0 5px 0; font-size: 18px; color: #fff;}
+        .mejora-info p { margin: 0; color: #aaa; font-size: 13px; }
+        .btn-comprar { background-color: #00C851; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px;}
+        .btn-comprar:hover { background-color: #007E33; }
+        .btn-comprar:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+        
+        #btnCerrarSesion { background-color: #ff4444; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px;}
     </style>
 </head>
 <body>
-    <h1>BIENVENIDO AL DASHBOARD</h1>
-    <p>Has iniciado sesión correctamente.</p>
-    <p>Aquí construiremos la tienda de mejoras para Assetto Corsa.</p>
+
+    <div id="header-equipo" class="header-box" style="display: none;">
+        <div>
+            <h1 id="ui-nombre-equipo">Cargando Escudería...</h1>
+            <p style="margin: 5px 0 0 0; color: #ccc;">Sede Central</p>
+        </div>
+        <div class="presupuesto-box">
+            <h3>Presupuesto Disponible</h3>
+            <div id="ui-presupuesto" class="dinero">$0</div>
+        </div>
+    </div>
+
+    <div class="main-grid">
+        <div class="panel">
+            <h2>Garaje Oficial</h2>
+            <img id="ui-foto-coche" src="" alt="Coche F1" class="coche-img">
+            
+            <h3 style="margin-bottom: 10px; color: #aaa; font-size: 14px; text-transform: uppercase;">Alineación Titular</h3>
+            <div id="ui-pilotos" class="pilotos-grid">
+                <p style="color: #666;">Buscando pilotos en boxes...</p>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Departamento de Ingeniería (I+D)</h2>
+            <p style="color: #aaa; font-size: 13px; margin-bottom: 20px;">Las mejoras compradas se enviarán a la FIA (Admin) para que las instale en Assetto Corsa antes de la próxima carrera.</p>
+
+            <div class="mejora-card">
+                <div class="mejora-info">
+                    <h4 id="motor-titulo">Unidad de Potencia (Nivel 1)</h4>
+                    <p>Reduce el restrictor del motor en Assetto Corsa.</p>
+                </div>
+                <button id="btnMejoraMotor" class="btn-comprar">Comprar: $50,000</button>
+            </div>
+
+            <div class="mejora-card" style="border-left-color: #33b5e5;">
+                <div class="mejora-info">
+                    <h4 id="chasis-titulo">Chasis y Peso (Nivel 1)</h4>
+                    <p>Reduce el lastre (Ballast) del coche en Assetto Corsa.</p>
+                </div>
+                <button id="btnMejoraChasis" class="btn-comprar" style="background-color: #33b5e5;">Comprar: $40,000</button>
+            </div>
+
+        </div>
+    </div>
+
+    <button id="btnCerrarSesion">Salir del Paddock</button>
+
+    <script type="module" src="dashboard.js"></script>
 </body>
 </html>

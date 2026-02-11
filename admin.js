@@ -193,3 +193,79 @@ document.getElementById('btnCerrarSesion').addEventListener('click', () => {
         window.location.href = "index.html";
     });
 });
+
+// Añade esta llamada dentro de iniciarPanelAdmin()
+// iniciarPanelAdmin() { ... cargarPilotosEnSelect(); }
+
+async function cargarPilotosEnSelect() {
+    const selectPiloto = document.getElementById('select-piloto');
+    selectPiloto.innerHTML = "<option value=''>Elige un piloto...</option>";
+
+    const querySnapshot = await getDocs(collection(db, "pilotos"));
+    
+    querySnapshot.forEach((documento) => {
+        const id = documento.id;
+        const apellido = documento.data().apellido;
+        const option = document.createElement("option");
+        option.value = id; 
+        option.text = apellido;
+        selectPiloto.appendChild(option);
+    });
+}
+
+// --- 6. SUBIR RESULTADOS DE CARRERA Y PAGAR PREMIOS ---
+
+// Diccionario oficial de puntos de la FIA
+const PUNTOS_F1 = {
+    1: 25, 2: 18, 3: 15, 4: 12, 5: 10,
+    6: 8,  7: 6,  8: 4,  9: 2,  10: 1
+};
+
+document.getElementById('btnSubirResultado').addEventListener('click', async () => {
+    const idPiloto = document.getElementById('select-piloto').value;
+    const posicion = parseInt(document.getElementById('input-posicion').value);
+    const premio = parseFloat(document.getElementById('input-premio').value);
+
+    if (!idPiloto || isNaN(posicion) || isNaN(premio)) {
+        alert("Faltan datos en la torre de control. Rellena piloto, posición y premio.");
+        return;
+    }
+
+    try {
+        alert("Procesando telemetría y enviando transferencias...");
+
+        // 1. Leer los datos actuales del piloto
+        const pilotoRef = doc(db, "pilotos", idPiloto);
+        const pilotoSnap = await getDoc(pilotoRef);
+        const pilotoData = pilotoSnap.data();
+
+        // 2. Calcular los nuevos puntos del piloto
+        // Si quedó entre los 10 primeros, coge los puntos, si no, 0.
+        const puntosGanados = PUNTOS_F1[posicion] || 0; 
+        const puntosActuales = pilotoData.puntos || 0;
+        const nuevosPuntos = puntosActuales + puntosGanados;
+
+        // 3. Leer los datos actuales del equipo al que pertenece
+        const equipoRef = doc(db, "equipos", pilotoData.equipo_id);
+        const equipoSnap = await getDoc(equipoRef);
+        const equipoData = equipoSnap.data();
+
+        // 4. Calcular el nuevo presupuesto del equipo
+        const presupuestoActual = equipoData.presupuesto || 0;
+        const nuevoPresupuesto = presupuestoActual + premio;
+
+        // 5. ¡Guardar todo en la base de datos a la vez!
+        await updateDoc(pilotoRef, { puntos: nuevosPuntos });
+        await updateDoc(equipoRef, { presupuesto: nuevoPresupuesto });
+
+        alert(`¡Bandera a cuadros! \n${pilotoData.apellido} suma ${puntosGanados} puntos.\nSu equipo recibe $${premio}.`);
+
+        // Limpiamos los inputs numéricos, pero dejamos el piloto por si quieres cambiar algo
+        document.getElementById('input-posicion').value = "";
+        document.getElementById('input-premio').value = "";
+
+    } catch (error) {
+        console.error("Error subiendo el resultado: ", error);
+        alert("Hubo un error al procesar el resultado de la carrera.");
+    }
+});
