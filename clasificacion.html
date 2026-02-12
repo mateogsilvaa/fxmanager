@@ -1,17 +1,32 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clasificación - F1 Manager</title>
+    <title>F1 Manager | Clasificación</title>
     <link rel="stylesheet" href="modern.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Clasificación del Campeonato</h1>
-        <div class="panel">
-            <table id="tabla-clasificacion">
+
+    <nav class="main-nav container">
+        <a href="index.html" class="logo">F1Manager</a>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="calendario.html">Calendario</a>
+            <a href="clasificacion.html">Clasificación</a>
+            <a href="register.html">Registro</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1>Clasificación del Campeonato</h1>
+            <p>Clasificación de pilotos y constructores actualizada.</p>
+        </header>
+
+        <div class="card">
+            <h2>Clasificación de Pilotos</h2>
+            <table id="tabla-clasificacion-pilotos">
                 <thead>
                     <tr>
                         <th>Pos</th>
@@ -25,30 +40,27 @@
                 </tbody>
             </table>
         </div>
-    </div>
 
-    <nav class="bottom-nav">
-        <a href="equipos.html" class="nav-item">
-            <span class="nav-icon">🏎️</span>
-            <span>Equipos</span>
-        </a>
-        <a href="pilotos.html" class="nav-item">
-            <span class="nav-icon">👨‍🚀</span>
-            <span>Pilotos</span>
-        </a>
-        <a href="home.html" class="nav-item">
-            <span class="nav-icon">🏠</span>
-            <span>Home</span>
-        </a>
-        <a href="calendario.html" class="nav-item">
-            <span class="nav-icon">🗓️</span>
-            <span>Calendario</span>
-        </a>
-        <a href="clasificacion.html" class="nav-item active">
-            <span class="nav-icon">🏆</span>
-            <span>Clasificación</span>
-        </a>
-    </nav>
+        <div class="card">
+            <h2>Clasificación de Constructores</h2>
+            <table id="tabla-clasificacion-constructores">
+                <thead>
+                    <tr>
+                        <th>Pos</th>
+                        <th>Equipo</th>
+                        <th>Puntos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Las filas de constructores se insertarán aquí dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color);">
+        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
+    </footer>
 
     <script src="clasificacion.js"></script>
 </body>

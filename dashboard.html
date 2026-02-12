@@ -3,61 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX Manager | Mi Escudería</title>
+    <title>F1 Manager | Mi Escudería</title>
     <link rel="stylesheet" href="modern.css">
 </head>
 <body>
 
-    <main class="container">
-      <div id="header-equipo" class="header-box" style="display: none;">
-        <div>
-            <h1 id="ui-nombre-equipo">Cargando Escudería...</h1>
-            <p style="margin: 6px 0 0 0; color: #9ca3af;">Sede Central</p>
+    <nav class="main-nav container">
+        <a href="index.html" class="logo">F1Manager</a>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="calendario.html">Calendario</a>
+            <a href="clasificacion.html">Clasificación</a>
         </div>
-        <div class="presupuesto-box">
-            <h3>Presupuesto Disponible</h3>
-            <div id="ui-presupuesto" class="dinero">$0</div>
-        </div>
-      </div>
-      <div class="main-grid">
-        <div class="panel">
-            <h2>🏁 Garaje Oficial</h2>
-            <img id="ui-foto-coche" src="" alt="Coche F1" class="coche-img">
-            <h3 style="margin-bottom: 12px; color: #9ca3af; font-size: 14px; text-transform: uppercase;">Alineación Titular</h3>
-            <div id="ui-pilotos" class="pilotos-grid">
-                <p style="color: #666; grid-column: 1/-1; text-align: center;">Buscando pilotos en boxes...</p>
-            </div>
-        </div>
-        <div class="panel">
-            <h2>⚙️ Departamento de Ingeniería (I+D)</h2>
-            <p style="color: #9ca3af; font-size: 13px; margin-bottom: 20px;">Las mejoras compradas se enviarán al Admin para que las instale en Assetto Corsa antes del próximo GP.</p>
-            <div class="mejora-card">
-                <div class="mejora-info">
-                    <h4 id="motor-titulo">Unidad de Potencia (Nivel 1)</h4>
-                    <p>Reduce el restrictor del motor en Assetto Corsa.</p>
-                </div>
-                <button id="btnMejoraMotor" class="btn-comprar">Comprar: $50,000</button>
-            </div>
-            <div class="mejora-card" style="border-left-color: #10b981;">
-                <div class="mejora-info">
-                    <h4 id="chasis-titulo">Chasis y Peso (Nivel 1)</h4>
-                    <p>Reduce el lastre (Ballast) del coche en Assetto Corsa.</p>
-                </div>
-                <button id="btnMejoraChasis" class="btn-comprar" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">Comprar: $40,000</button>
-            </div>
-        </div>
-      </div>
-      <button id="btnCerrarSesion" style="width:100%;margin-top:24px;background:rgba(239,68,68,0.3);color:var(--danger);">Salir del Paddock</button>
-    </main>
-    <nav class="bottom-nav" id="bottomNav" style="display:flex;">
-      <a href="home.html" title="Inicio"><span class="nav-icon">🏠</span></a>
-      <a href="equipos.html" title="Equipos"><span class="nav-icon">🏢</span></a>
-      <a href="pilotos.html" title="Pilotos"><span class="nav-icon">👤</span></a>
-      <a href="seleccion.html" title="Elección"><span class="nav-icon">✍️</span></a>
-      <a href="dashboard.html" class="active" title="Mi Equipo"><span class="nav-icon">📊</span></a>
-      <a href="clasificacion.html" title="Clasificación"><span class="nav-icon">🏆</span></a>
-      <a href="calendario.html" title="Calendario"><span class="nav-icon">📅</span></a>
+        <button id="btnCerrarSesion" class="btn btn-secondary">Desconectar</button>
     </nav>
+
+    <main class="container">
+        <header id="header-equipo" class="card" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 20px;">
+            <div>
+                <h1 id="ui-nombre-equipo" style="margin: 0; font-size: 1.8rem;">Cargando Escudería...</h1>
+                <p style="margin: 5px 0 0; color: var(--text-secondary);">Sede Central del Equipo</p>
+            </div>
+            <div style="text-align: right;">
+                <h3 style="margin: 0 0 5px;">Presupuesto</h3>
+                <div id="ui-presupuesto" class="dinero" style="font-size: 1.5rem; font-weight: 700; color: var(--accent);">$0</div>
+            </div>
+        </header>
+
+        <div class="main-grid" style="grid-template-columns: 1fr 1fr; gap: 30px;">
+            <div class="card">
+                <header class="card-header">
+                    <h2>Garaje Oficial</h2>
+                </header>
+                <img id="ui-foto-coche" src="" alt="Coche del equipo" style="width: 100%; border-radius: 8px; margin-bottom: 20px;">
+                <h3>Alineación de Pilotos</h3>
+                <div id="ui-pilotos" class="grid-pilotos">
+                    <p style="color: var(--text-secondary);">Cargando pilotos...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <header class="card-header">
+                    <h2>Ingeniería y Desarrollo (I+D)</h2>
+                </header>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 25px;">
+                    Invierte en mejoras para potenciar tu monoplaza. Los cambios se aplicarán en el próximo Gran Premio.
+                </p>
+
+                <div class="mejora-card">
+                    <div class="mejora-info">
+                        <h4 id="motor-titulo">Unidad de Potencia (Nivel 1)</h4>
+                        <p>Aumenta la velocidad máxima en recta.</p>
+                    </div>
+                    <button id="btnMejoraMotor" class="btn btn-primary">Comprar Mejora</button>
+                </div>
+
+                <div class="mejora-card">
+                    <div class="mejora-info">
+                        <h4 id="chasis-titulo">Chasis y Aerodinámica (Nivel 1)</h4>
+                        <p>Mejora el rendimiento en curvas y la estabilidad.</p>
+                    </div>
+                    <button id="btnMejoraChasis" class="btn btn-primary">Comprar Mejora</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
+        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
+    </footer>
 
     <script type="module" src="dashboard.js"></script>
 </body>

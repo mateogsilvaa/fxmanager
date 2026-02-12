@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -9,51 +8,50 @@
 </head>
 <body>
 
-    <div class="container">
-        <h1>Próxima Carrera</h1>
-        <div id="contador-container">
+    <nav class="main-nav container">
+        <a href="index.html" class="logo">F1Manager</a>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="calendario.html">Calendario</a>
+            <a href="clasificacion.html">Clasificación</a>
+            <a href="register.html">Registro</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1>Próxima Carrera</h1>
+            <p>La cuenta atrás para el próximo Gran Premio ha comenzado.</p>
+        </header>
+
+        <div id="contador-container" class="card" style="display: flex; justify-content: space-around; padding: 40px; text-align: center;">
             <div class="contador-box">
-                <div id="dias" class="contador-numero">--</div>
-                <div class="contador-label">Días</div>
+                <div id="dias" class="contador-numero" style="font-size: 3rem; font-weight: 700;">--</div>
+                <div class="contador-label" style="color: var(--text-secondary);">Días</div>
             </div>
             <div class="contador-box">
-                <div id="horas" class="contador-numero">--</div>
-                <div class="contador-label">Horas</div>
+                <div id="horas" class="contador-numero" style="font-size: 3rem; font-weight: 700;">--</div>
+                <div class="contador-label" style="color: var(--text-secondary);">Horas</div>
             </div>
             <div class="contador-box">
-                <div id="minutos" class="contador-numero">--</div>
-                <div class="contador-label">Minutos</div>
+                <div id="minutos" class="contador-numero" style="font-size: 3rem; font-weight: 700;">--</div>
+                <div class="contador-label" style="color: var(--text-secondary);">Minutos</div>
             </div>
             <div class="contador-box">
-                <div id="segundos" class="contador-numero">--</div>
-                <div class="contador-label">Segundos</div>
+                <div id="segundos" class="contador-numero" style="font-size: 3rem; font-weight: 700;">--</div>
+                <div class="contador-label" style="color: var(--text-secondary);">Segundos</div>
             </div>
         </div>
-        <div id="dashboard-link-container"></div>
-    </div>
 
-    <nav class="bottom-nav">
-        <a href="equipos.html" class="nav-item">
-            <span class="nav-icon">🏎️</span>
-            <span>Equipos</span>
-        </a>
-        <a href="pilotos.html" class="nav-item">
-            <span class="nav-icon">👨‍🚀</span>
-            <span>Pilotos</span>
-        </a>
-        <a href="home.html" class="nav-item active">
-            <span class="nav-icon">🏠</span>
-            <span>Home</span>
-        </a>
-        <a href="calendario.html" class="nav-item">
-            <span class="nav-icon">🗓️</span>
-            <span>Calendario</span>
-        </a>
-        <a href="clasificacion.html" class="nav-item">
-            <span class="nav-icon">🏆</span>
-            <span>Clasificación</span>
-        </a>
-    </nav>
+        <div id="dashboard-link-container" style="text-align: center; margin-top: 40px;">
+             <!-- El enlace al dashboard se insertará aquí -->
+        </div>
+    </main>
+
+    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
+        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
+    </footer>
+
     <script src="home.js"></script>
 </body>
 </html>

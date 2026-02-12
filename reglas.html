@@ -3,70 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX Manager | Reglamento</title>
+    <title>F1 Manager | Reglamento</title>
     <link rel="stylesheet" href="modern.css">
 </head>
 <body>
 
-    <main class="container" style="max-width:800px;">
-        <h1 style="text-align:center;font-style:italic;">Reglamento Deportivo & Técnico</h1>
-
-        <div class="rule-card">
-            <h2><span class="step-number">1</span>El Concepto</h2>
-            <p>Bienvenido al FX Manager. Aquí eres el <strong>Team Principal</strong>. Tu trabajo no es conducir, es gestionar.</p>
-            <p>Las carreras se simulan en <span style="color:var(--accent);font-weight:600;">Assetto Corsa</span> usando una Inteligencia Artificial avanzada. Tus decisiones en esta web afectarán directamente al rendimiento de tu coche en la simulación real.</p>
+    <nav class="main-nav container">
+        <a href="index.html" class="logo">F1Manager</a>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="calendario.html">Calendario</a>
+            <a href="clasificacion.html">Clasificación</a>
+            <a href="register.html">Registro</a>
         </div>
-
-        <div class="rule-card">
-            <h2><span class="step-number">2</span>Gestión del Equipo</h2>
-            <p>Cada semana tendrás un presupuesto. Debes decidir dónde invertirlo:</p>
-            <ul>
-                <li><strong>Motor:</strong> Aumenta la velocidad punta (Reduce el restrictor en AC).</li>
-                <li><strong>Aerodinámica:</strong> Mejora el paso por curva (Reduce el lastre en AC).</li>
-                <li><strong>Pilotos:</strong> Ficha a mejores talentos (Aumenta la agresividad de la IA).</li>
-            </ul>
-            <p><em style="color:#9ca3af;">Cuidado: Si entras en números rojos, la FIA podría sancionarte.</em></p>
-        </div>
-
-        <div class="rule-card">
-            <h2><span class="step-number">3</span>Fin de Semana de Carrera</h2>
-            <p>El campeonato sigue un calendario fijo. El flujo de trabajo es:</p>
-            <ul>
-                <li><strong>Lunes a Viernes:</strong> El mercado está abierto. Haz tus compras y mejoras en la web.</li>
-                <li><strong>Sábado:</strong> Se cierran los boxes (La web bloquea cambios). El Admin configura los coches en Assetto Corsa.</li>
-                <li><strong>Domingo:</strong> Se publica el vídeo de la carrera y se actualizan las clasificaciones.</li>
-            </ul>
-        </div>
-
-        <div class="rule-card">
-            <h2><span class="step-number">4</span>Sistema de Puntos y Premios</h2>
-            <p>Ganar carreras te da puntos para el mundial y dinero para mejorar el coche.</p>
-            <p>El sistema de puntuación es el oficial de la F1 (25, 18, 15...). Además, hay bonificaciones económicas por:</p>
-            <ul>
-                <li>Pole Position</li>
-                <li>Vuelta Rápida</li>
-                <li>Superar al compañero de equipo</li>
-            </ul>
-        </div>
-
-        <button id="btnVolver" style="width:100%;margin-top:32px;">Volver al Paddock</button>
-    </main>
-    <nav class="bottom-nav">
-      <a href="equipos.html"><span>Equipos</span></a>
-      <a href="clasificacion.html"><span>Clasificación</span></a>
-      <a href="pilotos.html"><span>Pilotos</span></a>
-      <a href="seleccion.html"><span>Elección</span></a>
     </nav>
+
+    <main class="container">
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1>Reglamento Deportivo y Técnico</h1>
+            <p>Las reglas que rigen el campeonato F1 Manager.</p>
+        </header>
+
+        <div class="card">
+            <h2><span class="step-number">1.</span> El Concepto</h2>
+            <p>Bienvenido al F1 Manager. Aquí eres el <strong>Team Principal</strong>. Tu trabajo no es conducir, es gestionar.</p>
+            <p>Las carreras se simulan en un software de carreras profesional usando una Inteligencia Artificial avanzada. Tus decisiones en esta web afectarán directamente al rendimiento de tu coche en la simulación real.</p>
+        </div>
+
+        <div class="card">
+            <h2><span class="step-number">2.</span> Gestión del Equipo</h2>
+            <p>Cada semana tendrás un presupuesto. Debes decidir dónde invertirlo:</p>
+            <ul style="list-style-position: inside; margin-left: 20px;">
+                <li><strong>Motor:</strong> Aumenta la velocidad punta.</li>
+                <li><strong>Aerodinámica:</strong> Mejora el paso por curva.</li>
+                <li><strong>Chasis:</strong> Mejora la estabilidad y el desgaste de neumáticos.</li>
+                <li><strong>Pilotos:</strong> Contrata a los mejores talentos para maximizar el rendimiento.</li>
+            </ul>
+            <p style="opacity: 0.7; font-style: italic;">Cuidado: Si entras en números rojos, la FIA podría sancionarte con la expulsión del campeonato.</p>
+        </div>
+
+        <div class="card">
+            <h2><span class="step-number">3.</span> Fin de Semana de Carrera</h2>
+            <p>El campeonato sigue un calendario fijo. El flujo de trabajo es el siguiente:</p>
+            <ul style="list-style-position: inside; margin-left: 20px;">
+                <li><strong>Lunes a Viernes:</strong> El mercado de fichajes y mejoras está abierto. Realiza tus ajustes estratégicos desde el Dashboard.</li>
+                <li><strong>Sábado:</strong> Se cierran los boxes. El sistema se bloquea y los administradores configuran la carrera.</li>
+                <li><strong>Domingo:</strong> Se publica el vídeo de la carrera en el canal oficial y se actualizan las clasificaciones y presupuestos.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2><span class="step-number">4.</span> Sistema de Puntos y Premios</h2>
+            <p>Ganar carreras y obtener buenos resultados te dará puntos para el campeonato y recompensas económicas para seguir mejorando tu equipo.</p>
+            <p>El sistema de puntuación es el oficial de la F1: <strong>25, 18, 15, 12, 10, 8, 6, 4, 2, 1</strong>.</p>
+            <p>Además, hay bonificaciones económicas por objetivos especiales, como la <strong>Pole Position</strong> o la <strong>Vuelta Rápida</strong>.</p>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="index.html" id="btnVolver" class="btn">Volver al Paddock</a>
+        </div>
+    </main>
+
+    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
+        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
+    </footer>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-
+        
         const firebaseConfig = {
             apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
             authDomain: "fxmanager-c5868.firebaseapp.com",
             projectId: "fxmanager-c5868",
-            storageBucket: "fxmanager-c5868.firebasestorage.app",
+            storageBucket: "fxmanager-c5868.appspot.com",
             messagingSenderId: "652487009924",
             appId: "1:652487009924:web:c976804d6b48c4dda004d1",
             measurementId: "G-XK03CWHZEK"
@@ -74,17 +84,18 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const btn = document.getElementById('btnVolver');
+        const btnVolver = document.getElementById('btnVolver');
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                btn.href = "dashboard.html";
-                btn.innerText = "Volver al Paddock (Dashboard)";
+                btnVolver.href = "dashboard.html";
+                btnVolver.innerText = "Ir a mi Dashboard";
             } else {
-                btn.href = "index.html";
-                btn.innerText = "Volver al Login";
+                btnVolver.href = "index.html";
+                btnVolver.innerText = "Volver al Inicio";
             }
         });
     </script>
+
 </body>
 </html>

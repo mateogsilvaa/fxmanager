@@ -3,25 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX Manager | Elegir Equipo</title>
+    <title>F1 Manager | Elegir Equipo</title>
     <link rel="stylesheet" href="modern.css">
 </head>
 <body>
 
+    <nav class="main-nav container">
+        <a href="index.html" class="logo">F1Manager</a>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="calendario.html">Calendario</a>
+            <a href="clasificacion.html">Clasificación</a>
+            <a href="register.html">Registro</a>
+        </div>
+    </nav>
+
     <main class="container">
-        <h1 style="text-align:center;font-style:italic;">Selección de Escudería</h1>
-        <p style="text-align:center;color:#9ca3af;">Elige tu equipo para esta temporada. ¡Solo puede quedar uno!</p>
-        <p id="mensaje-estado" style="text-align:center;"></p>
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1>Selección de Escudería</h1>
+            <p>Elige tu equipo para esta temporada. ¡Solo puede quedar uno!</p>
+        </header>
+
+        <p id="mensaje-estado" style="text-align:center; margin-bottom: 20px; font-weight: 500;"></p>
+        
         <div id="equipos-container" class="grid-equipos">
-            <p style="text-align:center;width:100%;color:#9ca3af;">Cargando garajes...</p>
+            <p style="text-align:center; color: var(--text-secondary);">Cargando garajes...</p>
         </div>
     </main>
-    <nav class="bottom-nav">
-        <a href="home.html" title="Inicio"><span class="nav-icon">🏠</span></a>
-        <a href="equipos.html" title="Equipos"><span class="nav-icon">🏢</span></a>
-        <a href="pilotos.html" title="Pilotos"><span class="nav-icon">👤</span></a>
-        <a href="seleccion.html" class="active" title="Elección"><span class="nav-icon">✍️</span></a>
-    </nav>
+
+    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
+        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
+    </footer>
 
     <script type="module" src="seleccion.js"></script>
 </body>

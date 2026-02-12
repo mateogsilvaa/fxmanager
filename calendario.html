@@ -3,66 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX Manager | Calendario</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111; color: white; margin: 0; padding: 20px; text-transform: uppercase; }
-        h1 { text-align: center; color: white; font-style: italic; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 40px;}
-        
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .carrera-card {
-            background-color: #1a1a1a;
-            border-radius: 8px;
-            border-left: 6px solid #555; /* Cambiará a verde si está completada, gris si pendiente */
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
-        }
-        .carrera-card:hover { transform: translateX(5px); }
-
-        .carrera-info { display: flex; align-items: center; gap: 20px; }
-        .ronda { font-size: 24px; font-weight: 900; color: #555; font-style: italic; width: 40px; text-align: center;}
-        
-        .detalles h2 { margin: 0 0 5px 0; font-size: 22px; color: #fff; letter-spacing: 1px; }
-        .detalles p { margin: 0; color: #aaa; font-size: 14px; }
-        .bandera { font-size: 28px; }
-
-        .estado-box { text-align: right; min-width: 200px;}
-        .estado-badge { 
-            display: inline-block; 
-            padding: 5px 10px; 
-            border-radius: 4px; 
-            font-size: 12px; 
-            font-weight: bold; 
-            margin-bottom: 10px;
-        }
-        .badge-pendiente { background-color: #333; color: #aaa; }
-        .badge-completada { background-color: #00C851; color: #000; }
-        
-        .podio-texto { font-size: 16px; font-weight: bold; color: #fff; margin: 0; font-style: italic;}
-
-        @media (max-width: 600px) {
-            .carrera-card { flex-direction: column; align-items: flex-start; gap: 15px;}
-            .estado-box { text-align: left; }
-        }
-    </style>
+    <title>F1 Manager | Calendario</title>
+    <link rel="stylesheet" href="modern.css">
 </head>
 <body>
 
-    <h1>Calendario Oficial 2026</h1>
-    
-    <div id="contenedor-carreras" class="container">
-        <p style="text-align: center;">Cargando calendario de la FIA...</p>
-    </div>
+    <nav class="main-nav container">
+        <a href="index.html" class="logo">F1Manager</a>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="calendario.html">Calendario</a>
+            <a href="clasificacion.html">Clasificación</a>
+            <a href="register.html">Registro</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1>Calendario Oficial 2026</h1>
+            <p>Estas son las carreras para la temporada 2026 de Fórmula 1.</p>
+        </header>
+
+        <div id="contenedor-carreras" class="grid-carreras">
+            <!-- Las carreras se cargarán aquí dinámicamente -->
+            <p style="text-align: center; color: var(--text-secondary);">Cargando calendario...</p>
+        </div>
+    </main>
+
+    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color);">
+        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
+    </footer>
 
     <script type="module" src="calendario.js"></script>
 </body>
