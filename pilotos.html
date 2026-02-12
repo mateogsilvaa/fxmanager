@@ -3,36 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Manager | Pilotos</title>
+    <title>F1 Manager | Media</title>
     <link rel="stylesheet" href="modern.css">
+    <link rel="stylesheet" href="media.css">
 </head>
 <body>
-
     <nav class="main-nav container">
         <a href="index.html" class="logo">F1Manager</a>
         <div class="nav-links">
-            <a href="index.html">Home</a>
+            <a href="equipos.html">Equipos</a>
             <a href="calendario.html">Calendario</a>
             <a href="clasificacion.html">Clasificación</a>
-            <a href="register.html">Registro</a>
+            <a href="pilotos.html" class="active">Media</a>
         </div>
     </nav>
 
     <main class="container">
         <header style="text-align: center; margin-bottom: 40px;">
-            <h1>Pilotos de la Temporada</h1>
-            <p>Conoce a los pilotos que compiten en el campeonato.</p>
+            <h1>Media Center</h1>
+            <p>Noticias, artículos y contenido exclusivo del mundo de F1 Manager.</p>
         </header>
 
-        <div id="grid-pilotos" class="grid-pilotos">
-            <!-- Los pilotos se cargarán aquí dinámicamente -->
+        <div id="media-container" class="media-grid">
+            <!-- Las publicaciones se cargarán aquí -->
         </div>
     </main>
 
-    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color);">
+    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
         <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
     </footer>
 
-    <script src="pilotos.js"></script>
+    <script type="module" src="media.js"></script>
 </body>
 </html>

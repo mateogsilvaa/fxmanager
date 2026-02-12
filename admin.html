@@ -19,37 +19,27 @@
             <h1>Panel de Dirección de Carrera</h1>
         </header>
 
-        <div class="card" style="margin-bottom: 30px;">
-            <div class="admin-header-actions">
-                <div>
-                    <h3>Estado del Campeonato</h3>
-                    <p id="estado-texto">Cargando...</p>
-                </div>
-                <button id="btnToggleCampeonato" class="btn btn-primary">Cambiar Estado</button>
-            </div>
-        </div>
-
         <!-- TABS -->
         <div class="tabs-container">
             <button class="tab-btn active" data-tab="solicitudes">Solicitudes</button>
             <button class="tab-btn" data-tab="comunicados">Comunicados</button>
+            <button class="tab-btn" data-tab="media">Media</button>
             <button class="tab-btn" data-tab="equipos">Equipos</button>
             <button class="tab-btn" data-tab="pilotos">Pilotos</button>
             <button class="tab-btn" data-tab="carreras">Carreras</button>
-            <button class="tab-btn" data-tab="log">Log de Actividad</button>
         </div>
 
-        <!-- SOLICITUDES TAB (NUEVO) -->
+        <!-- SOLICITUDES TAB -->
         <div id="tab-solicitudes" class="tab-content active">
             <div class="card">
                 <h3>Solicitudes Pendientes</h3>
                 <div id="solicitudes-container">
-                    <!-- Las solicitudes se cargarán aquí con JS -->
+                    <!-- Las solicitudes se cargarán aquí -->
                 </div>
             </div>
         </div>
 
-        <!-- COMUNICADOS TAB (NUEVO) -->
+        <!-- COMUNICADOS TAB -->
         <div id="tab-comunicados" class="tab-content">
             <div class="card">
                 <h3>Enviar Comunicado Oficial</h3>
@@ -67,11 +57,60 @@
                 </div>
             </div>
         </div>
+
+        <!-- MEDIA TAB (NUEVO) -->
+        <div id="tab-media" class="tab-content">
+            <div class="card">
+                <header class="card-header">
+                    <h3>Gestión de Media</h3>
+                    <button id="btnNuevaPublicacion" class="btn btn-primary">+ Nueva Publicación</button>
+                </header>
+                <div id="media-management-container">
+                    <!-- Lista de publicaciones se cargará aquí -->
+                </div>
+            </div>
+        </div>
         
-        <!-- RESTO DE TABS... -->
+        <!-- RESTO DE TABS -->
 
     </main>
 
+    <!-- MODAL MEDIA (NUEVO) -->
+    <div id="modalMedia" class="modal">
+        <div class="modal-content card">
+            <header class="card-header">
+                <h2 id="media-modal-title">Nueva Publicación</h2>
+                <button class="close-modal" onclick="cerrarModal('modalMedia')">×</button>
+            </header>
+            <input type="hidden" id="media-id">
+            <div>
+                <label for="media-titulo">Título</label>
+                <input type="text" id="media-titulo" placeholder="Título del artículo">
+            </div>
+            <div>
+                <label for="media-resumen">Resumen o Contenido</label>
+                <textarea id="media-resumen" rows="5" placeholder="Escribe el contenido o un resumen..."></textarea>
+            </div>
+            <div>
+                <label for="media-imagen-url">URL de la Imagen (Opcional)</label>
+                <input type="text" id="media-imagen-url" placeholder="https://ejemplo.com/imagen.jpg">
+            </div>
+             <div>
+                <label for="media-autor">Autor</label>
+                <input type="text" id="media-autor" placeholder="Admin">
+            </div>
+            <button id="btnGuardarMedia" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Guardar Publicación</button>
+        </div>
+    </div>
+
     <script type="module" src="admin.js"></script>
+    <script>
+        function cerrarModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        function abrirModal(modalId) {
+             document.getElementById(modalId).style.display = 'flex';
+        }
+    </script>
 </body>
 </html>
