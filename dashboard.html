@@ -3,75 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Manager | Mi Escudería</title>
+    <title>F1 Manager | Dashboard</title>
     <link rel="stylesheet" href="modern.css">
+    <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
 
     <nav class="main-nav container">
         <a href="index.html" class="logo">F1Manager</a>
         <div class="nav-links">
-            <a href="index.html">Home</a>
+            <a href="equipos.html">Equipos</a>
             <a href="calendario.html">Calendario</a>
             <a href="clasificacion.html">Clasificación</a>
         </div>
         <button id="btnCerrarSesion" class="btn btn-secondary">Desconectar</button>
     </nav>
 
-    <main class="container">
-        <header id="header-equipo" class="card" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 20px;">
-            <div>
-                <h1 id="ui-nombre-equipo" style="margin: 0; font-size: 1.8rem;">Cargando Escudería...</h1>
-                <p style="margin: 5px 0 0; color: var(--text-secondary);">Sede Central del Equipo</p>
+    <main id="dashboard-container" class="container">
+        <!-- Contenido principal se carga aquí, o el mensaje de carga/error -->
+    </main>
+    
+    <div id="template-dashboard" style="display: none;">
+        <header class="dashboard-header">
+            <div id="team-info-header">
+                <h1 id="team-name">Cargando equipo...</h1>
+                <p>Presupuesto: <strong id="team-budget" class="budget">--,--$</strong></p>
             </div>
-            <div style="text-align: right;">
-                <h3 style="margin: 0 0 5px;">Presupuesto</h3>
-                <div id="ui-presupuesto" class="dinero" style="font-size: 1.5rem; font-weight: 700; color: var(--accent);">$0</div>
-            </div>
+            <img id="team-car-img" src="assets/img/descarga.png" alt="Coche del equipo">
         </header>
 
-        <div class="main-grid" style="grid-template-columns: 1fr 1fr; gap: 30px;">
-            <div class="card">
-                <header class="card-header">
-                    <h2>Garaje Oficial</h2>
-                </header>
-                <img id="ui-foto-coche" src="" alt="Coche del equipo" style="width: 100%; border-radius: 8px; margin-bottom: 20px;">
-                <h3>Alineación de Pilotos</h3>
-                <div id="ui-pilotos" class="grid-pilotos">
-                    <p style="color: var(--text-secondary);">Cargando pilotos...</p>
+        <div class="tabs-container">
+            <button class="tab-btn active" data-tab="general">General</button>
+            <button class="tab-btn" data-tab="mejoras">Mejoras</button>
+            <button class="tab-btn" data-tab="investigacion">Investigación</button>
+            <button class="tab-btn" data-tab="fichajes">Fichajes</button>
+            <button class="tab-btn" data-tab="avisos">Avisos</button>
+        </div>
+
+        <!-- TAB: GENERAL -->
+        <div id="tab-general" class="tab-content active">
+            <div class="grid-general">
+                <div class="card" id="team-stats">
+                    <h3>Estadísticas del Equipo</h3>
+                    <!-- Stats del equipo -->
                 </div>
-            </div>
-
-            <div class="card">
-                <header class="card-header">
-                    <h2>Ingeniería y Desarrollo (I+D)</h2>
-                </header>
-                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 25px;">
-                    Invierte en mejoras para potenciar tu monoplaza. Los cambios se aplicarán en el próximo Gran Premio.
-                </p>
-
-                <div class="mejora-card">
-                    <div class="mejora-info">
-                        <h4 id="motor-titulo">Unidad de Potencia (Nivel 1)</h4>
-                        <p>Aumenta la velocidad máxima en recta.</p>
-                    </div>
-                    <button id="btnMejoraMotor" class="btn btn-primary">Comprar Mejora</button>
+                <div class="card" id="pilot-1">
+                    <h3>Piloto 1</h3>
+                    <!-- Stats Piloto 1 -->
                 </div>
-
-                <div class="mejora-card">
-                    <div class="mejora-info">
-                        <h4 id="chasis-titulo">Chasis y Aerodinámica (Nivel 1)</h4>
-                        <p>Mejora el rendimiento en curvas y la estabilidad.</p>
-                    </div>
-                    <button id="btnMejoraChasis" class="btn btn-primary">Comprar Mejora</button>
+                <div class="card" id="pilot-2">
+                    <h3>Piloto 2</h3>
+                    <!-- Stats Piloto 2 -->
                 </div>
             </div>
         </div>
-    </main>
 
-    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
-        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
-    </footer>
+        <!-- TAB: MEJORAS -->
+        <div id="tab-mejoras" class="tab-content">
+            <div class="card">
+                <h3>Departamento de I+D</h3>
+                <div class="mejoras-grid">
+                    <div class="mejora-item">
+                        <h4>Chasis y Aerodinámica</h4>
+                        <p>Nivel actual: <strong id="nivel-chasis">1</strong></p>
+                        <p>Coste de mejora: <strong>1,000,000$</strong></p>
+                        <button class="btn btn-primary" data-mejora="chasis">Mejorar</button>
+                    </div>
+                    <div class="mejora-item">
+                        <h4>Motor</h4>
+                        <p>Nivel actual: <strong id="nivel-motor">1</strong></p>
+                        <p>Coste de mejora: <strong>1,500,000$</strong></p>
+                        <button class="btn btn-primary" data-mejora="motor">Mejorar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: INVESTIGACIÓN -->
+        <div id="tab-investigacion" class="tab-content">
+            <div class="card">
+                <h3>Centro de Espionaje</h3>
+                <p>Puedes usar la investigación 2 veces por temporada en curso.</p>
+                <p>Investigaciones restantes: <strong id="investigaciones-restantes">2</strong></p>
+                <div class="investigacion-form">
+                    <select id="investigacion-sujeto">
+                        <option value="">Selecciona un sujeto...</option>
+                    </select>
+                    <select id="investigacion-area">
+                        <option value="">Selecciona un área...</option>
+                    </select>
+                    <button class="btn btn-primary" id="btn-investigar">Investigar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: FICHAJES -->
+        <div id="tab-fichajes" class="tab-content">
+            <div class="card">
+                <h3>Mercado de Pilotos</h3>
+                <p>Realiza una oferta a un piloto de un equipo rival.</p>
+                <div class="fichaje-form">
+                    <select id="fichaje-piloto">
+                        <option value="">Selecciona un piloto...</option>
+                    </select>
+                    <input type="number" id="fichaje-oferta" placeholder="Oferta económica">
+                    <button class="btn btn-primary" id="btn-fichar">Realizar Oferta</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TAB: AVISOS -->
+        <div id="tab-avisos" class="tab-content">
+            <div class="card">
+                <h3>Bandeja de Entrada</h3>
+                <div id="avisos-container">
+                    <!-- Los mensajes del admin aparecerán aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script type="module" src="dashboard.js"></script>
 </body>

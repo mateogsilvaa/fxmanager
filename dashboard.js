@@ -1,192 +1,261 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getFirestore, doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, collection, query, where, getDocs, doc, onSnapshot, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+// --- CONFIGURACIÓN E INICIALIZACIÓN ---
 const firebaseConfig = {
-  apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
-  authDomain: "fxmanager-c5868.firebaseapp.com",
-  projectId: "fxmanager-c5868",
-  storageBucket: "fxmanager-c5868.firebasestorage.app",
-  messagingSenderId: "652487009924",
-  appId: "1:652487009924:web:c976804d6b48c4dda004d1",
-  measurementId: "G-XK03CWHZEK"
+    apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
+    authDomain: "fxmanager-c5868.firebaseapp.com",
+    projectId: "fxmanager-c5868",
+    storageBucket: "fxmanager-c5868.appspot.com",
+    messagingSenderId: "652487009924",
+    appId: "1:652487009924:web:c976804d6b48c4dda004d1",
 };
-
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-let usuarioActual = null;
-let miEquipoId = null;
-let datosEquipo = null;
+// --- ESTADO GLOBAL ---
+let currentEquipo = null;
+let allPilotos = [];
+let allEquipos = [];
+let campeonatoState = { estado: "offseason", investigaciones: 2 };
 
-// --- 1. COMPROBAR SESIÓN Y BUSCAR MI EQUIPO ---
-onAuthStateChanged(auth, async (user) => {
+// --- ARRANQUE ---
+onAuthStateChanged(auth, user => {
     if (user) {
-        usuarioActual = user;
-        buscarMiEquipo();
+        setupDashboard(user);
     } else {
-        window.location.href = "index.html";
+        window.location.href = 'index.html';
     }
 });
 
-async function buscarMiEquipo() {
-    // Buscamos en la colección 'equipos' cuál tiene mi UID
-    const q = query(collection(db, "equipos"), where("owner_uid", "==", usuarioActual.uid));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-        // Si no tiene equipo asignado, lo mandamos a elegir uno
-        window.location.href = "seleccion.html";
-    } else {
-        // ¡Encontramos su equipo!
-        miEquipoId = querySnapshot.docs[0].id; // ej: "ferrari"
-        cargarPilotosDelEquipo();
-        escucharCambiosDelEquipo(); // Conectamos en tiempo real
-    }
-}
-
-// --- 2. ESCUCHAR EL EQUIPO EN TIEMPO REAL ---
-// Esto hace que si tú (Admin) le das dinero, su pantalla se actualice sola sin recargar
-function escucharCambiosDelEquipo() {
-    const equipoRef = doc(db, "equipos", miEquipoId);
-    
-    onSnapshot(equipoRef, (docSnap) => {
-        datosEquipo = docSnap.data();
-        
-        // Valores por defecto si la base de datos está vacía
-            if(!datosEquipo.nivel_motor) datosEquipo.nivel_motor = 1;
-            if(!datosEquipo.nivel_chasis) datosEquipo.nivel_chasis = 1;
-            // Mostrar barra de navegación si el usuario tiene equipo
-            const header = document.getElementById('header-equipo');
-            const nav = document.getElementById('bottomNav');
-            if(header && nav && header.style.display!=="none") nav.style.display="flex";
-
-        pintarInterfaz();
-    });
-}
-
-function pintarInterfaz() {
-    document.getElementById('header-equipo').style.display = "flex";
-    document.getElementById('header-equipo').style.borderLeftColor = datosEquipo.color || "#555";
-    document.getElementById('ui-nombre-equipo').innerText = datosEquipo.nombre;
-    document.getElementById('ui-nombre-equipo').style.color = datosEquipo.color || "#fff";
-    
-    // Formatear dinero bonito (ej: 150,000)
-    document.getElementById('ui-presupuesto').innerText = "$" + (datosEquipo.presupuesto || 0).toLocaleString();
-    
-    document.getElementById('ui-foto-coche').src = datosEquipo.coche_url || "https://media.formula1.com/d_default_fallback_car.png/content/dam/fom-website/teams/2024/mercedes.png.transform/4col/image.png";
-
-    actualizarTienda();
-}
-
-// --- 3. CARGAR PILOTOS DE ESTE EQUIPO ---
-async function cargarPilotosDelEquipo() {
-    const q = query(collection(db, "pilotos"), where("equipo_id", "==", miEquipoId));
-    const querySnapshot = await getDocs(q);
-    
-    const uiPilotos = document.getElementById('ui-pilotos');
-    uiPilotos.innerHTML = "";
-
-    querySnapshot.forEach((docSnap) => {
-        let p = docSnap.data();
-        let foto = p.foto_url || "https://media.formula1.com/d_default_fallback_profile.png/content/dam/fom-website/drivers/M/MAXVER01_Max_Verstappen/maxver01.png.transform/2col/image.png";
-        
-        uiPilotos.innerHTML += `
-            <div class="piloto-mini">
-                <img src="${foto}" alt="${p.apellido}">
-                <div>
-                    <span style="font-size:12px; color:#aaa; display:block;">${p.numero} ${p.bandera}</span>
-                    <strong style="text-transform:uppercase;">${p.apellido}</strong>
-                </div>
-            </div>
-        `;
-    });
-}
-
-// --- 4. LA TIENDA DE MEJORAS ---
-function actualizarTienda() {
-    // Calculamos el coste de la próxima mejora (Sube 50k por nivel de motor, 40k por chasis)
-    const costeMotor = datosEquipo.nivel_motor * 50000;
-    const costeChasis = datosEquipo.nivel_chasis * 40000;
-
-    // Pintamos los textos
-    document.getElementById('motor-titulo').innerText = `Unidad de Potencia (Nivel ${datosEquipo.nivel_motor})`;
-    document.getElementById('chasis-titulo').innerText = `Chasis y Peso (Nivel ${datosEquipo.nivel_chasis})`;
-
-    const btnMotor = document.getElementById('btnMejoraMotor');
-    const btnChasis = document.getElementById('btnMejoraChasis');
-
-    btnMotor.innerText = `Comprar: $${costeMotor.toLocaleString()}`;
-    btnChasis.innerText = `Comprar: $${costeChasis.toLocaleString()}`;
-
-    // Bloqueamos los botones si son pobres
-    btnMotor.disabled = (datosEquipo.presupuesto < costeMotor);
-    btnChasis.disabled = (datosEquipo.presupuesto < costeChasis);
-}
-
-// Función maestra para comprar
-window.comprarMejora = async function(tipoMejora) {
-    let coste = 0;
-    let nuevoNivel = 0;
-    let campoEnBD = "";
-    let nombreAmigable = "";
-
-    if (tipoMejora === 'motor') {
-        coste = datosEquipo.nivel_motor * 50000;
-        nuevoNivel = datosEquipo.nivel_motor + 1;
-        campoEnBD = "nivel_motor";
-        nombreAmigable = "Unidad de Potencia";
-    } else if (tipoMejora === 'chasis') {
-        coste = datosEquipo.nivel_chasis * 40000;
-        nuevoNivel = datosEquipo.nivel_chasis + 1;
-        campoEnBD = "nivel_chasis";
-        nombreAmigable = "Chasis y Peso";
-    }
-
-    // Doble check de seguridad por si acaso
-    if (datosEquipo.presupuesto < coste) {
-        alert("¡No hay suficiente presupuesto en la fábrica!");
-        return;
-    }
-
-    const confirmar = confirm(`¿Autorizas gastar $${coste.toLocaleString()} en I+D para mejorar el ${nombreAmigable} al Nivel ${nuevoNivel}?`);
-    if(!confirmar) return;
-
+async function setupDashboard(user) {
+    const mainContainer = document.getElementById('dashboard-container');
+    mainContainer.innerHTML = `<p>Cargando dashboard...</p>`;
     try {
-        const equipoRef = doc(db, "equipos", miEquipoId);
-        
-        // 1. Restar dinero y sumar nivel al coche
-        await updateDoc(equipoRef, {
-            presupuesto: datosEquipo.presupuesto - coste,
-            [campoEnBD]: nuevoNivel
-        });
+        const [equipoSnap, allEquiposSnap, allPilotosSnap, campeonatoDoc] = await Promise.all([
+            getDocs(query(collection(db, "equipos"), where("owner_uid", "==", user.uid))),
+            getDocs(collection(db, "equipos")),
+            getDocs(collection(db, "pilotos")),
+            getDoc(doc(db, "configuracion", "campeonato"))
+        ]);
 
-        // 2. ENVIAR NOTIFICACIÓN A LA FIA (Al Admin)
-        await addDoc(collection(db, "registro_cambios"), {
-            equipo_id: miEquipoId,
-            equipo_nombre: datosEquipo.nombre,
-            mejora: nombreAmigable,
-            nuevo_nivel: nuevoNivel,
-            fecha: new Date().toLocaleString(),
-            aplicado_en_ac: false // Para que tú sepas si ya lo has configurado en el juego
-        });
+        if (equipoSnap.empty) {
+            window.location.href = 'equipos.html';
+            return;
+        }
 
-        alert("¡Mejora fabricada! La FIA ha sido notificada para Assetto Corsa.");
+        currentEquipo = { id: equipoSnap.docs[0].id, ...equipoSnap.docs[0].data() };
+        allEquipos = allEquiposSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allPilotos = allPilotosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (campeonatoDoc.exists()) campeonatoState = campeonatoDoc.data();
+
+        const pilotosDelEquipo = allPilotos.filter(p => p.equipo_id === currentEquipo.id);
+
+        renderDashboard(pilotosDelEquipo);
+        setupInteractiveElements();
 
     } catch (error) {
-        console.error("Error comprando mejora: ", error);
-        alert("Error de comunicación con la fábrica.");
+        console.error("Error al montar el dashboard:", error);
+        mainContainer.innerHTML = `<p style="color: var(--danger);">Error crítico al cargar tus datos.</p>`;
     }
 }
 
-// Conectamos los botones a la función maestra
-document.getElementById('btnMejoraMotor').addEventListener('click', () => window.comprarMejora('motor'));
-document.getElementById('btnMejoraChasis').addEventListener('click', () => window.comprarMejora('chasis'));
+// --- RENDERIZADO HTML ---
+function renderDashboard(pilotosDelEquipo) {
+    const template = document.getElementById('template-dashboard').innerHTML;
+    document.getElementById('dashboard-container').innerHTML = template;
+    document.getElementById('team-name').textContent = currentEquipo.nombre;
+    document.getElementById('team-budget').textContent = `${(currentEquipo.presupuesto || 0).toLocaleString()}$`;
 
-// --- 5. CERRAR SESIÓN ---
-document.getElementById('btnCerrarSesion').addEventListener('click', () => {
-    signOut(auth).then(() => {
-        window.location.href = "index.html";
+    renderTeamStats(document.getElementById('team-stats'));
+    if (pilotosDelEquipo[0]) renderPilotStats(document.getElementById('pilot-1'), pilotosDelEquipo[0]);
+    if (pilotosDelEquipo[1]) renderPilotStats(document.getElementById('pilot-2'), pilotosDelEquipo[1]);
+    
+    document.getElementById('btnCerrarSesion').addEventListener('click', () => signOut(auth));
+}
+
+function renderTeamStats(container) {
+    container.innerHTML = `
+        <h3>Estadísticas del Equipo</h3>
+        <div class="stat-item"><span>Victorias</span> <strong>${currentEquipo.victorias || 0}</strong></div>
+        <div class="stat-item"><span>Podios</span> <strong>${currentEquipo.podios || 0}</strong></div>
+        <div class="stat-item"><span>Poles</span> <strong>${currentEquipo.poles || 0}</strong></div>
+        <div class="stat-item"><span>Puntos</span> <strong>${currentEquipo.puntos || 0}</strong></div>
+        <div class="stat-item"><span>DNFs</span> <strong>${currentEquipo.dnfs || 0}</strong></div>
+        <div class="stat-item"><span>Campeonatos</span> <strong>${currentEquipo.campeonatos || 0}</strong></div>
+    `;
+}
+
+function renderPilotStats(container, piloto) {
+     container.innerHTML = `
+        <h3>${piloto.nombre} ${piloto.apellido}</h3>
+        <p>${piloto.bandera || ''} Edad: ${piloto.edad || 'N/A'}</p>
+        <div class="stat-item"><span>Ritmo</span> <strong>${piloto.ritmo || '??'}</strong></div>
+        <div class="stat-item"><span>Agresividad</span> <strong>${piloto.agresividad || '??'}</strong></div>
+        <div class="stat-item"><span>Moral</span> <strong>${piloto.moral || 75}/100</strong></div>
+        <div class="stat-item"><span>Sueldo</span> <span id="sueldo-piloto-${piloto.id}">${(piloto.sueldo || 1000000).toLocaleString()}$</span></div>
+        <input type="range" class="salary-bar" data-piloto-id="${piloto.id}" min="500000" max="10000000" step="100000" value="${piloto.sueldo || 1000000}">
+    `;
+}
+
+// --- LÓGICA INTERACTIVA ---
+function setupInteractiveElements() {
+    setupTabs();
+    setupMejoras();
+    setupInvestigacion();
+    setupFichajes();
+    loadAvisos();
+
+    document.querySelectorAll('.salary-bar').forEach(bar => {
+        bar.addEventListener('input', (e) => {
+            const sueldo = e.target.value;
+            const pilotoId = e.target.dataset.pilotoId;
+            document.getElementById(`sueldo-piloto-${pilotoId}`).textContent = `${parseInt(sueldo).toLocaleString()}$`;
+        });
+         bar.addEventListener('change', async (e) => {
+            const sueldo = parseInt(e.target.value);
+            const pilotoId = e.target.dataset.pilotoId;
+            await updateDoc(doc(db, "pilotos", pilotoId), { sueldo: sueldo });
+            alert("Sueldo actualizado.");
+        });
     });
-});
+}
+
+function setupTabs() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            tabContents.forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+        });
+    });
+}
+
+async function sendRequest(tipo, detalle, coste = 0) {
+    if (coste > 0 && currentEquipo.presupuesto < coste) {
+        return alert('Presupuesto insuficiente para esta operación.');
+    }
+    try {
+        await addDoc(collection(db, "solicitudes"), {
+            equipoId: currentEquipo.id,
+            equipoNombre: currentEquipo.nombre,
+            tipo: tipo,
+            detalle: detalle,
+            coste: coste,
+            estado: 'pendiente',
+            timestamp: serverTimestamp()
+        });
+
+        if (coste > 0) {
+            const newBudget = currentEquipo.presupuesto - coste;
+            await updateDoc(doc(db, "equipos", currentEquipo.id), { presupuesto: newBudget });
+            currentEquipo.presupuesto = newBudget;
+            document.getElementById('team-budget').textContent = `${newBudget.toLocaleString()}$`;
+        }
+        alert(`Solicitud de ${tipo} enviada al administrador para su revisión.`);
+        
+    } catch (error) {
+        console.error(`Error enviando solicitud de ${tipo}:`, error);
+        alert('Hubo un error al procesar la solicitud.');
+    }
+}
+
+function setupMejoras() {
+    document.querySelectorAll('[data-mejora]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tipoMejora = btn.dataset.mejora;
+            const coste = tipoMejora === 'chasis' ? 1000000 : 1500000; // Costes de ejemplo
+            if (confirm(`Se invertirá ${coste.toLocaleString()}$ en la mejora de ${tipoMejora}. El dinero se descontará inmediatamente. ¿Continuar?`)) {
+                sendRequest('Mejora', { pieza: tipoMejora }, coste);
+            }
+        });
+    });
+}
+
+function setupInvestigacion() {
+    const selectSujeto = document.getElementById('investigacion-sujeto');
+    const btnInvestigar = document.getElementById('btn-investigar');
+    const restantesEl = document.getElementById('investigaciones-restantes');
+    
+    restantesEl.textContent = campeonatoState.investigaciones || 0;
+
+    // Llenar el select con pilotos y equipos rivales
+    allPilotos.filter(p => p.equipo_id !== currentEquipo.id).forEach(p => {
+        selectSujeto.innerHTML += `<option value="piloto_${p.id}">Piloto: ${p.nombre} ${p.apellido}</option>`;
+    });
+    allEquipos.filter(e => e.id !== currentEquipo.id).forEach(e => {
+        selectSujeto.innerHTML += `<option value="equipo_${e.id}">Equipo: ${e.nombre}</option>`;
+    });
+
+    btnInvestigar.addEventListener('click', () => {
+        if (campeonatoState.estado !== 'en curso') {
+            return alert('Solo se puede investigar durante la temporada.');
+        }
+        if ((campeonatoState.investigaciones || 0) <= 0) {
+            return alert('No te quedan investigaciones esta temporada.');
+        }
+        const sujeto = selectSujeto.value;
+        if (!sujeto) return alert('Selecciona un sujeto para investigar.');
+
+        if (confirm('¿Confirmas que quieres usar una de tus investigaciones en este sujeto?')) {
+            const [tipo, id] = sujeto.split('_');
+            const detalle = tipo === 'piloto' ? 
+                { tipo: 'Piloto', pilotoId: id, pilotoNombre: allPilotos.find(p=>p.id===id).nombre + ' ' + allPilotos.find(p=>p.id===id).apellido } : 
+                { tipo: 'Equipo', equipoId: id, equipoNombre: allEquipos.find(e=>e.id===id).nombre };
+            sendRequest('Investigación', detalle);
+            // Esto debería ser manejado por el admin, pero lo simulamos aquí
+            campeonatoState.investigaciones--;
+            restantesEl.textContent = campeonatoState.investigaciones;
+        }
+    });
+}
+
+function setupFichajes() {
+    const selectPiloto = document.getElementById('fichaje-piloto');
+    const inputOferta = document.getElementById('fichaje-oferta');
+    const btnFichar = document.getElementById('btn-fichar');
+
+    allPilotos.filter(p => p.equipo_id !== currentEquipo.id).forEach(p => {
+        selectPiloto.innerHTML += `<option value="${p.id}">${p.nombre} ${p.apellido}</option>`;
+    });
+
+    btnFichar.addEventListener('click', () => {
+        const pilotoId = selectPiloto.value;
+        const oferta = parseInt(inputOferta.value);
+        if (!pilotoId) return alert('Selecciona un piloto.');
+        if (!oferta || oferta <= 0) return alert('Introduce una oferta válida.');
+
+        const piloto = allPilotos.find(p => p.id === pilotoId);
+        if (confirm(`¿Realizar una oferta de ${oferta.toLocaleString()}$ a ${piloto.nombre} ${piloto.apellido}?`)) {
+            sendRequest('Fichaje', { pilotoId: pilotoId, pilotoNombre: `${piloto.nombre} ${piloto.apellido}`, oferta: oferta }, oferta);
+        }
+    });
+}
+
+function loadAvisos() {
+    const container = document.getElementById('avisos-container');
+    const q = query(collection(db, "avisos"), where("equipoId", "==", currentEquipo.id), orderBy("timestamp", "desc"));
+
+    onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+            container.innerHTML = '<p>No tienes nuevos avisos.</p>';
+            return;
+        }
+        container.innerHTML = '';
+        snapshot.forEach(doc => {
+            const aviso = doc.data();
+            const date = aviso.timestamp?.toDate().toLocaleDateString() || 'Reciente';
+            container.innerHTML += `
+                <div class="aviso">
+                    <p class="aviso-header"><strong>${aviso.remitente}</strong> - ${date}</p>
+                    <p>${aviso.mensaje}</p>
+                </div>
+            `;
+        });
+    });
+}

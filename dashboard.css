@@ -1,0 +1,116 @@
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 40px;
+    margin-bottom: 40px;
+    background-color: var(--bg-secondary);
+    padding: 20px;
+    border-radius: 12px;
+}
+
+#team-car-img {
+    max-width: 400px;
+    object-fit: contain;
+}
+
+.budget {
+    color: var(--success);
+    font-size: 1.5rem;
+}
+
+.tabs-container {
+    margin-bottom: 30px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.grid-general {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+}
+
+.stat-item span {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.stat-item strong {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.mejoras-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.mejora-item {
+    background-color: var(--bg-tertiary);
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.investigacion-form, .fichaje-form {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+#avisos-container .aviso {
+    background-color: var(--bg-tertiary);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border-left: 4px solid var(--accent);
+}
+
+#avisos-container .aviso p {
+    margin: 0;
+}
+
+#avisos-container .aviso-header {
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.salary-bar {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 8px;
+    background: var(--bg-tertiary);
+    outline: none;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.salary-bar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+}

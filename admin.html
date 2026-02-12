@@ -5,31 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F1 Manager | Dirección de Carrera</title>
     <link rel="stylesheet" href="modern.css">
+    <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 
     <nav class="main-nav container">
         <a href="index.html" class="logo">F1Manager</a>
-        <div class="nav-links">
-            <a href="index.html">Home</a>
-            <a href="calendario.html">Calendario</a>
-            <a href="clasificacion.html">Clasificación</a>
-            <a href="register.html">Registro</a>
-        </div>
         <button id="btnCerrarSesion" class="btn btn-secondary">Desconectar</button>
     </nav>
 
     <main class="container">
         <header style="text-align: center; margin-bottom: 40px;">
             <h1>Panel de Dirección de Carrera</h1>
-            <p>Gestión central del campeonato F1 Manager.</p>
         </header>
 
         <div class="card" style="margin-bottom: 30px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+            <div class="admin-header-actions">
                 <div>
-                    <h3 style="margin: 0 0 8px 0;">Estado del Campeonato</h3>
-                    <p id="estado-texto" style="margin: 0; font-size: 1.1rem; font-weight: 700;">Cargando...</p>
+                    <h3>Estado del Campeonato</h3>
+                    <p id="estado-texto">Cargando...</p>
                 </div>
                 <button id="btnToggleCampeonato" class="btn btn-primary">Cambiar Estado</button>
             </div>
@@ -37,229 +31,47 @@
 
         <!-- TABS -->
         <div class="tabs-container">
-            <button class="tab-btn active" data-tab="equipos">Equipos</button>
+            <button class="tab-btn active" data-tab="solicitudes">Solicitudes</button>
+            <button class="tab-btn" data-tab="comunicados">Comunicados</button>
+            <button class="tab-btn" data-tab="equipos">Equipos</button>
             <button class="tab-btn" data-tab="pilotos">Pilotos</button>
             <button class="tab-btn" data-tab="carreras">Carreras</button>
-            <button class="tab-btn" data-tab="cambios">Cambios</button>
+            <button class="tab-btn" data-tab="log">Log de Actividad</button>
         </div>
 
-        <!-- EQUIPOS TAB -->
-        <div id="tab-equipos" class="tab-content active">
+        <!-- SOLICITUDES TAB (NUEVO) -->
+        <div id="tab-solicitudes" class="tab-content active">
             <div class="card">
-                <header class="card-header">
-                    <h3>Gestión de Equipos</h3>
-                    <button id="btnNuevoEquipo" class="btn btn-primary">+ Nuevo Equipo</button>
-                </header>
-                <div style="overflow-x: auto;">
-                    <table id="tabla-equipos">
-                        <thead>
-                            <tr>
-                                <th>Equipo</th>
-                                <th>Presupuesto</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                <h3>Solicitudes Pendientes</h3>
+                <div id="solicitudes-container">
+                    <!-- Las solicitudes se cargarán aquí con JS -->
                 </div>
             </div>
         </div>
 
-        <!-- PILOTOS TAB -->
-        <div id="tab-pilotos" class="tab-content">
-             <div class="card">
-                <header class="card-header">
-                    <h3>Gestión de Pilotos</h3>
-                    <button id="btnNuevoPiloto" class="btn btn-primary">+ Nuevo Piloto</button>
-                </header>
-                <div style="overflow-x: auto;">
-                    <table id="tabla-pilotos">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Piloto</th>
-                                <th>Equipo</th>
-                                <th>Puntos</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- CARRERAS TAB -->
-        <div id="tab-carreras" class="tab-content">
+        <!-- COMUNICADOS TAB (NUEVO) -->
+        <div id="tab-comunicados" class="tab-content">
             <div class="card">
-                <header class="card-header">
-                    <h3>Calendario de Carreras</h3>
-                    <button id="btnNuevaCarrera" class="btn btn-primary">+ Nueva Carrera</button>
-                </header>
-                <div style="overflow-x: auto;">
-                    <table id="tabla-carreras">
-                        <thead>
-                            <tr>
-                                <th>R#</th>
-                                <th>Gran Premio</th>
-                                <th>Circuito</th>
-                                <th>Fecha</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                <h3>Enviar Comunicado Oficial</h3>
+                <div class="comunicados-form">
+                    <select id="com-remitente">
+                        <option value="FIA">FIA</option>
+                        <!-- Opciones de pilotos se añadirán aquí -->
+                    </select>
+                    <select id="com-destinatario">
+                        <option value="todos">TODOS LOS EQUIPOS</option>
+                        <!-- Opciones de equipos se añadirán aquí -->
+                    </select>
+                    <textarea id="com-mensaje" placeholder="Escribe tu mensaje aquí..."></textarea>
+                    <button id="btnEnviarComunicado" class="btn btn-primary">Enviar Mensaje</button>
                 </div>
             </div>
         </div>
+        
+        <!-- RESTO DE TABS... -->
 
-        <!-- CAMBIOS TAB -->
-        <div id="tab-cambios" class="tab-content">
-            <div class="card">
-                 <header class="card-header">
-                    <h3>Registro de Cambios</h3>
-                    <p style="margin: 0; color: var(--text-secondary);">Últimas 50 mejoras de los equipos</p>
-                </header>
-                <div style="overflow-x: auto;">
-                    <table id="tabla-cambios">
-                        <thead>
-                            <tr>
-                                <th>Equipo</th>
-                                <th>Cambio</th>
-                                <th>Detalles</th>
-                                <th>Fecha</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
     </main>
 
-    <!-- MODAL EQUIPO -->
-    <div id="modalEquipo" class="modal">
-        <div class="modal-content card">
-            <header class="card-header">
-                <h2>Editar Equipo</h2>
-                <button class="close-modal" onclick="cerrarModal('modalEquipo')">×</button>
-            </header>
-            <div>
-                <label for="eq-nombre">Nombre del Equipo</label>
-                <input type="text" id="eq-nombre" placeholder="Ej: Scuderia Ferrari">
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <label for="eq-color">Color Principal</label>
-                    <input type="color" id="eq-color" value="#FF0000" style="padding: 5px; height: 40px;">
-                </div>
-                <div>
-                    <label for="eq-presupuesto">Presupuesto ($)</label>
-                    <input type="number" id="eq-presupuesto" placeholder="1000000">
-                </div>
-            </div>
-            <button id="btnGuardarEquipo" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Guardar Cambios</button>
-        </div>
-    </div>
-
-    <!-- MODAL PILOTO -->
-    <div id="modalPiloto" class="modal">
-        <div class="modal-content card">
-             <header class="card-header">
-                <h2>Editar Piloto</h2>
-                <button class="close-modal" onclick="cerrarModal('modalPiloto')">×</button>
-            </header>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <label for="p-nombre">Nombre</label>
-                    <input type="text" id="p-nombre" placeholder="Charles">
-                </div>
-                <div>
-                    <label for="p-apellido">Apellido</label>
-                    <input type="text" id="p-apellido" placeholder="Leclerc">
-                </div>
-            </div>
-             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <label for="p-numero">Dorsal</label>
-                    <input type="number" id="p-numero" placeholder="16">
-                </div>
-                <div>
-                    <label for="p-bandera">Bandera</label>
-                    <input type="text" id="p-bandera" placeholder="🇲🇨">
-                </div>
-            </div>
-            <div>
-                <label for="p-equipo">Equipo</label>
-                <select id="p-equipo"></select>
-            </div>
-            <button id="btnGuardarPiloto" class="btn btn-primary" style="width: 100%;">Guardar Cambios</button>
-        </div>
-    </div>
-
-    <!-- MODAL CARRERA -->
-    <div id="modalCarrera" class="modal">
-        <div class="modal-content card">
-             <header class="card-header">
-                <h2>Editar Carrera</h2>
-                <button class="close-modal" onclick="cerrarModal('modalCarrera')">×</button>
-            </header>
-            <div>
-                <label for="cr-orden">Ronda</label>
-                <input type="number" id="cr-orden" placeholder="1">
-            </div>
-            <div>
-                <label for="cr-nombre">Nombre del Gran Premio</label>
-                <input type="text" id="cr-nombre" placeholder="Gran Premio de Bahrein">
-            </div>
-            <div>
-                <label for="cr-circuito">Circuito</label>
-                <input type="text" id="cr-circuito" placeholder="Circuito Internacional de Sakhir">
-            </div>
-             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <label for="cr-fecha">Fecha y Hora</label>
-                    <input type="datetime-local" id="cr-fecha">
-                </div>
-                <div>
-                    <label for="cr-bandera">Bandera del País</label>
-                    <input type="text" id="cr-bandera" placeholder="🇧🇭">
-                </div>
-            </div>
-            <button id="btnGuardarCarrera" class="btn btn-primary" style="width: 100%;">Guardar Cambios</button>
-        </div>
-    </div>
-
-    <!-- MODAL RESULTADOS -->
-    <div id="modalResultados" class="modal">
-        <div class="modal-content card">
-             <header class="card-header">
-                <h2 id="resultados-titulo">Gestionar Resultados</h2>
-                <button class="close-modal" onclick="cerrarModal('modalResultados')">×</button>
-            </header>
-            <p>Resultados para el <strong id="resultados-gp-nombre">Gran Premio</strong>.</p>
-            
-            <div id="resultados-editor" style="max-height: 400px; overflow-y: auto; margin-top: 16px;">
-                <!-- El JS generará aquí las filas para los resultados -->
-            </div>
-            
-            <button id="btnGuardarResultados" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Guardar Resultados</button>
-        </div>
-    </div>
-    
-    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
-        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
-    </footer>
-
     <script type="module" src="admin.js"></script>
-    <script>
-        // Script para cerrar modales
-        function cerrarModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
-    </script>
 </body>
 </html>

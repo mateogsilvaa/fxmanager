@@ -1,0 +1,38 @@
+.admin-header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.solicitud-card {
+    background-color: var(--bg-tertiary);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.solicitud-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.solicitud-body {
+    margin-bottom: 15px;
+}
+
+.solicitud-actions button {
+    margin-right: 10px;
+}
+
+.comunicados-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.comunicados-form textarea {
+    min-height: 100px;
+}

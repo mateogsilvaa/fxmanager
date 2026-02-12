@@ -1,474 +1,202 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getFirestore, doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc, orderBy, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, query, where, orderBy, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+// --- CONFIGURACIÓN ---
 const firebaseConfig = {
-  apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
-  authDomain: "fxmanager-c5868.firebaseapp.com",
-  projectId: "fxmanager-c5868",
-  storageBucket: "fxmanager-c5868.appspot.com",
-  messagingSenderId: "652487009924",
-  appId: "1:652487009924:web:c976804d6b48c4dda004d1",
-  measurementId: "G-XK03CWHZEK"
+    apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
+    authDomain: "fxmanager-c5868.firebaseapp.com",
+    projectId: "fxmanager-c5868",
+    storageBucket: "fxmanager-c5868.appspot.com",
+    messagingSenderId: "652487009924",
+    appId: "1:652487009924:web:c976804d6b48c4dda004d1",
 };
-
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-const CORREO_ADMIN = "mateogonsilva@gmail.com";
-const puntosSistema = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+// --- ESTADO GLOBAL ---
+let allEquipos = [];
+let allPilotos = [];
 
-let usuarioActual = null;
-let estadoActual = "abierto";
-let equiposData = {};
-let pilotosData = {};
-let carrerasData = {};
-let editandoID = null;
-
-// --- SEGURIDAD ---
-onAuthStateChanged(auth, (user) => {
-    if (user && user.email === CORREO_ADMIN) {
-        usuarioActual = user;
-        iniciarAdmin();
+// --- INICIALIZACIÓN ---
+onAuthStateChanged(auth, user => {
+    if (user) {
+        // Aquí podrías añadir una comprobación de si el UID es de un admin
+        loadInitialData();
+        setupEventListeners();
+        listenForSolicitudes();
     } else {
-        window.location.href = "index.html";
+        window.location.href = 'index.html';
     }
 });
 
-async function iniciarAdmin() {
-    await leerEstadoCampeonato();
-    await cargarEquipos();
-    await cargarPilotos();
-    await cargarCarreras();
-    await cargarCambiosUsuarios();
-    setupTabs();
+async function loadInitialData() {
+    const [equiposSnap, pilotosSnap] = await Promise.all([
+        getDocs(collection(db, "equipos")),
+        getDocs(collection(db, "pilotos"))
+    ]);
+    allEquipos = equiposSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allPilotos = pilotosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    populateComunicadosSelects();
 }
 
-// --- TABS ---
-function setupTabs() {
+function setupEventListeners() {
+    document.getElementById('btnCerrarSesion').addEventListener('click', () => signOut(auth));
+    document.getElementById('btnEnviarComunicado').addEventListener('click', enviarComunicado);
+    // Setup de los tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            const tabName = btn.dataset.tab;
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content.active, .tab-btn.active').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
             btn.classList.add('active');
         });
     });
 }
 
-// --- ESTADO CAMPEONATO (Off-season / En curso) ---
-async function leerEstadoCampeonato() {
-    try {
-        const docRef = doc(db, "configuracion", "campeonato");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            estadoActual = docSnap.data().estado;
-        } else {
-            await setDoc(docRef, { estado: "offseason" });
-            estadoActual = "offseason";
+// --- SOLICITUDES ---
+function listenForSolicitudes() {
+    const container = document.getElementById('solicitudes-container');
+    const q = query(collection(db, "solicitudes"), where("estado", "==", "pendiente"), orderBy("timestamp"));
+
+    onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+            container.innerHTML = '<p>No hay solicitudes pendientes.</p>';
+            return;
         }
-        actualizarTextoEstado();
-    } catch (e) {
-        console.error("Error al leer estado del campeonato:", e);
-    }
+        container.innerHTML = '';
+        snapshot.forEach(doc => {
+            const solicitud = { id: doc.id, ...doc.data() };
+            container.appendChild(createSolicitudCard(solicitud));
+        });
+    });
 }
 
-function actualizarTextoEstado() {
-    const texto = document.getElementById('estado-texto');
-    const boton = document.getElementById('btnToggleCampeonato');
+function createSolicitudCard(solicitud) {
+    const card = document.createElement('div');
+    card.className = 'solicitud-card';
+    card.innerHTML = `
+        <div class="solicitud-header">
+            <span><strong>${solicitud.tipo.toUpperCase()}</strong> - ${solicitud.equipoNombre}</span>
+            <span>${solicitud.timestamp?.toDate().toLocaleDateString() || 'Reciente'}</span>
+        </div>
+        <div class="solicitud-body">${renderSolicitudBody(solicitud)}</div>
+        <div class="solicitud-actions">
+            <button class="btn btn-success">Aprobar</button>
+            <button class="btn btn-warning">Denegar</button>
+        </div>
+    `;
     
-    if (estadoActual === "curso") {
-        texto.textContent = "EN CURSO";
-        texto.style.color = "var(--success)";
-        boton.textContent = "Finalizar Temporada (Off-season)";
-    } else {
-        texto.textContent = "OFF-SEASON";
-        texto.style.color = "var(--warning)";
-        boton.textContent = "Iniciar Temporada (En Curso)";
+    const approveBtn = card.querySelector('.btn-success');
+    const denyBtn = card.querySelector('.btn-warning');
+
+    approveBtn.addEventListener('click', () => handleSolicitud(solicitud, 'aprobada'));
+    denyBtn.addEventListener('click', () => handleSolicitud(solicitud, 'denegada'));
+    
+    return card;
+}
+
+function renderSolicitudBody(solicitud) {
+    switch(solicitud.tipo) {
+        case 'Mejora':
+            return `Solicita mejorar <strong>${solicitud.detalle.pieza}</strong>. Coste: ${solicitud.coste.toLocaleString()}$`;
+        case 'Investigación':
+            return `Solicita investigar a <strong>${solicitud.detalle.pilotoNombre || solicitud.detalle.equipoNombre}</strong>.`;
+        case 'Fichaje':
+            return `Oferta de <strong>${solicitud.detalle.oferta.toLocaleString()}$</strong> por el piloto <strong>${solicitud.detalle.pilotoNombre}</strong>.`;
+        default: return 'Solicitud no reconocida.';
     }
 }
 
-document.getElementById('btnToggleCampeonato').addEventListener('click', async () => {
-    const nuevoEstado = estadoActual === "curso" ? "offseason" : "curso";
-    await setDoc(doc(db, "configuracion", "campeonato"), { estado: nuevoEstado });
-    estadoActual = nuevoEstado;
-    actualizarTextoEstado();
-});
-
-// --- EQUIPOS ---
-async function cargarEquipos() {
-    const tbody = document.querySelector('#tabla-equipos tbody');
-    tbody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
-    equiposData = {};
-    const snap = await getDocs(collection(db, "equipos"));
-    tbody.innerHTML = '';
-    snap.forEach(doc => {
-        const eq = { id: doc.id, ...doc.data() };
-        equiposData[doc.id] = eq;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><strong style="color: ${eq.color || 'var(--accent)'};">${eq.nombre}</strong></td>
-            <td>$${(eq.presupuesto || 0).toLocaleString()}</td>
-            <td>${eq.owner_uid ? '✓ Asignado' : '⊘ Libre'}</td>
-            <td>
-                <div class="table-actions">
-                    <button class="btn-sm" onclick="editarEquipo('${doc.id}')">Editar</button>
-                    <button class="btn-sm btn-danger" onclick="eliminarEquipo('${doc.id}')">×</button>
-                </div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-    actualizarSelectEquipos();
-}
-
-window.editarEquipo = (id) => {
-    const eq = equiposData[id];
-    document.getElementById('eq-nombre').value = eq.nombre;
-    document.getElementById('eq-color').value = eq.color || '#00d9ff';
-    document.getElementById('eq-presupuesto').value = eq.presupuesto || 0;
-    editandoID = id;
-    abrirModal('modalEquipo');
-};
-
-document.getElementById('btnNuevoEquipo').addEventListener('click', () => {
-    document.getElementById('eq-nombre').value = '';
-    document.getElementById('eq-color').value = '#c0c0c0';
-    document.getElementById('eq-presupuesto').value = 1000000;
-    editandoID = null;
-    abrirModal('modalEquipo');
-});
-
-document.getElementById('btnGuardarEquipo').addEventListener('click', async () => {
-    const nombre = document.getElementById('eq-nombre').value.trim();
-    const color = document.getElementById('eq-color').value;
-    const presupuesto = parseFloat(document.getElementById('eq-presupuesto').value) || 0;
-    if (!nombre) return;
+async function handleSolicitud(solicitud, nuevoEstado) {
+    const outcome = nuevoEstado === 'aprobada' ? prompt('Describe el resultado (ej: \"La mejora ha sido un éxito\")') : 'Solicitud denegada por la FIA.';
+    if (nuevoEstado === 'aprobada' && !outcome) return; // Si se cancela el prompt
 
     try {
-        if (editandoID) {
-            await updateDoc(doc(db, "equipos", editandoID), { nombre, color, presupuesto });
-        } else {
-            const nuevoId = nombre.toLowerCase().replace(/\s+/g, '-');
-            await setDoc(doc(db, "equipos", nuevoId), { nombre, color, presupuesto, owner_uid: "", mejoras: { motor: 1, chasis: 1 } });
-        }
-        cerrarModal('modalEquipo');
-        await cargarEquipos();
-    } catch (e) { console.error(e); }
-});
-
-window.eliminarEquipo = async (id) => {
-    if (confirm('¿Eliminar equipo?')) {
-        await deleteDoc(doc(db, "equipos", id));
-        await cargarEquipos();
-    }
-};
-
-// --- PILOTOS ---
-async function cargarPilotos() {
-    const tbody = document.querySelector('#tabla-pilotos tbody');
-    tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
-    pilotosData = {};
-    const snap = await getDocs(query(collection(db, "pilotos"), orderBy("apellido")));
-    tbody.innerHTML = '';
-    snap.forEach(doc => {
-        const p = { id: doc.id, ...doc.data() };
-        pilotosData[doc.id] = p;
-        const eqNombre = equiposData[p.equipo_id]?.nombre || 'Sin equipo';
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><strong>${p.numero}</strong></td>
-            <td>${p.bandera || ''} ${p.apellido}, ${p.nombre}</td>
-            <td>${eqNombre}</td>
-            <td><strong>${p.puntos || 0}</strong></td>
-            <td>
-                <div class="table-actions">
-                    <button class="btn-sm" onclick="editarPiloto('${p.id}')">Editar</button>
-                    <button class="btn-sm btn-danger" onclick="eliminarPiloto('${p.id}')">×</button>
-                </div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-window.editarPiloto = (id) => {
-    const p = pilotosData[id];
-    document.getElementById('p-nombre').value = p.nombre;
-    document.getElementById('p-apellido').value = p.apellido;
-    document.getElementById('p-numero').value = p.numero;
-    document.getElementById('p-bandera').value = p.bandera;
-    document.getElementById('p-equipo').value = p.equipo_id;
-    editandoID = id;
-    abrirModal('modalPiloto');
-};
-
-document.getElementById('btnNuevoPiloto').addEventListener('click', () => {
-    document.getElementById('p-nombre').value = '';
-    document.getElementById('p-apellido').value = '';
-    document.getElementById('p-numero').value = '';
-    document.getElementById('p-bandera').value = '';
-    document.getElementById('p-equipo').value = '';
-    editandoID = null;
-    abrirModal('modalPiloto');
-});
-
-document.getElementById('btnGuardarPiloto').addEventListener('click', async () => {
-    const datos = {
-        nombre: document.getElementById('p-nombre').value.trim(),
-        apellido: document.getElementById('p-apellido').value.trim(),
-        numero: parseInt(document.getElementById('p-numero').value),
-        bandera: document.getElementById('p-bandera').value.trim(),
-        equipo_id: document.getElementById('p-equipo').value,
-        puntos: pilotosData[editandoID]?.puntos || 0
-    };
-    if (!datos.nombre || !datos.apellido || !datos.numero) return;
-
-    try {
-        if (editandoID) {
-            await updateDoc(doc(db, "pilotos", editandoID), datos);
-        } else {
-            await addDoc(collection(db, "pilotos"), datos);
-        }
-        cerrarModal('modalPiloto');
-        await cargarPilotos();
-    } catch (e) { console.error(e); }
-});
-
-window.eliminarPiloto = async (id) => {
-    if (confirm('¿Eliminar piloto?')) {
-        await deleteDoc(doc(db, "pilotos", id));
-        await cargarPilotos();
-    }
-};
-
-// --- CARRERAS ---
-async function cargarCarreras() {
-    const tbody = document.querySelector('#tabla-carreras tbody');
-    tbody.innerHTML = '<tr><td colspan="6">Cargando...</td></tr>';
-    carrerasData = {};
-    const snap = await getDocs(query(collection(db, "carreras"), orderBy("orden")));
-    tbody.innerHTML = '';
-    snap.forEach(doc => {
-        const c = { id: doc.id, ...doc.data() };
-        carrerasData[doc.id] = c;
-        const estado = c.estado === "completada" ? '✓ Completada' : '⧗ Pendiente';
-        const color = c.estado === "completada" ? 'var(--success)' : 'var(--text-secondary)';
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><strong>${c.orden}</strong></td>
-            <td>${c.bandera || ''} ${c.nombre_gp}</td>
-            <td>${c.circuito}</td>
-            <td>${new Date(c.fecha).toLocaleDateString()}</td>
-            <td><strong style="color:${color};">${estado}</strong></td>
-            <td>
-                <div class="table-actions">
-                    <button class="btn-sm" onclick="editarCarrera('${c.id}')">Editar</button>
-                    <button class="btn-sm btn-success" onclick="gestionarResultados('${c.id}')">Resultados</button>
-                    <button class="btn-sm btn-danger" onclick="eliminarCarrera('${c.id}')">×</button>
-                </div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-window.editarCarrera = (id) => {
-    const c = carrerasData[id];
-    document.getElementById('cr-orden').value = c.orden;
-    document.getElementById('cr-nombre').value = c.nombre_gp;
-    document.getElementById('cr-circuito').value = c.circuito;
-    document.getElementById('cr-fecha').value = c.fecha;
-    document.getElementById('cr-bandera').value = c.bandera;
-    editandoID = id;
-    abrirModal('modalCarrera');
-};
-
-document.getElementById('btnNuevaCarrera').addEventListener('click', () => {
-    document.getElementById('cr-orden').value = Object.keys(carrerasData).length + 1;
-    document.getElementById('cr-nombre').value = '';
-    document.getElementById('cr-circuito').value = '';
-    document.getElementById('cr-fecha').value = new Date().toISOString().slice(0, 16);
-    document.getElementById('cr-bandera').value = '';
-    editandoID = null;
-    abrirModal('modalCarrera');
-});
-
-document.getElementById('btnGuardarCarrera').addEventListener('click', async () => {
-    const datos = {
-        orden: parseInt(document.getElementById('cr-orden').value),
-        nombre_gp: document.getElementById('cr-nombre').value.trim(),
-        circuito: document.getElementById('cr-circuito').value.trim(),
-        fecha: document.getElementById('cr-fecha').value,
-        bandera: document.getElementById('cr-bandera').value.trim(),
-        estado: carrerasData[editandoID]?.estado || "pendiente"
-    };
-    if (!datos.orden || !datos.nombre_gp || !datos.circuito || !datos.fecha) return;
-
-    try {
-        if (editandoID) {
-            await updateDoc(doc(db, "carreras", editandoID), datos);
-        } else {
-            await addDoc(collection(db, "carreras"), datos);
-        }
-        cerrarModal('modalCarrera');
-        await cargarCarreras();
-    } catch (e) { console.error(e); }
-});
-
-window.eliminarCarrera = async (id) => {
-    if (confirm('¿Eliminar carrera? Se recalcularán los puntos.')) {
-        await deleteDoc(doc(db, "carreras", id));
-        await recalcularPuntos();
-        await cargarCarreras();
-        await cargarPilotos();
-    }
-};
-
-// --- RESULTADOS & PUNTOS ---
-window.gestionarResultados = async (id) => {
-    editandoID = id;
-    const carrera = carrerasData[id];
-    document.getElementById('resultados-gp-nombre').textContent = carrera.nombre_gp;
-    const editor = document.getElementById('resultados-editor');
-    editor.innerHTML = 'Cargando...';
-
-    const carreraDoc = await getDoc(doc(db, "carreras", id));
-    const resultadosActuales = carreraDoc.data().resultados || {};
-
-    const pilotosArray = Object.values(pilotosData).sort((a, b) => a.apellido.localeCompare(b.apellido));
-    editor.innerHTML = '';
-    pilotosArray.forEach(p => {
-        const posActual = resultadosActuales[p.id] || '';
-        editor.innerHTML += `
-            <div class="resultado-row">
-                <label for="res-${p.id}">${p.bandera} ${p.apellido}, ${p.nombre}</label>
-                <input type="number" id="res-${p.id}" data-piloto-id="${p.id}" value="${posActual}" placeholder="Pos.">
-            </div>
-        `;
-    });
-    abrirModal('modalResultados');
-};
-
-document.getElementById('btnGuardarResultados').addEventListener('click', async () => {
-    if (!editandoID) return;
-    const boton = document.getElementById('btnGuardarResultados');
-    boton.disabled = true;
-    boton.textContent = 'Guardando...';
-
-    const resultadosAGuardar = {};
-    const inputs = document.querySelectorAll('#resultados-editor input');
-    let hasResults = false;
-    inputs.forEach(input => {
-        if (input.value) {
-            resultadosAGuardar[input.dataset.pilotoId] = parseInt(input.value);
-            hasResults = true;
-        }
-    });
-
-    try {
-        await updateDoc(doc(db, "carreras", editandoID), {
-            resultados: resultadosAGuardar,
-            estado: hasResults ? "completada" : "pendiente"
+        await updateDoc(doc(db, "solicitudes", solicitud.id), { estado: nuevoEstado, resultado: outcome });
+        
+        // Crear aviso para el equipo
+        await addDoc(collection(db, "avisos"), {
+            equipoId: solicitud.equipoId,
+            remitente: "FIA",
+            mensaje: `Tu solicitud de ${solicitud.tipo} (${renderSolicitudBody(solicitud)}) ha sido <strong>${nuevoEstado.toUpperCase()}</strong>. Resultado: ${outcome}`,
+            timestamp: serverTimestamp()
         });
 
-        await recalcularPuntos();
-
-        alert('Resultados guardados y puntos actualizados.');
-        cerrarModal('modalResultados');
-        await cargarCarreras();
-        await cargarPilotos();
-    } catch (e) {
-        alert('Error al guardar: ' + e.message);
-        console.error(e);
-    } finally {
-        boton.disabled = false;
-        boton.textContent = 'Guardar Resultados';
-    }
-});
-
-async function recalcularPuntos() {
-    console.log("Recalculando todos los puntos...");
-    try {
-        await runTransaction(db, async (transaction) => {
-            const pilotosSnapshot = await getDocs(collection(db, "pilotos"));
-            const puntosTotales = {};
-            pilotosSnapshot.forEach(p => {
-                puntosTotales[p.id] = 0;
-            });
-
-            const q = query(collection(db, "carreras"), where("estado", "==", "completada"));
-            const carrerasCompletadasSnap = await getDocs(q);
-
-            carrerasCompletadasSnap.forEach(carreraDoc => {
-                const resultados = carreraDoc.data().resultados;
-                if (resultados) {
-                    Object.entries(resultados).forEach(([pilotoId, pos]) => {
-                        if (puntosTotales.hasOwnProperty(pilotoId) && pos > 0 && pos <= puntosSistema.length) {
-                            puntosTotales[pilotoId] += puntosSistema[pos - 1];
-                        }
+        // Aquí la lógica específica para cada tipo si es aprobada
+        if (nuevoEstado === 'aprobada') {
+            if(solicitud.tipo === 'Fichaje'){
+                 // Notificar al equipo rival
+                const piloto = allPilotos.find(p => p.id === solicitud.detalle.pilotoId);
+                if(piloto){
+                     await addDoc(collection(db, "avisos"), {
+                        equipoId: piloto.equipo_id,
+                        remitente: "FIA",
+                        mensaje: `El equipo ${solicitud.equipoNombre} ha hecho una oferta por tu piloto ${piloto.nombre} ${piloto.apellido}.`,
+                        timestamp: serverTimestamp()
                     });
                 }
-            });
-            
-            pilotosSnapshot.docs.forEach(pilotoDoc => {
-                const newPuntos = puntosTotales[pilotoDoc.id];
-                if (pilotoDoc.data().puntos !== newPuntos) {
-                    transaction.update(pilotoDoc.ref, { puntos: newPuntos });
-                }
-            });
-        });
-        console.log("Transacción de puntos completada.");
+            }
+        }
+
     } catch (error) {
-        console.error("Error en la transacción de puntos:", error);
-        throw error;
+        console.error("Error al manejar la solicitud:", error);
+        alert('No se pudo procesar la solicitud.');
     }
 }
 
-
-// --- CAMBIOS (LOG) ---
-async function cargarCambiosUsuarios() {
-    const tbody = document.querySelector('#tabla-cambios tbody');
-    tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
-    const snap = await getDocs(query(collection(db, "registro_cambios"), orderBy("fecha", "desc")));
-    tbody.innerHTML = '';
-    snap.forEach(doc => {
-        const c = doc.data();
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><strong>${c.equipo_nombre}</strong></td>
-            <td>${c.mejora}</td>
-            <td>Nivel ${c.nuevo_nivel}</td>
-            <td>${new Date(c.fecha.seconds * 1000).toLocaleString()}</td>
-            <td><strong style="color:var(--success)">APLICADO</strong></td>
-        `;
-        tbody.appendChild(tr);
+// --- COMUNICADOS ---
+function populateComunicadosSelects() {
+    const remitenteSelect = document.getElementById('com-remitente');
+    const destinatarioSelect = document.getElementById('com-destinatario');
+    
+    allPilotos.forEach(p => {
+        remitenteSelect.innerHTML += `<option value="piloto_${p.id}">Piloto: ${p.nombre} ${p.apellido}</option>`;
+    });
+    allEquipos.forEach(e => {
+        destinatarioSelect.innerHTML += `<option value="${e.id}">${e.nombre}</option>`;
     });
 }
 
-// --- UTILIDADES ---
-function abrirModal(id) {
-    document.getElementById(id).style.display = 'flex';
-}
-window.cerrarModal = (id) => {
-    document.getElementById(id).style.display = 'none';
-};
-document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) cerrarModal(modal.id);
-    });
-});
+async function enviarComunicado() {
+    const remitente = document.getElementById('com-remitente').value;
+    const destinatarioId = document.getElementById('com-destinatario').value;
+    const mensaje = document.getElementById('com-mensaje').value;
 
-function actualizarSelectEquipos() {
-    const select = document.getElementById('p-equipo');
-    select.innerHTML = '<option value="">-- Sin equipo --</option>';
-    Object.values(equiposData).forEach(eq => {
-        select.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
-    });
-}
+    if (!mensaje) return alert('El mensaje no puede estar vacío.');
 
-document.getElementById('btnCerrarSesion').addEventListener('click', () => {
-    signOut(auth);
-});
+    let remitenteDisplay = "FIA";
+    if(remitente.startsWith('piloto_')){
+        const pilotoId = remitente.split('_')[1];
+        const piloto = allPilotos.find(p => p.id === pilotoId);
+        remitenteDisplay = `Piloto: ${piloto.nombre} ${piloto.apellido}`;
+    }
+
+    try {
+        const promises = [];
+        if (destinatarioId === 'todos') {
+            allEquipos.forEach(equipo => {
+                promises.push(addDoc(collection(db, "avisos"), {
+                    equipoId: equipo.id,
+                    remitente: remitenteDisplay,
+                    mensaje: mensaje,
+                    timestamp: serverTimestamp()
+                }));
+            });
+        } else {
+            promises.push(addDoc(collection(db, "avisos"), {
+                equipoId: destinatarioId,
+                remitente: remitenteDisplay,
+                mensaje: mensaje,
+                timestamp: serverTimestamp()
+            }));
+        }
+        await Promise.all(promises);
+        alert('Comunicado enviado correctamente.');
+        document.getElementById('com-mensaje').value = '';
+    } catch (error) {
+        console.error("Error enviando comunicado:", error);
+        alert('No se pudo enviar el comunicado.');
+    }
+}
