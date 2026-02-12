@@ -6,6 +6,10 @@
     --text-primary: #ffffff; /* Texto principal claro */
     --text-secondary: #b3b3b3; /* Texto secundario y de apoyo */
     --border-color: #333333; /* Bordes sutiles */
+    --accent: #00d9ff; /* Un color de acento vibrante */
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
 }
 
 /* Reseteo y Estilos Base */
@@ -26,7 +30,7 @@ body {
 }
 
 .container {
-    max-width: 960px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 40px 20px;
 }
@@ -57,32 +61,32 @@ a:hover {
 /* Componentes */
 .btn {
     display: inline-block;
-    padding: 12px 24px;
+    padding: 10px 20px;
     border-radius: 8px;
     font-weight: 600;
     text-align: center;
     cursor: pointer;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: all 0.3s ease;
     border: 1px solid transparent;
+    font-size: 0.95rem;
 }
 .btn-primary {
-    background-color: var(--text-primary);
+    background-color: var(--accent);
     color: var(--bg-primary);
-    border-color: var(--text-primary);
+    border-color: var(--accent);
 }
 .btn-primary:hover {
     background-color: transparent;
-    color: var(--text-primary);
+    color: var(--accent);
 }
 .btn-secondary {
-    background-color: transparent;
+    background-color: var(--bg-tertiary);
     color: var(--text-secondary);
     border-color: var(--border-color);
 }
 .btn-secondary:hover {
-    background-color: var(--bg-tertiary);
+    background-color: var(--border-color);
     color: var(--text-primary);
-    border-color: var(--bg-tertiary);
 }
 
 .card {
@@ -91,11 +95,17 @@ a:hover {
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 20px;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+.card-header h3 {
+    margin: 0;
 }
 
 /* Formularios */
@@ -107,10 +117,17 @@ input, select, textarea {
     border-radius: 8px;
     color: var(--text-primary);
     font-size: 1rem;
+    margin-top: 8px;
+    margin-bottom: 16px;
 }
 input:focus, select:focus, textarea:focus {
     outline: none;
-    border-color: var(--text-secondary);
+    border-color: var(--accent);
+}
+label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
 }
 
 /* Navegación */
@@ -118,7 +135,8 @@ input:focus, select:focus, textarea:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 0;
+    padding-top: 20px;
+    padding-bottom: 20px;
     border-bottom: 1px solid var(--border-color);
 }
 .logo {
@@ -126,39 +144,145 @@ input:focus, select:focus, textarea:focus {
     font-size: 1.5rem;
 }
 .nav-links a {
-    margin-left: 20px;
+    margin-left: 25px;
     font-weight: 500;
-}
-
-.bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: var(--bg-secondary);
-    display: flex;
-    justify-content: space-around;
-    padding: 10px 0;
-    border-top: 1px solid var(--border-color);
-    z-index: 1000;
-}
-.bottom-nav a {
     color: var(--text-secondary);
-    text-align: center;
-    font-size: 0.75rem;
 }
-.bottom-nav a.active {
+.nav-links a:hover, .nav-links a.active {
     color: var(--text-primary);
 }
 
-/* Iconografía (ejemplo) */
-.icon {
-    display: inline-block;
-    width: 24px;
-    height: 24px;
-    stroke-width: 2;
-    fill: none;
-    stroke: currentColor;
+/* Estilos para la página de Equipos */
+.grid-equipos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 25px;
+}
+
+.equipo-card {
+    background-color: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.equipo-header {
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.equipo-coche-img {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    margin-bottom: 15px;
+    object-fit: contain;
+}
+
+.equipo-header h3 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.deploy-arrow {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 10px;
+    transition: transform 0.3s ease-out;
+}
+
+.pilotos-container {
+    max-height: 500px; /* Altura suficiente para mostrar dos pilotos */
+    overflow: hidden;
+    transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out;
+    border-top: 1px solid var(--border-color);
+    padding: 20px;
+}
+
+.pilotos-container.collapsed {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top: 1px solid transparent;
+}
+
+.piloto-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background-color: var(--bg-tertiary);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.piloto-card:first-of-type {
+    margin-bottom: 10px;
+}
+
+.piloto-foto {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+.piloto-info p {
+    margin: 0;
+}
+
+.piloto-nombre {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.piloto-nombre span {
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.piloto-detalle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+
+.no-pilotos {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 20px 0;
+    margin: 0;
+}
+
+.btn-elegir-equipo {
+    width: 100%;
+    margin-top: 20px;
+    padding: 15px;
+    font-size: 1.1rem;
+    background-color: var(--success);
+    border-color: var(--success);
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.btn-elegir-equipo:hover {
+    background-color: #10a370;
+    border-color: #10a370;
+}
+
+.equipo-asignado {
+    text-align: center;
+    margin: 20px 0 10px 0;
+    font-weight: 500;
+    color: var(--warning);
+    background-color: rgba(245, 158, 11, 0.1);
+    padding: 10px;
+    border-radius: 8px;
 }
 
 /* Responsive */
@@ -166,16 +290,12 @@ input:focus, select:focus, textarea:focus {
     .container {
         padding: 20px;
     }
+    .grid-equipos {
+        grid-template-columns: 1fr; /* Una columna en móvil */
+    }
     h1 { font-size: 2rem; }
     .main-nav {
         flex-direction: column;
-    }
-    .nav-links {
-        margin-top: 20px;
-    }
-    .nav-links a {
-        display: block;
-        text-align: center;
-        margin: 10px 0;
+        gap: 15px;
     }
 }
