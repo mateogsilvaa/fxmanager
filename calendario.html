@@ -8,32 +8,24 @@
 </head>
 <body>
 
-    <nav class="main-nav container">
-        <a href="index.html" class="logo">F1Manager</a>
-        <div class="nav-links">
-            <a href="index.html">Home</a>
-            <a href="calendario.html">Calendario</a>
-            <a href="clasificacion.html">Clasificación</a>
-            <a href="register.html">Registro</a>
-        </div>
-    </nav>
+    <nav class="main-nav"></nav>
 
     <main class="container">
         <header style="text-align: center; margin-bottom: 40px;">
-            <h1>Calendario Oficial 2026</h1>
-            <p>Estas son las carreras para la temporada 2026 de Fórmula 1.</p>
+            <h1>Calendario de Carreras</h1>
+            <p>Estas son las citas para la presente temporada.</p>
         </header>
 
-        <div id="contenedor-carreras" class="grid-carreras">
-            <!-- Las carreras se cargarán aquí dinámicamente -->
-            <p style="text-align: center; color: var(--text-secondary);">Cargando calendario...</p>
+        <div id="calendario-container" class="grid-calendario">
+            <!-- Las carreras se cargarán aquí -->
         </div>
     </main>
 
-    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color);">
+    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
         <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
     </footer>
 
     <script type="module" src="calendario.js"></script>
+    <script type="module" src="nav.js"></script>
 </body>
 </html>

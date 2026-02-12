@@ -21,7 +21,8 @@
 
         <!-- TABS -->
         <div class="tabs-container">
-            <button class="tab-btn active" data-tab="solicitudes">Solicitudes</button>
+            <button class="tab-btn active" data-tab="configuracion">Configuración</button>
+            <button class="tab-btn" data-tab="solicitudes">Solicitudes</button>
             <button class="tab-btn" data-tab="comunicados">Comunicados</button>
             <button class="tab-btn" data-tab="media">Media</button>
             <button class="tab-btn" data-tab="equipos">Equipos</button>
@@ -29,88 +30,98 @@
             <button class="tab-btn" data-tab="carreras">Carreras</button>
         </div>
 
-        <!-- SOLICITUDES TAB -->
-        <div id="tab-solicitudes" class="tab-content active">
+        <!-- TAB: CONFIGURACIÓN -->
+        <div id="tab-configuracion" class="tab-content active">
             <div class="card">
-                <h3>Solicitudes Pendientes</h3>
-                <div id="solicitudes-container">
-                    <!-- Las solicitudes se cargarán aquí -->
+                <h3>Estado del Campeonato</h3>
+                <div class="admin-header-actions">
+                    <div>
+                        <p>El campeonato está actualmente: <strong id="estado-campeonato-texto">Cargando...</strong></p>
+                        <small>Cambia el estado para permitir o bloquear acciones de los equipos.</small>
+                    </div>
+                    <button id="btnToggleCampeonato" class="btn btn-primary">Cambiar a "En Curso" / "Off-Season"</button>
                 </div>
             </div>
         </div>
 
-        <!-- COMUNICADOS TAB -->
+        <!-- TAB: SOLICITUDES -->
+        <div id="tab-solicitudes" class="tab-content">
+            <div class="card">
+                <h3>Solicitudes Pendientes</h3>
+                <div id="solicitudes-container"><p>Cargando solicitudes...</p></div>
+            </div>
+        </div>
+
+        <!-- TAB: COMUNICADOS -->
         <div id="tab-comunicados" class="tab-content">
             <div class="card">
                 <h3>Enviar Comunicado Oficial</h3>
                 <div class="comunicados-form">
-                    <select id="com-remitente">
-                        <option value="FIA">FIA</option>
-                        <!-- Opciones de pilotos se añadirán aquí -->
-                    </select>
-                    <select id="com-destinatario">
-                        <option value="todos">TODOS LOS EQUIPOS</option>
-                        <!-- Opciones de equipos se añadirán aquí -->
-                    </select>
+                    <select id="com-remitente"><option value="FIA">FIA</option></select>
+                    <select id="com-destinatario"><option value="todos">TODOS LOS EQUIPOS</option></select>
                     <textarea id="com-mensaje" placeholder="Escribe tu mensaje aquí..."></textarea>
                     <button id="btnEnviarComunicado" class="btn btn-primary">Enviar Mensaje</button>
                 </div>
             </div>
         </div>
 
-        <!-- MEDIA TAB (NUEVO) -->
+        <!-- TAB: MEDIA -->
         <div id="tab-media" class="tab-content">
             <div class="card">
                 <header class="card-header">
                     <h3>Gestión de Media</h3>
-                    <button id="btnNuevaPublicacion" class="btn btn-primary">+ Nueva Publicación</button>
+                    <button id="btnNuevoMedia" class="btn btn-primary">+ Nueva Publicación</button>
                 </header>
-                <div id="media-management-container">
-                    <!-- Lista de publicaciones se cargará aquí -->
-                </div>
+                <div id="media-container"><p>Cargando publicaciones...</p></div>
             </div>
         </div>
-        
-        <!-- RESTO DE TABS -->
 
+        <!-- TAB: EQUIPOS -->
+        <div id="tab-equipos" class="tab-content">
+            <div class="card">
+                <header class="card-header">
+                    <h3>Gestión de Equipos</h3>
+                    <button id="btnNuevoEquipo" class="btn btn-primary">+ Nuevo Equipo</button>
+                </header>
+                <div id="equipos-container"><p>Cargando equipos...</p></div>
+            </div>
+        </div>
+
+        <!-- TAB: PILOTOS -->
+        <div id="tab-pilotos" class="tab-content">
+            <div class="card">
+                <header class="card-header">
+                    <h3>Gestión de Pilotos</h3>
+                    <button id="btnNuevoPiloto" class="btn btn-primary">+ Nuevo Piloto</button>
+                </header>
+                <div id="pilotos-container"><p>Cargando pilotos...</p></div>
+            </div>
+        </div>
+
+        <!-- TAB: CARRERAS -->
+        <div id="tab-carreras" class="tab-content">
+            <div class="card">
+                <header class="card-header">
+                    <h3>Gestión de Carreras</h3>
+                    <button id="btnNuevaCarrera" class="btn btn-primary">+ Nueva Carrera</button>
+                </header>
+                <div id="carreras-container"><p>Cargando carreras...</p></div>
+            </div>
+        </div>
     </main>
 
-    <!-- MODAL MEDIA (NUEVO) -->
-    <div id="modalMedia" class="modal">
-        <div class="modal-content card">
-            <header class="card-header">
-                <h2 id="media-modal-title">Nueva Publicación</h2>
-                <button class="close-modal" onclick="cerrarModal('modalMedia')">×</button>
-            </header>
-            <input type="hidden" id="media-id">
-            <div>
-                <label for="media-titulo">Título</label>
-                <input type="text" id="media-titulo" placeholder="Título del artículo">
-            </div>
-            <div>
-                <label for="media-resumen">Resumen o Contenido</label>
-                <textarea id="media-resumen" rows="5" placeholder="Escribe el contenido o un resumen..."></textarea>
-            </div>
-            <div>
-                <label for="media-imagen-url">URL de la Imagen (Opcional)</label>
-                <input type="text" id="media-imagen-url" placeholder="https://ejemplo.com/imagen.jpg">
-            </div>
-             <div>
-                <label for="media-autor">Autor</label>
-                <input type="text" id="media-autor" placeholder="Admin">
-            </div>
-            <button id="btnGuardarMedia" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Guardar Publicación</button>
-        </div>
-    </div>
+    <!-- MODALS -->
+    <div id="modal-equipo" class="modal"><div class="modal-content card"></div></div>
+    <div id="modal-piloto" class="modal"><div class="modal-content card"></div></div>
+    <div id="modal-carrera" class="modal"><div class="modal-content card"></div></div>
+    <div id="modal-resultados" class="modal"><div class="modal-content card"></div></div>
+    <div id="modal-media" class="modal"><div class="modal-content card"></div></div>
 
     <script type="module" src="admin.js"></script>
     <script>
-        function cerrarModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
-        function abrirModal(modalId) {
-             document.getElementById(modalId).style.display = 'flex';
-        }
+        // Funciones globales para controlar modales
+        function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
     </script>
 </body>
 </html>

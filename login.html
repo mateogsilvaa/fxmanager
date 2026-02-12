@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Manager | Registro</title>
+    <title>F1 Manager | Login</title>
     <link rel="stylesheet" href="modern.css">
     <link rel="stylesheet" href="auth.css">
 </head>
@@ -12,14 +12,14 @@
 
     <main class="container auth-container">
         <div class="card">
-            <h2>Crear Cuenta</h2>
-            <form id="register-form">
-                <input type="email" id="register-email" placeholder="Correo electrónico" required>
-                <input type="password" id="register-password" placeholder="Contraseña (mín. 6 caracteres)" required>
-                <button type="submit" class="btn btn-primary">Registrarse</button>
-                <p id="register-error" class="error-message"></p>
+            <h2>Iniciar Sesión</h2>
+            <form id="login-form">
+                <input type="email" id="login-email" placeholder="Correo electrónico" required>
+                <input type="password" id="login-password" placeholder="Contraseña" required>
+                <button type="submit" class="btn btn-primary">Login</button>
+                <p id="login-error" class="error-message"></p>
             </form>
-            <p class="auth-switch">¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></p>
+            <p class="auth-switch">¿No tienes cuenta? <a href="register.html">Regístrate</a></p>
         </div>
     </main>
 

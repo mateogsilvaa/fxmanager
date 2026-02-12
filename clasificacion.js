@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // --- CONFIGURACIÓN DE FIREBASE ---
 const firebaseConfig = {
@@ -14,36 +14,49 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// --- ELEMENTOS DEL DOM ---
+const pilotosBody = document.querySelector("#tabla-clasificacion-pilotos tbody");
+const equiposBody = document.querySelector("#tabla-clasificacion-equipos tbody");
+
 // --- INICIALIZACIÓN ---
-document.addEventListener('DOMContentLoaded', loadClasificaciones);
+pilotosBody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
+equiposBody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
 
-async function loadClasificaciones() {
-    const pilotosBody = document.querySelector("#tabla-clasificacion-pilotos tbody");
-    const equiposBody = document.querySelector("#tabla-clasificacion-equipos tbody");
-    pilotosBody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
-    equiposBody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
-
-    try {
-        const [pilotosSnap, equiposSnap] = await Promise.all([
-            getDocs(query(collection(db, "pilotos"), orderBy("puntos", "desc"))),
-            getDocs(query(collection(db, "equipos"), orderBy("puntos", "desc")))
-        ]);
-
-        const pilotos = pilotosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const equipos = equiposSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+// Escuchamos pilotos y equipos en tiempo real
+onSnapshot(query(collection(db, "pilotos")), (pilotosSnap) => {
+    onSnapshot(query(collection(db, "equipos")), (equiposSnap) => {
         
-        // Crear un mapa de equipos para buscar sus colores fácilmenete
-        const equiposMap = new Map(equipos.map(e => [e.id, e]));
+        const pilotos = pilotosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let equipos = equiposSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+        // 1. Reiniciar puntos de equipos para recalcular
+        const equiposMap = new Map(equipos.map(e => [e.id, {...e, puntos: 0}]));
+
+        // 2. Sumar puntos de los pilotos a sus equipos
+        pilotos.forEach(piloto => {
+            if (piloto.equipo_id && equiposMap.has(piloto.equipo_id)) {
+                const equipo = equiposMap.get(piloto.equipo_id);
+                equipo.puntos += piloto.puntos || 0;
+            }
+        });
+
+        // 3. Ordenar ambas listas por puntos
+        pilotos.sort((a, b) => (b.puntos || 0) - (a.puntos || 0));
+        equipos = Array.from(equiposMap.values()).sort((a, b) => (b.puntos || 0) - (a.puntos || 0));
+
+        // 4. Renderizar las tablas
         renderClasificacionPilotos(pilotos, equiposMap, pilotosBody);
         renderClasificacionEquipos(equipos, equiposBody);
 
-    } catch (error) {
-        console.error("Error al cargar las clasificaciones: ", error);
-        pilotosBody.innerHTML = '<tr><td colspan="4" style="color: var(--danger);">Error al cargar datos.</td></tr>';
-        equiposBody.innerHTML = '<tr><td colspan="4" style="color: var(--danger);">Error al cargar datos.</td></tr>';
-    }
-}
+    }, (error) => {
+        console.error("Error al cargar equipos: ", error);
+        equiposBody.innerHTML = '<tr><td colspan="4" class="error">Error al cargar datos de equipos.</td></tr>';
+    });
+}, (error) => {
+    console.error("Error al cargar pilotos: ", error);
+    pilotosBody.innerHTML = '<tr><td colspan="4" class="error">Error al cargar datos de pilotos.</td></tr>';
+});
+
 
 function renderClasificacionPilotos(pilotos, equiposMap, container) {
     container.innerHTML = ''; // Limpiar la tabla
@@ -53,17 +66,16 @@ function renderClasificacionPilotos(pilotos, equiposMap, container) {
     }
 
     pilotos.forEach((piloto, index) => {
-        const equipo = equiposMap.get(piloto.equipo_id) || { color: '#ffffff', nombre: 'Sin equipo' };
+        const equipo = equiposMap.get(piloto.equipo_id);
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td class="team-color-cell" style="background-color: ${equipo.color};"></td>
+            <td class="team-color-cell" style="background-color: ${equipo?.color || '#888'};"></td>
             <td>
                 <div class="pilot-cell">
-                    <span class="flag">${piloto.bandera || '🏳️'}</span>
                     <div>
                         <strong>${piloto.nombre} ${piloto.apellido}</strong>
-                        <small style="color:var(--text-secondary)">${equipo.nombre}</small>
+                        <small>${equipo?.nombre || 'Sin equipo'}</small>
                     </div>
                 </div>
             </td>
@@ -84,7 +96,7 @@ function renderClasificacionEquipos(equipos, container) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td class="team-color-cell" style="background-color: ${equipo.color};"></td>
+            <td class="team-color-cell" style="background-color: ${equipo.color || '#888'};"></td>
             <td><strong>${equipo.nombre}</strong></td>
             <td class="points">${equipo.puntos || 0}</td>
         `;

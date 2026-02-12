@@ -20,12 +20,15 @@ let currentEquipo = null;
 let allPilotos = [];
 let allEquipos = [];
 let campeonatoState = { estado: "offseason", investigaciones: 2 };
+let unsubscribeAvisos = null; // Para poder desuscribirnos del listener
 
 // --- ARRANQUE ---
 onAuthStateChanged(auth, user => {
     if (user) {
+        if (unsubscribeAvisos) unsubscribeAvisos(); // Limpiamos listener anterior si existe
         setupDashboard(user);
     } else {
+        if (unsubscribeAvisos) unsubscribeAvisos();
         window.location.href = 'index.html';
     }
 });
@@ -51,6 +54,12 @@ async function setupDashboard(user) {
         allPilotos = allPilotosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         if (campeonatoDoc.exists()) campeonatoState = campeonatoDoc.data();
 
+        // Escuchar cambios en el equipo actual en tiempo real
+        onSnapshot(doc(db, "equipos", currentEquipo.id), (doc) => {
+            currentEquipo = { id: doc.id, ...doc.data() };
+            document.getElementById('team-budget').textContent = `${(currentEquipo.presupuesto || 0).toLocaleString()}$`;
+        });
+        
         const pilotosDelEquipo = allPilotos.filter(p => p.equipo_id === currentEquipo.id);
 
         renderDashboard(pilotosDelEquipo);
@@ -106,40 +115,35 @@ function setupInteractiveElements() {
     setupMejoras();
     setupInvestigacion();
     setupFichajes();
-    loadAvisos();
+    listenForAvisos(); // Cambiado de loadAvisos a listenForAvisos
 
     document.querySelectorAll('.salary-bar').forEach(bar => {
         bar.addEventListener('input', (e) => {
-            const sueldo = e.target.value;
-            const pilotoId = e.target.dataset.pilotoId;
-            document.getElementById(`sueldo-piloto-${pilotoId}`).textContent = `${parseInt(sueldo).toLocaleString()}$`;
+            document.getElementById(`sueldo-piloto-${e.target.dataset.pilotoId}`).textContent = `${parseInt(e.target.value).toLocaleString()}$`;
         });
          bar.addEventListener('change', async (e) => {
-            const sueldo = parseInt(e.target.value);
-            const pilotoId = e.target.dataset.pilotoId;
-            await updateDoc(doc(db, "pilotos", pilotoId), { sueldo: sueldo });
+            await updateDoc(doc(db, "pilotos", e.target.dataset.pilotoId), { sueldo: parseInt(e.target.value) });
             alert("Sueldo actualizado.");
         });
     });
 }
 
 function setupTabs() {
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
-    tabButtons.forEach(btn => {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            tabButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            tabContents.forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content.active, .tab-btn.active').forEach(el => el.classList.remove('active'));
             document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+            btn.classList.add('active');
         });
     });
 }
 
 async function sendRequest(tipo, detalle, coste = 0) {
+    // Comprobamos si el equipo puede permitirse la operación
     if (coste > 0 && currentEquipo.presupuesto < coste) {
-        return alert('Presupuesto insuficiente para esta operación.');
+        return alert('Presupuesto insuficiente para realizar esta solicitud.');
     }
+    
     try {
         await addDoc(collection(db, "solicitudes"), {
             equipoId: currentEquipo.id,
@@ -150,13 +154,7 @@ async function sendRequest(tipo, detalle, coste = 0) {
             estado: 'pendiente',
             timestamp: serverTimestamp()
         });
-
-        if (coste > 0) {
-            const newBudget = currentEquipo.presupuesto - coste;
-            await updateDoc(doc(db, "equipos", currentEquipo.id), { presupuesto: newBudget });
-            currentEquipo.presupuesto = newBudget;
-            document.getElementById('team-budget').textContent = `${newBudget.toLocaleString()}$`;
-        }
+        
         alert(`Solicitud de ${tipo} enviada al administrador para su revisión.`);
         
     } catch (error) {
@@ -170,7 +168,9 @@ function setupMejoras() {
         btn.addEventListener('click', () => {
             const tipoMejora = btn.dataset.mejora;
             const coste = tipoMejora === 'chasis' ? 1000000 : 1500000; // Costes de ejemplo
-            if (confirm(`Se invertirá ${coste.toLocaleString()}$ en la mejora de ${tipoMejora}. El dinero se descontará inmediatamente. ¿Continuar?`)) {
+            const confirmMsg = `Se solicitará una mejora de ${tipoMejora} por ${coste.toLocaleString()}$. El coste se descontará del presupuesto una vez que la FIA apruebe la solicitud. ¿Continuar?`;
+            
+            if (confirm(confirmMsg)) {
                 sendRequest('Mejora', { pieza: tipoMejora }, coste);
             }
         });
@@ -184,7 +184,7 @@ function setupInvestigacion() {
     
     restantesEl.textContent = campeonatoState.investigaciones || 0;
 
-    // Llenar el select con pilotos y equipos rivales
+    selectSujeto.innerHTML = '<option value="">Selecciona un sujeto...</option>';
     allPilotos.filter(p => p.equipo_id !== currentEquipo.id).forEach(p => {
         selectSujeto.innerHTML += `<option value="piloto_${p.id}">Piloto: ${p.nombre} ${p.apellido}</option>`;
     });
@@ -208,9 +208,7 @@ function setupInvestigacion() {
                 { tipo: 'Piloto', pilotoId: id, pilotoNombre: allPilotos.find(p=>p.id===id).nombre + ' ' + allPilotos.find(p=>p.id===id).apellido } : 
                 { tipo: 'Equipo', equipoId: id, equipoNombre: allEquipos.find(e=>e.id===id).nombre };
             sendRequest('Investigación', detalle);
-            // Esto debería ser manejado por el admin, pero lo simulamos aquí
-            campeonatoState.investigaciones--;
-            restantesEl.textContent = campeonatoState.investigaciones;
+            // La lógica de reducir el contador de investigaciones se podría pasar al lado del admin al aprobar
         }
     });
 }
@@ -220,6 +218,7 @@ function setupFichajes() {
     const inputOferta = document.getElementById('fichaje-oferta');
     const btnFichar = document.getElementById('btn-fichar');
 
+    selectPiloto.innerHTML = '<option value="">Selecciona un piloto...</option>';
     allPilotos.filter(p => p.equipo_id !== currentEquipo.id).forEach(p => {
         selectPiloto.innerHTML += `<option value="${p.id}">${p.nombre} ${p.apellido}</option>`;
     });
@@ -231,17 +230,18 @@ function setupFichajes() {
         if (!oferta || oferta <= 0) return alert('Introduce una oferta válida.');
 
         const piloto = allPilotos.find(p => p.id === pilotoId);
-        if (confirm(`¿Realizar una oferta de ${oferta.toLocaleString()}$ a ${piloto.nombre} ${piloto.apellido}?`)) {
+        if (confirm(`¿Realizar una oferta de ${oferta.toLocaleString()}$ a ${piloto.nombre} ${piloto.apellido}? El dinero se descontará si la FIA aprueba el fichaje.`)) {
             sendRequest('Fichaje', { pilotoId: pilotoId, pilotoNombre: `${piloto.nombre} ${piloto.apellido}`, oferta: oferta }, oferta);
         }
     });
 }
 
-function loadAvisos() {
+function listenForAvisos() {
     const container = document.getElementById('avisos-container');
     const q = query(collection(db, "avisos"), where("equipoId", "==", currentEquipo.id), orderBy("timestamp", "desc"));
 
-    onSnapshot(q, (snapshot) => {
+    // Guardamos la función de desuscripción que devuelve onSnapshot
+    unsubscribeAvisos = onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
             container.innerHTML = '<p>No tienes nuevos avisos.</p>';
             return;
@@ -249,13 +249,14 @@ function loadAvisos() {
         container.innerHTML = '';
         snapshot.forEach(doc => {
             const aviso = doc.data();
-            const date = aviso.timestamp?.toDate().toLocaleDateString() || 'Reciente';
-            container.innerHTML += `
-                <div class="aviso">
-                    <p class="aviso-header"><strong>${aviso.remitente}</strong> - ${date}</p>
-                    <p>${aviso.mensaje}</p>
-                </div>
+            const date = aviso.timestamp?.toDate().toLocaleString() || 'Reciente';
+            const card = document.createElement('div');
+            card.className = 'aviso';
+            card.innerHTML = `
+                <p class="aviso-header"><strong>${aviso.remitente}</strong> - ${date}</p>
+                <p>${aviso.mensaje}</p>
             `;
+            container.appendChild(card);
         });
     });
 }
