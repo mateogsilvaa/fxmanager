@@ -4,93 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FX Manager | Reglamento</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #111;
-            color: #eee;
-            margin: 0;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        h1 {
-            color: #e10600;
-            text-align: center;
-            font-style: italic;
-            border-bottom: 2px solid #e10600;
-            padding-bottom: 15px;
-            margin-bottom: 30px;
-        }
-        h2 {
-            color: #fff;
-            margin-top: 0;
-        }
-        .rule-card {
-            background-color: #1e1e1e;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            transition: transform 0.2s;
-        }
-        .rule-card:hover {
-            border-color: #e10600;
-            transform: translateY(-2px);
-        }
-        .step-number {
-            display: inline-block;
-            background-color: #e10600;
-            color: white;
-            width: 30px;
-            height: 30px;
-            text-align: center;
-            line-height: 30px;
-            border-radius: 50%;
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        .highlight {
-            color: #e10600;
-            font-weight: bold;
-        }
-        .back-btn {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            background-color: #333;
-            color: white;
-            text-align: center;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-top: 30px;
-            font-weight: bold;
-            transition: 0.3s;
-        }
-        .back-btn:hover {
-            background-color: #555;
-        }
-        ul {
-            padding-left: 20px;
-        }
-        li {
-            margin-bottom: 10px;
-            color: #ccc;
-        }
-    </style>
+    <link rel="stylesheet" href="modern.css">
 </head>
 <body>
 
-    <div class="container">
-        <h1>REGLAMENTO DEPORTIVO & TÉCNICO</h1>
+    <main class="container" style="max-width:800px;">
+        <h1 style="text-align:center;font-style:italic;">Reglamento Deportivo & Técnico</h1>
 
         <div class="rule-card">
             <h2><span class="step-number">1</span>El Concepto</h2>
             <p>Bienvenido al FX Manager. Aquí eres el <strong>Team Principal</strong>. Tu trabajo no es conducir, es gestionar.</p>
-            <p>Las carreras se simulan en <span class="highlight">Assetto Corsa</span> usando una Inteligencia Artificial avanzada. Tus decisiones en esta web afectarán directamente al rendimiento de tu coche en la simulación real.</p>
+            <p>Las carreras se simulan en <span style="color:var(--accent);font-weight:600;">Assetto Corsa</span> usando una Inteligencia Artificial avanzada. Tus decisiones en esta web afectarán directamente al rendimiento de tu coche en la simulación real.</p>
         </div>
 
         <div class="rule-card">
@@ -101,7 +25,7 @@
                 <li><strong>Aerodinámica:</strong> Mejora el paso por curva (Reduce el lastre en AC).</li>
                 <li><strong>Pilotos:</strong> Ficha a mejores talentos (Aumenta la agresividad de la IA).</li>
             </ul>
-            <p><em>Cuidado: Si entras en números rojos, la FIA podría sancionarte.</em></p>
+            <p><em style="color:#9ca3af;">Cuidado: Si entras en números rojos, la FIA podría sancionarte.</em></p>
         </div>
 
         <div class="rule-card">
@@ -125,12 +49,16 @@
             </ul>
         </div>
 
-        <a id="btnVolver" href="index.html" class="back-btn">Volver al Inicio</a>
-
-    </div>
+        <button id="btnVolver" style="width:100%;margin-top:32px;">Volver al Paddock</button>
+    </main>
+    <nav class="bottom-nav">
+      <a href="equipos.html"><span>Equipos</span></a>
+      <a href="clasificacion.html"><span>Clasificación</span></a>
+      <a href="pilotos.html"><span>Pilotos</span></a>
+      <a href="seleccion.html"><span>Elección</span></a>
+    </nav>
 
     <script type="module">
-        // Pequeño script para saber a dónde mandar al usuario al volver
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
@@ -150,11 +78,9 @@
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // Si está conectado, volver al Dashboard
                 btn.href = "dashboard.html";
                 btn.innerText = "Volver al Paddock (Dashboard)";
             } else {
-                // Si no, volver al Login
                 btn.href = "index.html";
                 btn.innerText = "Volver al Login";
             }

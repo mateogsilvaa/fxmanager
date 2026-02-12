@@ -12,7 +12,7 @@
       <div id="header-equipo" class="header-box" style="display: none;">
         <div>
             <h1 id="ui-nombre-equipo">Cargando Escudería...</h1>
-            <p style="margin: 5px 0 0 0; color: #ccc;">Sede Central</p>
+            <p style="margin: 6px 0 0 0; color: #9ca3af;">Sede Central</p>
         </div>
         <div class="presupuesto-box">
             <h3>Presupuesto Disponible</h3>
@@ -21,16 +21,16 @@
       </div>
       <div class="main-grid">
         <div class="panel">
-            <h2>Garaje Oficial</h2>
+            <h2>🏁 Garaje Oficial</h2>
             <img id="ui-foto-coche" src="" alt="Coche F1" class="coche-img">
-            <h3 style="margin-bottom: 10px; color: #aaa; font-size: 14px; text-transform: uppercase;">Alineación Titular</h3>
+            <h3 style="margin-bottom: 12px; color: #9ca3af; font-size: 14px; text-transform: uppercase;">Alineación Titular</h3>
             <div id="ui-pilotos" class="pilotos-grid">
-                <p style="color: #666;">Buscando pilotos en boxes...</p>
+                <p style="color: #666; grid-column: 1/-1; text-align: center;">Buscando pilotos en boxes...</p>
             </div>
         </div>
         <div class="panel">
-            <h2>Departamento de Ingeniería (I+D)</h2>
-            <p style="color: #aaa; font-size: 13px; margin-bottom: 20px;">Las mejoras compradas se enviarán a la FIA (Admin) para que las instale en Assetto Corsa antes de la próxima carrera.</p>
+            <h2>⚙️ Departamento de Ingeniería (I+D)</h2>
+            <p style="color: #9ca3af; font-size: 13px; margin-bottom: 20px;">Las mejoras compradas se enviarán al Admin para que las instale en Assetto Corsa antes del próximo GP.</p>
             <div class="mejora-card">
                 <div class="mejora-info">
                     <h4 id="motor-titulo">Unidad de Potencia (Nivel 1)</h4>
@@ -38,16 +38,16 @@
                 </div>
                 <button id="btnMejoraMotor" class="btn-comprar">Comprar: $50,000</button>
             </div>
-            <div class="mejora-card" style="border-left-color: #33b5e5;">
+            <div class="mejora-card" style="border-left-color: #10b981;">
                 <div class="mejora-info">
                     <h4 id="chasis-titulo">Chasis y Peso (Nivel 1)</h4>
                     <p>Reduce el lastre (Ballast) del coche en Assetto Corsa.</p>
                 </div>
-                <button id="btnMejoraChasis" class="btn-comprar" style="background-color: #33b5e5;">Comprar: $40,000</button>
+                <button id="btnMejoraChasis" class="btn-comprar" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">Comprar: $40,000</button>
             </div>
         </div>
       </div>
-      <button id="btnCerrarSesion">Salir del Paddock</button>
+      <button id="btnCerrarSesion" style="width:100%;margin-top:24px;background:rgba(239,68,68,0.3);color:var(--danger);">Salir del Paddock</button>
     </main>
     <nav class="bottom-nav" id="bottomNav" style="display:none;">
       <a href="equipos.html"><span>Equipos</span></a>
@@ -56,17 +56,6 @@
       <a href="seleccion.html"><span>Elección</span></a>
       <a href="dashboard.html" class="active"><span>Dashboard</span></a>
     </nav>
-    <script>
-      // Mostrar la barra solo si el usuario tiene equipo (header-equipo visible)
-      window.addEventListener('DOMContentLoaded',()=>{
-        const header = document.getElementById('header-equipo');
-        const nav = document.getElementById('bottomNav');
-        const obs = new MutationObserver(()=>{
-          if(header.style.display!=="none") nav.style.display="flex";
-        });
-        obs.observe(header,{attributes:true,attributeFilter:['style']});
-      });
-    </script>
 
     <script type="module" src="dashboard.js"></script>
 </body>

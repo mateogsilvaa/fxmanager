@@ -9,19 +9,21 @@
 <body>
 
     <main class="login-container">
-        <h1 style="color:var(--accent);font-style:italic;">FX MANAGER</h1>
-        <p style="color:#888;">Acceso al Paddock</p>
+        <h1 style="text-align:center;color:var(--accent);font-style:italic;">FX MANAGER</h1>
+        <p style="text-align:center;color:#9ca3af;">Acceso al Paddock</p>
         <div class="input-group">
             <label for="email">Correo del Team Manager</label>
             <input type="email" id="email" placeholder="team@fxmanager.com" required>
         </div>
         <div class="input-group">
-            <label for="password">Contraseña (Telemetría)</label>
+            <label for="password">Contraseña</label>
             <input type="password" id="password" placeholder="••••••••" required>
         </div>
-        <button id="btnLogin">Arrancar Motor</button>
+        <button id="btnLogin" style="width:100%;">Arrancar Motor</button>
         <div id="mensaje"></div>
-        <a href="register.html" class="login-link" style="display:block;margin-top:18px;font-size:13px;color:#888;text-align:center;">¿No tienes licencia? Regístrate aquí</a>
+        <p style="text-align:center;margin-top:20px;">
+            <a href="register.html" class="login-link">¿No tienes licencia? Regístrate aquí</a>
+        </p>
     </main>
     <nav class="bottom-nav">
       <a href="equipos.html"><span>Equipos</span></a>
