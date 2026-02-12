@@ -1,29 +1,41 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX Manager | Escuderías</title>
+    <title>Equipos - F1 Manager</title>
     <link rel="stylesheet" href="modern.css">
 </head>
 <body>
+    <div class="container">
+        <h1>Equipos de la Temporada</h1>
+        <div id="grid-equipos" class="grid-equipos"></div>
+    </div>
 
-        <main class="container">
-            <h1 style="text-align:center;font-style:italic;">Campeonato de Constructores</h1>
-            <div id="contenedor-equipos" class="grid-equipos">
-                <p style="text-align: center; width: 100%;">Preparando los boxes...</p>
-            </div>
-        </main>
-        <nav class="bottom-nav">
-            <a href="home.html" title="Inicio"><span class="nav-icon">🏠</span></a>
-            <a href="equipos.html" class="active" title="Equipos"><span class="nav-icon">🏢</span></a>
-            <a href="pilotos.html" title="Pilotos"><span class="nav-icon">👤</span></a>
-            <a href="seleccion.html" title="Elección"><span class="nav-icon">✍️</span></a>
-            <a href="dashboard.html" title="Mi Equipo"><span class="nav-icon">📊</span></a>
-            <a href="clasificacion.html" title="Clasificación"><span class="nav-icon">🏆</span></a>
-            <a href="calendario.html" title="Calendario"><span class="nav-icon">📅</span></a>
-        </nav>
+    <nav class="bottom-nav">
+        <a href="equipos.html" class="nav-item active">
+            <span class="nav-icon">🏎️</span>
+            <span>Equipos</span>
+        </a>
+        <a href="pilotos.html" class="nav-item">
+            <span class="nav-icon">👨‍🚀</span>
+            <span>Pilotos</span>
+        </a>
+        <a href="home.html" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>Home</span>
+        </a>
+        <a href="calendario.html" class="nav-item">
+            <span class="nav-icon">🗓️</span>
+            <span>Calendario</span>
+        </a>
+        <a href="clasificacion.html" class="nav-item">
+            <span class="nav-icon">🏆</span>
+            <span>Clasificación</span>
+        </a>
+    </nav>
 
-    <script type="module" src="equipos.js"></script>
+    <script src="equipos.js"></script>
 </body>
 </html>

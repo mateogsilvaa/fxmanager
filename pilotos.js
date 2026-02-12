@@ -1,67 +1,52 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
-  authDomain: "fxmanager-c5868.firebaseapp.com",
-  projectId: "fxmanager-c5868",
-  storageBucket: "fxmanager-c5868.firebasestorage.app",
-  messagingSenderId: "652487009924",
-  appId: "1:652487009924:web:c976804d6b48c4dda004d1",
-  measurementId: "G-XK03CWHZEK"
-};
+document.addEventListener("DOMContentLoaded", () => {
+    const pilotosContainer = document.getElementById("grid-pilotos");
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+    // Datos de ejemplo (los mismos que en equipos.js)
+    const equipos = [
+        {
+            nombre: "Mercedes-AMG Petronas",
+            color: "#6CD3BF",
+            pilotos: [
+                { nombre: "Lewis", apellido: "Hamilton", foto: "https://www.formula1.com/content/dam/fom-website/drivers/L/LEWHAM01_Lewis_Hamilton/lewham01.png.transform/1col/image.png", numero: 44, pais: "GB" },
+                { nombre: "George", apellido: "Russell", foto: "https://www.formula1.com/content/dam/fom-website/drivers/G/GEORUS01_George_Russell/georus01.png.transform/1col/image.png", numero: 63, pais: "GB" },
+            ],
+        },
+        {
+            nombre: "Oracle Red Bull Racing",
+            color: "#1E5BC6",
+            pilotos: [
+                { nombre: "Max", apellido: "Verstappen", foto: "https://www.formula1.com/content/dam/fom-website/drivers/M/MAXVER01_Max_Verstappen/maxver01.png.transform/1col/image.png", numero: 1, pais: "NL" },
+                { nombre: "Sergio", apellido: "Pérez", foto: "https://www.formula1.com/content/dam/fom-website/drivers/S/SERPER01_Sergio_Perez/serper01.png.transform/1col/image.png", numero: 11, pais: "MX" },
+            ],
+        },
+        // ... (Agrega los 8 equipos restantes aquí)
+    ];
 
-async function cargarPilotos() {
-    const contenedor = document.getElementById('contenedor-pilotos');
-    contenedor.innerHTML = "";
+    // Extraer todos los pilotos en una sola lista
+    const todosLosPilotos = equipos.flatMap(equipo => 
+        equipo.pilotos.map(piloto => ({ ...piloto, colorEquipo: equipo.color }))
+    );
 
-    try {
-        // 1. Descargamos los equipos para saber sus colores
-        const equiposSnap = await getDocs(collection(db, "equipos"));
-        const coloresEquipos = {}; // Guardaremos { 'ferrari': '#e10600' }
-        equiposSnap.forEach(doc => {
-            // Si el equipo no tiene color asignado, le ponemos blanco por defecto
-            coloresEquipos[doc.id] = doc.data().color || "#ffffff"; 
-        });
+    function renderPilotos() {
+        pilotosContainer.innerHTML = ""; // Limpiar
+        todosLosPilotos.forEach(piloto => {
+            const pilotoCard = document.createElement("div");
+            pilotoCard.classList.add("equipo-card"); // Reutilizamos el estilo
 
-        // 2. Descargamos los pilotos
-        const pilotosSnap = await getDocs(collection(db, "pilotos"));
-        
-        pilotosSnap.forEach(doc => {
-            const p = doc.data();
-            const colorEquipo = coloresEquipos[p.equipo_id] || "#ffffff";
-            // Foto por defecto si el admin aún no ha subido una
-            const fotoUrl = p.foto_url || "https://media.formula1.com/d_default_fallback_profile.png/content/dam/fom-website/drivers/M/MAXVER01_Max_Verstappen/maxver01.png.transform/2col/image.png"; 
-
-            const card = document.createElement('div');
-            card.className = 'piloto-card';
-            card.style.borderLeftColor = colorEquipo; // Línea del color del equipo
-
-            card.innerHTML = `
-                <div class="foto-box">
-                    <img src="${fotoUrl}" alt="${p.apellido}">
-                </div>
-                <div class="info-box">
-                    <div class="numero-bandera">
-                        <span class="numero">${p.numero}</span>
-                        <span class="bandera">${p.bandera}</span>
-                    </div>
-                    <div class="nombre-box">
-                        <span class="nombre">${p.nombre}</span>
-                        <span class="apellido" style="color: ${colorEquipo};">${p.apellido}</span>
+            pilotoCard.innerHTML = `
+                <div class="piloto" style="padding: 16px;">
+                    <img src="${piloto.foto}" alt="${piloto.nombre} ${piloto.apellido}">
+                    <div class="piloto-info">
+                        <span class="piloto-nombre" style="color: ${piloto.colorEquipo};">${piloto.nombre} ${piloto.apellido}</span>
+                        <span class="piloto-numero">#${piloto.numero}</span>
+                        <span class="piloto-pais">${piloto.pais}</span>
                     </div>
                 </div>
             `;
-            contenedor.appendChild(card);
+            pilotosContainer.appendChild(pilotoCard);
         });
-
-    } catch (error) {
-        console.error("Error cargando la parrilla: ", error);
-        contenedor.innerHTML = "<p>Error al conectar con la FIA.</p>";
     }
-}
 
-cargarPilotos();
+    renderPilotos();
+});
