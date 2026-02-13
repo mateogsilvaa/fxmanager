@@ -3,36 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Manager | Media</title>
+    <title>F1 Manager - Media Center</title>
     <link rel="stylesheet" href="modern.css">
-    <link rel="stylesheet" href="media.css">
 </head>
 <body>
-    <nav class="main-nav container">
-        <a href="index.html" class="logo">F1Manager</a>
-        <div class="nav-links">
-            <a href="equipos.html">Equipos</a>
-            <a href="calendario.html">Calendario</a>
-            <a href="clasificacion.html">Clasificación</a>
-            <a href="pilotos.html" class="active">Media</a>
+
+    <nav class="navbar">
+        <div class="nav-brand"><strong>F1 MANAGER</strong></div>
+        <ul class="nav-links">
+            <li><a href="home.html">Inicio</a></li>
+            <li><a href="equipos.html">Equipos</a></li>
+            <li><a href="calendario.html">Calendario</a></li>
+            <li><a href="clasificacion.html">Clasificación</a></li>
+            <li><a href="pilotos.html" class="active">Media</a></li>
+            <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Escudería</a></li>
+            <li id="nav-admin" style="display: none;"><a href="admin.html">Panel Admin</a></li>
+        </ul>
+        <div class="nav-auth">
+            <button id="btnLogin" class="btn-outline">Iniciar Sesión</button>
+            <button id="btnLogout" class="btn-solid" style="display: none;">Cerrar Sesión</button>
         </div>
     </nav>
 
     <main class="container">
-        <header style="text-align: center; margin-bottom: 40px;">
-            <h1>Media Center</h1>
-            <p>Noticias, artículos y contenido exclusivo del mundo de F1 Manager.</p>
-        </header>
+        <div class="section-header" style="margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+            <h1>Centro de Prensa</h1>
+            <p>Últimas noticias, comunicados oficiales, galería de imágenes y vídeos de la temporada.</p>
+        </div>
 
-        <div id="media-container" class="media-grid">
-            <!-- Las publicaciones se cargarán aquí -->
+        <div class="media-filters">
+            <button class="filter-btn active" data-filter="todos">Todo</button>
+            <button class="filter-btn" data-filter="articulo">Noticias</button>
+            <button class="filter-btn" data-filter="foto">Fotografías</button>
+            <button class="filter-btn" data-filter="video">Vídeos</button>
+        </div>
+        
+        <div id="grid-media" class="media-grid">
+            <p style="text-align:center; color: var(--text-secondary); width: 100%;">Cargando publicaciones...</p>
         </div>
     </main>
 
-    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
-        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
-    </footer>
-
-    <script type="module" src="media.js"></script>
+    <script type="module" src="pilotos.js"></script>
 </body>
 </html>

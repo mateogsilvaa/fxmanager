@@ -3,93 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Manager | Dashboard</title>
+    <title>F1 Manager - Mi Escudería</title>
     <link rel="stylesheet" href="modern.css">
-    <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
-    <nav class="main-nav"></nav>
 
-    <main id="dashboard-container" class="container">
-        <!-- Contenido del dashboard generado por JS -->
-    </main>
-
-    <template id="template-dashboard">
-        <div class="dashboard-header">
-            <h1 id="team-name"></h1>
-            <div class="header-stats">
-                <span>Presupuesto: <strong id="team-budget"></strong></span>
-            </div>
+    <nav class="navbar">
+        <div class="nav-brand"><strong>F1 MANAGER</strong></div>
+        <ul class="nav-links">
+            <li><a href="home.html">Inicio</a></li>
+            <li><a href="equipos.html">Equipos</a></li>
+            <li><a href="clasificacion.html">Clasificación</a></li>
+            <li><a href="pilotos.html">Media</a></li>
+            <li id="nav-dashboard"><a href="dashboard.html" class="active">Mi Escudería</a></li>
+            <li id="nav-admin" style="display: none;"><a href="admin.html">Panel Admin</a></li>
+        </ul>
+        <div class="nav-auth">
+            <button id="btnLogout" class="btn-solid">Cerrar Sesión</button>
         </div>
+    </nav>
 
-        <div class="tabs">
-            <button class="tab-btn active" data-tab="general">General</button>
-            <button class="tab-btn" data-tab="mejoras">Mejoras</button>
-            <button class="tab-btn" data-tab="investigacion">Investigación</button>
-            <button class="tab-btn" data-tab="fichajes">Fichajes</button>
-            <button class="tab-btn" data-tab="avisos">Avisos FIA</button>
-        </div>
-
-        <div id="tab-general" class="tab-content active">
-            <div class="card-grid">
-                <div id="team-stats" class="card"></div>
-                <div id="pilot-1" class="card"></div>
-                <div id="pilot-2" class="card"></div>
-            </div>
-        </div>
-
-        <div id="tab-mejoras" class="tab-content">
-            <div class="card">
-                <h2>Mejoras de Monoplaza</h2>
-                <p>Invierte en I+D para mejorar el rendimiento de tu coche. Cada mejora se reflejará en la siguiente carrera.</p>
-                <div class="mejoras-grid">
-                    <div class="mejora-item">
-                        <h3>Chasis</h3>
-                        <p>Mejora la aerodinámica y el paso por curva.</p>
-                        <button class="btn btn-primary" data-mejora="chasis">Solicitar Mejora (1.000.000$)</button>
-                    </div>
-                    <div class="mejora-item">
-                        <h3>Motor</h3>
-                        <p>Aumenta la potencia y la velocidad punta.</p>
-                        <button class="btn btn-primary" data-mejora="motor">Solicitar Mejora (1.500.000$)</button>
+    <div class="container dashboard-layout">
+        
+        <div class="dashboard-main">
+            
+            <div class="card team-overview">
+                <div class="team-header-dash">
+                    <div class="car-display" id="dash-car-img">
+                        </div>
+                    <div class="team-info-dash">
+                        <h1 id="dash-team-name">Cargando Escudería...</h1>
+                        <div class="budget-display">
+                            <span>PRESUPUESTO</span>
+                            <h2 id="dash-budget">$0</h2>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <div id="tab-investigacion" class="tab-content">
-            <div class="card">
-                <h2>Investigación y Espionaje</h2>
-                <p>Usa tus recursos para obtener información sobre tus rivales. Tienes <strong id="investigaciones-restantes"></strong> investigaciones disponibles esta temporada.</p>
-                <div class="investigacion-form">
-                    <select id="investigacion-sujeto"></select>
-                    <button id="btn-investigar" class="btn btn-primary">Investigar</button>
+                <div class="stats-grid">
+                    <div class="stat-box"><span>Carreras</span><strong id="ts-carreras">0</strong></div>
+                    <div class="stat-box"><span>Victorias</span><strong id="ts-victorias">0</strong></div>
+                    <div class="stat-box"><span>Puntos</span><strong id="ts-puntos">0</strong></div>
+                    <div class="stat-box"><span>Podios</span><strong id="ts-podios">0</strong></div>
+                    <div class="stat-box"><span>Poles</span><strong id="ts-poles">0</strong></div>
+                    <div class="stat-box"><span>DNFs</span><strong id="ts-dnfs">0</strong></div>
+                    <div class="stat-box"><span>Mundiales</span><strong id="ts-mundiales">0</strong></div>
                 </div>
             </div>
+
+            <h3 class="section-title">Alineación de Pilotos</h3>
+            <div class="drivers-dashboard" id="dash-drivers-container">
+                </div>
         </div>
 
-        <div id="tab-fichajes" class="tab-content">
-            <div class="card">
-                <h2>Mercado de Fichajes</h2>
-                <p>Realiza ofertas a pilotos de otros equipos para intentar ficharlos para la próxima temporada.</p>
-                <div class="fichaje-form">
-                    <select id="fichaje-piloto"></select>
-                    <input type="number" id="fichaje-oferta" placeholder="Ej: 5000000" min="1000000">
-                    <button id="btn-fichar" class="btn btn-primary">Realizar Oferta</button>
+        <div class="dashboard-sidebar">
+            
+            <div class="card notifications-panel">
+                <h3>Buzón de Avisos</h3>
+                <div class="messages-list" id="dash-messages">
+                    <p class="text-muted">Buscando mensajes de la FIA o Admin...</p>
                 </div>
             </div>
-        </div>
 
-        <div id="tab-avisos" class="tab-content">
-            <div id="avisos-container" class="card"></div>
+            <div class="card engineering-panel">
+                <h3>I+D y Mejoras</h3>
+                <p class="text-muted" style="font-size: 0.85rem;">Las mejoras se pagarán al instante y el Admin decidirá el resultado.</p>
+                
+                <div class="upgrade-action">
+                    <div class="upgrade-info">
+                        <strong>Chasis y Aerodinámica</strong>
+                        <span>Costo: $5,000,000</span>
+                    </div>
+                    <button class="btn-outline btn-upgrade" data-type="aero" data-cost="5000000">Desarrollar</button>
+                </div>
+                
+                <div class="upgrade-action">
+                    <div class="upgrade-info">
+                        <strong>Unidad de Potencia (Motor)</strong>
+                        <span>Costo: $7,500,000</span>
+                    </div>
+                    <button class="btn-outline btn-upgrade" data-type="motor" data-cost="7500000">Desarrollar</button>
+                </div>
+
+                <hr style="border-color: var(--border-color); margin: 15px 0;">
+
+                <div class="research-action">
+                    <strong>Investigación de Rivales</strong>
+                    <span id="research-count" style="font-size: 0.8rem; color: var(--text-secondary);">Usos restantes: 2</span>
+                    <select id="research-target" style="margin-top: 10px;">
+                        <option value="piloto">Piloto Rival (Ritmo/Agresividad)</option>
+                        <option value="mejora">Última Mejora Rival</option>
+                        <option value="elemento">Nivel de Elemento Rival</option>
+                    </select>
+                    <button class="btn-solid" id="btn-research" style="width: 100%; margin-top: 10px;">Iniciar Investigación</button>
+                </div>
+            </div>
+
+            <div class="card transfers-panel">
+                <h3>Mercado de Fichajes</h3>
+                <label>Piloto Objetivo</label>
+                <input type="text" id="transfer-target" placeholder="Nombre del piloto rival...">
+                <label>Oferta Salarial ($)</label>
+                <input type="number" id="transfer-offer" placeholder="Ej: 15000000">
+                <button class="btn-outline" id="btn-transfer" style="width: 100%;">Enviar Oferta Formal</button>
+            </div>
+
         </div>
-    </template>
-    
-    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
-        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
-    </footer>
+    </div>
 
     <script type="module" src="dashboard.js"></script>
-    <script type="module" src="nav.js"></script>
 </body>
 </html>

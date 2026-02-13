@@ -1,109 +1,223 @@
+// equipos.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, getDocs, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-// --- CONFIGURACIÓN DE FIREBASE ---
+// ==========================================
+// 1. CONFIGURACIÓN FIREBASE
+// ==========================================
 const firebaseConfig = {
-  apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
-  authDomain: "fxmanager-c5868.firebaseapp.com",
-  projectId: "fxmanager-c5868",
-  storageBucket: "fxmanager-c5868.appspot.com",
-  messagingSenderId: "652487009924",
-  appId: "1:652487009924:web:c976804d6b48c4dda004d1",
+    apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
+    authDomain: "fxmanager-c5868.firebaseapp.com",
+    projectId: "fxmanager-c5868",
+    storageBucket: "fxmanager-c5868.appspot.com",
+    messagingSenderId: "652487009924",
+    appId: "1:652487009924:web:c976804d6b48c4dda004d1",
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-const contenedor = document.getElementById('contenedor-equipos');
+// ==========================================
+// 2. ESTADO GLOBAL
+// ==========================================
+let currentUserData = null; 
+let isOffseason = true; // PON ESTO EN FALSE CUANDO EMPIECE LA TEMPORADA
+let equiposData = [];
 
-onAuthStateChanged(auth, async (user) => {
-    contenedor.innerHTML = `<p>Cargando información...</p>`;
+document.addEventListener("DOMContentLoaded", () => {
+    const gridEquipos = document.getElementById("grid-equipos");
+    gridEquipos.innerHTML = "<p style='text-align:center; color: var(--text-secondary);'>Conectando con la base de datos...</p>";
 
-    if (user) {
-        // 1. Comprobar si el usuario ya tiene un equipo.
-        const q = query(collection(db, "equipos"), where("owner_uid", "==", user.uid));
-        const equipoUsuarioSnap = await getDocs(q);
-
-        if (!equipoUsuarioSnap.empty) {
-            // Si ya tiene equipo, redirigir al dashboard.
-            window.location.href = 'dashboard.html';
-            return; 
+    // ==========================================
+    // 3. AUTENTICACIÓN Y CARGA INICIAL
+    // ==========================================
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            // Buscamos si el usuario ya tiene un equipo guardado en la colección "usuarios"
+            const userRef = doc(db, "usuarios", user.uid);
+            const userSnap = await getDoc(userRef);
+            
+            if (userSnap.exists()) {
+                currentUserData = { uid: user.uid, ...userSnap.data() };
+            } else {
+                currentUserData = { uid: user.uid, equipo: null }; // Asumimos que el campo se llama "equipo"
+            }
+        } else {
+            currentUserData = null;
         }
-    }
-    
-    // 2. Si no tiene equipo o no está logueado, cargar y mostrar la lista de equipos.
-    loadAndDisplayTeams(user);
+
+        // Una vez sabemos quién es, descargamos los datos
+        cargarDatosF1();
+    });
 });
 
-async function loadAndDisplayTeams(user) {
+// ==========================================
+// 4. OBTENER DATOS DE FIRESTORE
+// ==========================================
+async function cargarDatosF1() {
+    equiposData = [];
     try {
-        const [equiposSnap, pilotosSnap, configSnap] = await Promise.all([
-            getDocs(collection(db, "equipos")),
-            getDocs(collection(db, "pilotos")),
-            getDoc(doc(db, "configuracion", "campeonato"))
-        ]);
+        // 1. Obtener todos los equipos de la colección "equipos"
+        const equiposSnap = await getDocs(collection(db, "equipos"));
+        
+        // 2. Obtener todos los pilotos de la colección "pilotos"
+        const pilotosSnap = await getDocs(collection(db, "pilotos"));
+        const todosLosPilotos = [];
+        pilotosSnap.forEach(doc => todosLosPilotos.push({ id: doc.id, ...doc.data() }));
 
-        const equipos = equiposSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const pilotos = pilotosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const campeonatoAbierto = configSnap.exists() && configSnap.data().estado === 'offseason';
+        equiposSnap.forEach((equipoDoc) => {
+            const dataEquipo = equipoDoc.data();
+            
+            // Filtramos los pilotos que pertenecen a este equipo (Asumiendo que los pilotos tienen un campo "equipoId")
+            // Si en tu BD los pilotos están guardados de otra forma, dímelo y lo ajustamos.
+            const pilotosDelEquipo = todosLosPilotos.filter(p => p.equipoId === equipoDoc.id);
 
-        contenedor.innerHTML = ''; // Limpiar el contenedor
-
-        equipos.forEach(equipo => {
-            const equipoPilotos = pilotos.filter(p => p.equipo_id === equipo.id);
-            const estaLibre = !equipo.owner_uid;
-            const puedeElegir = user && estaLibre && campeonatoAbierto;
-
-            const equipoCard = document.createElement('div');
-            equipoCard.className = 'equipo-card';
-            equipoCard.innerHTML = `
-                <div class="equipo-header">
-                    <h3>${equipo.nombre}</h3>
-                    <span class="estado-equipo ${estaLibre ? 'libre' : 'ocupado'}">${estaLibre ? 'Disponible' : 'Dirigido'}</span>
-                </div>
-                <div class="equipo-body">
-                    <img src="/assets/img/descarga.png" alt="Coche de ${equipo.nombre}" class="equipo-coche-img">
-                    <div class="pilotos-preview">
-                        ${equipoPilotos.map(p => `<div class="piloto-tag">${p.nombre.charAt(0)}. ${p.apellido}</div>`).join('') || '<div class="piloto-tag">Sin pilotos</div>'}
-                    </div>
-                </div>
-                <div class="equipo-footer">
-                    ${puedeElegir ? `<button class="btn btn-primary" data-equipo-id="${equipo.id}">Dirigir Equipo</button>` : ''}
-                    ${!estaLibre ? `<p class="dirigido-texto">Este equipo ya tiene un director asignado.</p>` : ''}
-                    ${user && estaLibre && !campeonatoAbierto ? `<p class="dirigido-texto">El campeonato está en curso, no se pueden elegir equipos.</p>` : ''}
-                </div>
-            `;
-
-            contenedor.appendChild(equipoCard);
-        });
-
-        // Añadir event listeners a los botones
-        document.querySelectorAll('.btn[data-equipo-id]').forEach(button => {
-            button.addEventListener('click', async (e) => {
-                const equipoId = e.target.dataset.equipoId;
-                const equipoNombre = equipos.find(eq => eq.id === equipoId).nombre;
-                if (confirm(`¿Confirmas que quieres tomar las riendas de ${equipoNombre}?`)) {
-                    await assignTeamToUser(equipoId, user.uid);
-                }
+            equiposData.push({
+                id: equipoDoc.id,
+                nombre: dataEquipo.nombre || "Equipo Desconocido",
+                color: dataEquipo.color || "#ffffff",
+                ownerId: dataEquipo.ownerId || null, // Si es null, está libre
+                imagenCoche: dataEquipo.imagenCoche || "",
+                pilotos: pilotosDelEquipo
             });
         });
 
+        renderEquipos();
+
     } catch (error) {
-        console.error("Error al cargar los equipos: ", error);
-        contenedor.innerHTML = `<p style="color: var(--danger);">Error al cargar la información de los equipos.</p>`;
+        console.error("Error cargando la base de datos:", error);
+        document.getElementById("grid-equipos").innerHTML = "<p style='text-align:center; color: var(--danger);'>Error al cargar los equipos. Revisa la consola.</p>";
     }
 }
 
-async function assignTeamToUser(equipoId, userId) {
-    try {
-        const equipoRef = doc(db, "equipos", equipoId);
-        await updateDoc(equipoRef, { owner_uid: userId });
-        alert('¡Enhorabuena! Has sido asignado como director de equipo. Serás redirigido a tu nuevo dashboard.');
-        window.location.href = 'dashboard.html';
-    } catch (error) {
-        console.error("Error al asignar equipo: ", error);
-        alert('No se pudo procesar tu solicitud. Inténtalo de nuevo.');
-    }
+// ==========================================
+// 5. RENDERIZAR INTERFAZ (HTML)
+// ==========================================
+function renderEquipos() {
+    const gridEquipos = document.getElementById("grid-equipos");
+    gridEquipos.innerHTML = ""; // Limpiamos el grid
+
+    equiposData.forEach(equipo => {
+        const card = document.createElement("div");
+        card.className = "equipo-card";
+
+        // Lógica del botón de dirigir
+        const isLibre = !equipo.ownerId || equipo.ownerId === "";
+        const usuarioLogueado = currentUserData !== null;
+        const usuarioSinEquipo = usuarioLogueado && (!currentUserData.equipo || currentUserData.equipo === "");
+        
+        const mostrarBotonDirigir = isOffseason && isLibre && usuarioLogueado && usuarioSinEquipo;
+
+        // Construir HTML de los pilotos
+        let htmlPilotos = "";
+        if (equipo.pilotos.length > 0) {
+            htmlPilotos = equipo.pilotos.map(p => `
+                <div class="piloto-card">
+                    <div class="piloto-foto" style="width: 50px; height: 50px; border-radius: 50%; background-color: var(--bg-tertiary); border: 2px solid var(--border-color); overflow: hidden;">
+                        ${p.foto ? `<img src="${p.foto}" alt="${p.nombre}" style="width:100%; height:100%; object-fit:cover;">` : ''}
+                    </div>
+                    <div class="piloto-info">
+                        <p class="piloto-nombre">${p.nombre || 'Piloto'} <strong style="color: ${equipo.color};">${p.apellido || ''}</strong></p>
+                        <p class="piloto-datos">${p.pais || 'N/A'} | #${p.numero || '00'}</p>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            htmlPilotos = `<p class="piloto-datos" style="text-align:center; padding: 10px 0;">No hay pilotos confirmados</p>`;
+        }
+
+        // Construir Tarjeta del equipo
+        card.innerHTML = `
+            <div class="equipo-header">
+                <div class="coche-placeholder" style="height: 120px; background-color: var(--bg-tertiary); margin-bottom: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                    ${equipo.imagenCoche ? `<img src="${equipo.imagenCoche}" alt="Coche ${equipo.nombre}" style="max-height:100%; max-width:100%; object-fit:contain;">` : '<span style="color: var(--text-secondary);">Foto Coche</span>'}
+                </div>
+                
+                <h2 style="color: ${equipo.color}; margin-bottom: 10px; font-size: 1.5rem;">${equipo.nombre}</h2>
+                <button class="deploy-arrow">▼</button>
+            </div>
+            
+            <div class="pilotos-container" style="display: none;">
+                <div class="pilotos-lista">
+                    ${htmlPilotos}
+                </div>
+                
+                ${mostrarBotonDirigir ? `
+                    <div class="accion-equipo" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: center;">
+                        <button class="btn-solid btn-dirigir" data-team-id="${equipo.id}" style="width: 100%; background-color: var(--text-primary); color: var(--bg-primary);">Dirigir Equipo</button>
+                    </div>
+                ` : ''}
+                
+                ${(!isLibre && usuarioLogueado) ? `
+                    <div style="margin-top: 15px; text-align: center;">
+                        <span style="font-size: 0.85rem; color: var(--text-secondary); padding: 5px 10px; border: 1px solid var(--border-color); border-radius: 4px;">Equipo Ocupado</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        gridEquipos.appendChild(card);
+    });
+
+    agregarEventos();
+}
+
+// ==========================================
+// 6. EVENTOS (Acordeón y Base de Datos)
+// ==========================================
+function agregarEventos() {
+    // 1. Desplegar/Contraer Pilotos
+    const headers = document.querySelectorAll(".equipo-header");
+    headers.forEach(header => {
+        header.addEventListener("click", (e) => {
+            if(e.target.classList.contains('btn-dirigir')) return;
+
+            const container = header.nextElementSibling;
+            const flecha = header.querySelector(".deploy-arrow");
+            
+            if (container.style.display === "none") {
+                container.style.display = "block";
+                flecha.style.transform = "rotate(180deg)";
+            } else {
+                container.style.display = "none";
+                flecha.style.transform = "rotate(0deg)";
+            }
+        });
+    });
+
+    // 2. Botón Dirigir Equipo (Guardar en Firebase)
+    const botonesDirigir = document.querySelectorAll(".btn-dirigir");
+    botonesDirigir.forEach(boton => {
+        boton.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const teamId = e.target.getAttribute("data-team-id");
+            
+            const confirmar = confirm(`¿Confirmas que quieres ser el jefe de equipo de esta escudería?`);
+            
+            if (confirmar) {
+                try {
+                    // Actualizamos el equipo en Firestore para ponerle el ID del dueño
+                    const equipoRef = doc(db, "equipos", teamId);
+                    await updateDoc(equipoRef, {
+                        ownerId: currentUserData.uid
+                    });
+
+                    // Actualizamos el usuario en Firestore para asignarle el ID del equipo
+                    const usuarioRef = doc(db, "usuarios", currentUserData.uid);
+                    await updateDoc(usuarioRef, {
+                        equipo: teamId
+                    });
+
+                    alert("¡Contrato firmado! Redirigiendo a tu Dashboard...");
+                    window.location.href = "dashboard.html";
+
+                } catch (error) {
+                    console.error("Error al asignar equipo:", error);
+                    alert("Hubo un error al firmar el contrato. Inténtalo de nuevo.");
+                }
+            }
+        });
+    });
 }

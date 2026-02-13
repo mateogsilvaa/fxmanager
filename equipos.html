@@ -3,30 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Manager | Equipos</title>
+    <title>F1 Manager - Equipos</title>
     <link rel="stylesheet" href="modern.css">
 </head>
 <body>
 
-    <nav class="main-nav"></nav>
-
-    <main class="container">
-        <header style="text-align: center; margin-bottom: 40px;">
-            <h1>Escuderías Oficiales</h1>
-            <p>Conoce a los 10 equipos que compiten por el título esta temporada.</p>
-        </header>
-
-        <div id="contenedor-equipos" class="grid-equipos">
-            <!-- Los equipos se cargarán aquí dinámicamente -->
-            <p style="text-align: center; color: var(--text-secondary);">Cargando escuderías...</p>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <strong>F1 MANAGER</strong>
         </div>
-    </main>
+        <ul class="nav-links">
+            <li><a href="home.html">Inicio</a></li>
+            <li><a href="equipos.html" class="active">Equipos</a></li>
+            <li><a href="clasificacion.html">Clasificación</a></li>
+            <li><a href="pilotos.html">Media</a></li>
+            
+            <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Escudería</a></li>
+            <li id="nav-admin" style="display: none;"><a href="admin.html">Panel Admin</a></li>
+        </ul>
+        <div class="nav-auth">
+            <button id="btnLogin" class="btn-outline">Iniciar Sesión</button>
+            <button id="btnLogout" class="btn-solid" style="display: none;">Cerrar Sesión</button>
+        </div>
+    </nav>
 
-    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
-        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
-    </footer>
+    <div class="container">
+        <div class="section-header" style="margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+            <h1>Parrilla Oficial</h1>
+            <p>Conoce a las 10 escuderías y sus alineaciones para esta temporada.</p>
+        </div>
+        
+        <div id="grid-equipos" class="grid-equipos"></div>
+    </div>
 
     <script type="module" src="equipos.js"></script>
-    <script type="module" src="nav.js"></script>
 </body>
 </html>

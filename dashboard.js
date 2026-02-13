@@ -1,8 +1,8 @@
+// dashboard.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-// --- CONFIGURACIÓN E INICIALIZACIÓN ---
 const firebaseConfig = {
     apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
     authDomain: "fxmanager-c5868.firebaseapp.com",
@@ -11,252 +11,242 @@ const firebaseConfig = {
     messagingSenderId: "652487009924",
     appId: "1:652487009924:web:c976804d6b48c4dda004d1",
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// --- ESTADO GLOBAL ---
-let currentEquipo = null;
-let allPilotos = [];
-let allEquipos = [];
-let campeonatoState = { estado: "offseason", investigaciones: 2 };
-let unsubscribeAvisos = null; // Para poder desuscribirnos del listener
+let currentTeamId = null;
+let currentTeamData = null;
+let userDocId = null;
 
-// --- ARRANQUE ---
-onAuthStateChanged(auth, user => {
-    if (user) {
-        if (unsubscribeAvisos) unsubscribeAvisos(); // Limpiamos listener anterior si existe
-        setupDashboard(user);
-    } else {
-        if (unsubscribeAvisos) unsubscribeAvisos();
-        window.location.href = 'index.html';
-    }
-});
-
-async function setupDashboard(user) {
-    const mainContainer = document.getElementById('dashboard-container');
-    mainContainer.innerHTML = `<p>Cargando dashboard...</p>`;
-    try {
-        const [equipoSnap, allEquiposSnap, allPilotosSnap, campeonatoDoc] = await Promise.all([
-            getDocs(query(collection(db, "equipos"), where("owner_uid", "==", user.uid))),
-            getDocs(collection(db, "equipos")),
-            getDocs(collection(db, "pilotos")),
-            getDoc(doc(db, "configuracion", "campeonato"))
-        ]);
-
-        if (equipoSnap.empty) {
-            window.location.href = 'equipos.html';
+document.addEventListener("DOMContentLoaded", () => {
+    
+    // 1. VERIFICAR AUTENTICACIÓN Y PERMISOS
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+            window.location.href = "home.html"; // No logueado
             return;
         }
 
-        currentEquipo = { id: equipoSnap.docs[0].id, ...equipoSnap.docs[0].data() };
-        allEquipos = allEquiposSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        allPilotos = allPilotosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (campeonatoDoc.exists()) campeonatoState = campeonatoDoc.data();
+        userDocId = user.uid;
+        const userRef = doc(db, "usuarios", user.uid);
+        const userSnap = await getDoc(userRef);
 
-        // Escuchar cambios en el equipo actual en tiempo real
-        onSnapshot(doc(db, "equipos", currentEquipo.id), (doc) => {
-            currentEquipo = { id: doc.id, ...doc.data() };
-            document.getElementById('team-budget').textContent = `${(currentEquipo.presupuesto || 0).toLocaleString()}$`;
-        });
-        
-        const pilotosDelEquipo = allPilotos.filter(p => p.equipo_id === currentEquipo.id);
-
-        renderDashboard(pilotosDelEquipo);
-        setupInteractiveElements();
-
-    } catch (error) {
-        console.error("Error al montar el dashboard:", error);
-        mainContainer.innerHTML = `<p style="color: var(--danger);">Error crítico al cargar tus datos.</p>`;
-    }
-}
-
-// --- RENDERIZADO HTML ---
-function renderDashboard(pilotosDelEquipo) {
-    const template = document.getElementById('template-dashboard').innerHTML;
-    document.getElementById('dashboard-container').innerHTML = template;
-    document.getElementById('team-name').textContent = currentEquipo.nombre;
-    document.getElementById('team-budget').textContent = `${(currentEquipo.presupuesto || 0).toLocaleString()}$`;
-
-    renderTeamStats(document.getElementById('team-stats'));
-    if (pilotosDelEquipo[0]) renderPilotStats(document.getElementById('pilot-1'), pilotosDelEquipo[0]);
-    if (pilotosDelEquipo[1]) renderPilotStats(document.getElementById('pilot-2'), pilotosDelEquipo[1]);
-    
-    document.getElementById('btnCerrarSesion').addEventListener('click', () => signOut(auth));
-}
-
-function renderTeamStats(container) {
-    container.innerHTML = `
-        <h3>Estadísticas del Equipo</h3>
-        <div class="stat-item"><span>Victorias</span> <strong>${currentEquipo.victorias || 0}</strong></div>
-        <div class="stat-item"><span>Podios</span> <strong>${currentEquipo.podios || 0}</strong></div>
-        <div class="stat-item"><span>Poles</span> <strong>${currentEquipo.poles || 0}</strong></div>
-        <div class="stat-item"><span>Puntos</span> <strong>${currentEquipo.puntos || 0}</strong></div>
-        <div class="stat-item"><span>DNFs</span> <strong>${currentEquipo.dnfs || 0}</strong></div>
-        <div class="stat-item"><span>Campeonatos</span> <strong>${currentEquipo.campeonatos || 0}</strong></div>
-    `;
-}
-
-function renderPilotStats(container, piloto) {
-     container.innerHTML = `
-        <h3>${piloto.nombre} ${piloto.apellido}</h3>
-        <p>${piloto.bandera || ''} Edad: ${piloto.edad || 'N/A'}</p>
-        <div class="stat-item"><span>Ritmo</span> <strong>${piloto.ritmo || '??'}</strong></div>
-        <div class="stat-item"><span>Agresividad</span> <strong>${piloto.agresividad || '??'}</strong></div>
-        <div class="stat-item"><span>Moral</span> <strong>${piloto.moral || 75}/100</strong></div>
-        <div class="stat-item"><span>Sueldo</span> <span id="sueldo-piloto-${piloto.id}">${(piloto.sueldo || 1000000).toLocaleString()}$</span></div>
-        <input type="range" class="salary-bar" data-piloto-id="${piloto.id}" min="500000" max="10000000" step="100000" value="${piloto.sueldo || 1000000}">
-    `;
-}
-
-// --- LÓGICA INTERACTIVA ---
-function setupInteractiveElements() {
-    setupTabs();
-    setupMejoras();
-    setupInvestigacion();
-    setupFichajes();
-    listenForAvisos(); // Cambiado de loadAvisos a listenForAvisos
-
-    document.querySelectorAll('.salary-bar').forEach(bar => {
-        bar.addEventListener('input', (e) => {
-            document.getElementById(`sueldo-piloto-${e.target.dataset.pilotoId}`).textContent = `${parseInt(e.target.value).toLocaleString()}$`;
-        });
-         bar.addEventListener('change', async (e) => {
-            await updateDoc(doc(db, "pilotos", e.target.dataset.pilotoId), { sueldo: parseInt(e.target.value) });
-            alert("Sueldo actualizado.");
-        });
-    });
-}
-
-function setupTabs() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.tab-content.active, .tab-btn.active').forEach(el => el.classList.remove('active'));
-            document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
-            btn.classList.add('active');
-        });
-    });
-}
-
-async function sendRequest(tipo, detalle, coste = 0) {
-    // Comprobamos si el equipo puede permitirse la operación
-    if (coste > 0 && currentEquipo.presupuesto < coste) {
-        return alert('Presupuesto insuficiente para realizar esta solicitud.');
-    }
-    
-    try {
-        await addDoc(collection(db, "solicitudes"), {
-            equipoId: currentEquipo.id,
-            equipoNombre: currentEquipo.nombre,
-            tipo: tipo,
-            detalle: detalle,
-            coste: coste,
-            estado: 'pendiente',
-            timestamp: serverTimestamp()
-        });
-        
-        alert(`Solicitud de ${tipo} enviada al administrador para su revisión.`);
-        
-    } catch (error) {
-        console.error(`Error enviando solicitud de ${tipo}:`, error);
-        alert('Hubo un error al procesar la solicitud.');
-    }
-}
-
-function setupMejoras() {
-    document.querySelectorAll('[data-mejora]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tipoMejora = btn.dataset.mejora;
-            const coste = tipoMejora === 'chasis' ? 1000000 : 1500000; // Costes de ejemplo
-            const confirmMsg = `Se solicitará una mejora de ${tipoMejora} por ${coste.toLocaleString()}$. El coste se descontará del presupuesto una vez que la FIA apruebe la solicitud. ¿Continuar?`;
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
             
-            if (confirm(confirmMsg)) {
-                sendRequest('Mejora', { pieza: tipoMejora }, coste);
+            // Si es Admin mostramos el botón del menú
+            if (userData.isAdmin) document.getElementById("nav-admin").style.display = "inline-block";
+
+            // Si NO tiene equipo, lo echamos de aquí
+            if (!userData.equipo || userData.equipo === "") {
+                alert("No tienes ninguna escudería asignada.");
+                window.location.href = "equipos.html";
+                return;
+            }
+
+            currentTeamId = userData.equipo;
+            cargarDatosDashboard();
+            escucharNotificaciones();
+        }
+    });
+
+    // Evento Logout
+    document.getElementById("btnLogout").addEventListener("click", async () => {
+        await signOut(auth);
+        window.location.href = "home.html";
+    });
+});
+
+// 2. CARGAR DATOS DEL EQUIPO Y PILOTOS
+async function cargarDatosDashboard() {
+    try {
+        // Cargar Equipo
+        const equipoRef = doc(db, "equipos", currentTeamId);
+        const equipoSnap = await getDoc(equipoRef);
+        
+        if (!equipoSnap.exists()) return;
+        currentTeamData = equipoSnap.data();
+
+        // Renderizar Info Base
+        document.getElementById("dash-team-name").textContent = currentTeamData.nombre;
+        document.getElementById("dash-team-name").style.color = currentTeamData.color;
+        document.getElementById("dash-budget").textContent = `$${(currentTeamData.presupuesto || 0).toLocaleString()}`;
+        
+        if(currentTeamData.imagenCoche) {
+            document.getElementById("dash-car-img").innerHTML = `<img src="${currentTeamData.imagenCoche}">`;
+        } else {
+            document.getElementById("dash-car-img").innerHTML = `<span style="color:var(--text-secondary)">Sin Imagen</span>`;
+        }
+
+        // Estadísticas del equipo (asumiendo que las guardas en el doc del equipo)
+        document.getElementById("ts-carreras").textContent = currentTeamData.carreras || 0;
+        document.getElementById("ts-victorias").textContent = currentTeamData.victorias || 0;
+        document.getElementById("ts-puntos").textContent = currentTeamData.puntos || 0;
+        document.getElementById("ts-podios").textContent = currentTeamData.podios || 0;
+        document.getElementById("ts-poles").textContent = currentTeamData.poles || 0;
+        document.getElementById("ts-dnfs").textContent = currentTeamData.dnfs || 0;
+        document.getElementById("ts-mundiales").textContent = currentTeamData.mundiales || 0;
+
+        // Cargar Pilotos del Equipo
+        const pilotosQuery = query(collection(db, "pilotos"), where("equipoId", "==", currentTeamId));
+        const pilotosSnap = await getDocs(pilotosQuery);
+        
+        const driversContainer = document.getElementById("dash-drivers-container");
+        driversContainer.innerHTML = "";
+
+        pilotosSnap.forEach(docSnap => {
+            const p = docSnap.data();
+            const pId = docSnap.id;
+            
+            driversContainer.innerHTML += `
+                <div class="driver-dash-card">
+                    <div class="driver-dash-header">
+                        <div class="driver-dash-photo" style="overflow:hidden;">
+                            ${p.foto ? `<img src="${p.foto}" style="width:100%; height:100%; object-fit:cover;">` : ''}
+                        </div>
+                        <div>
+                            <h4 style="margin:0;">${p.nombre} <span style="color:${currentTeamData.color}">${p.apellido}</span></h4>
+                            <span class="text-muted" style="font-size:0.8rem;">${p.pais} | Edad: ${p.edad || '--'} | #${p.numero}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="driver-attributes">
+                        <span>Ritmo: <strong>${p.ritmo || 0}</strong></span>
+                        <span>Agresividad: <strong>${p.agresividad || 0}</strong></span>
+                        <span>Moral: <strong>${p.moral || 'Media'}</strong></span>
+                    </div>
+
+                    <div class="driver-stats-mini">
+                        <div class="stat-box"><span>Pts</span><strong>${p.puntos || 0}</strong></div>
+                        <div class="stat-box"><span>Vic</span><strong>${p.victorias || 0}</strong></div>
+                        <div class="stat-box"><span>Pod</span><strong>${p.podios || 0}</strong></div>
+                    </div>
+
+                    <div style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                        <label>Sueldo Actual: $${(p.sueldo || 0).toLocaleString()}</label>
+                        <div style="display:flex; gap:10px;">
+                            <input type="number" id="sueldo-${pId}" value="${p.sueldo || 0}" style="margin:0;">
+                            <button class="btn-outline btn-update-salary" data-pid="${pId}">Actualizar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        configurarBotonesAccion();
+
+    } catch (error) {
+        console.error("Error al cargar dashboard:", error);
+    }
+}
+
+// 3. CONFIGURAR ACCIONES (Mejoras, Fichajes, Sueldos)
+function configurarBotonesAccion() {
+    
+    // --- MEJORAS ---
+    const botonesMejora = document.querySelectorAll(".btn-upgrade");
+    botonesMejora.forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+            const tipo = e.target.getAttribute("data-type");
+            const costo = parseInt(e.target.getAttribute("data-cost"));
+
+            if (currentTeamData.presupuesto < costo) {
+                alert("Presupuesto insuficiente para esta mejora.");
+                return;
+            }
+
+            if (confirm(`¿Invertir $${costo.toLocaleString()} en mejora de ${tipo}? El dinero se descontará inmediatamente.`)) {
+                try {
+                    // 1. Restar dinero
+                    const nuevoPresupuesto = currentTeamData.presupuesto - costo;
+                    await updateDoc(doc(db, "equipos", currentTeamId), {
+                        presupuesto: nuevoPresupuesto
+                    });
+
+                    // 2. Crear solicitud para el admin en la colección "solicitudes_admin"
+                    await addDoc(collection(db, "solicitudes_admin"), {
+                        equipoId: currentTeamId,
+                        nombreEquipo: currentTeamData.nombre,
+                        tipo: "Mejora",
+                        detalle: tipo,
+                        costo: costo,
+                        estado: "Pendiente",
+                        fecha: serverTimestamp()
+                    });
+
+                    alert("Mejora solicitada. El Admin evaluará el resultado.");
+                    cargarDatosDashboard(); // Recargar datos para ver el nuevo saldo
+
+                } catch (error) {
+                    console.error("Error al procesar mejora:", error);
+                }
             }
         });
     });
+
+    // --- ACTUALIZAR SUELDOS ---
+    const botonesSueldo = document.querySelectorAll(".btn-update-salary");
+    botonesSueldo.forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+            const pId = e.target.getAttribute("data-pid");
+            const nuevoSueldo = parseInt(document.getElementById(`sueldo-${pId}`).value);
+
+            if(confirm(`¿Actualizar el sueldo de este piloto a $${nuevoSueldo.toLocaleString()}?`)) {
+                await updateDoc(doc(db, "pilotos", pId), { sueldo: nuevoSueldo });
+                alert("Sueldo actualizado.");
+                cargarDatosDashboard();
+            }
+        });
+    });
+
+    // --- FICHAS Y OTRAS ACCIONES (Bases dejadas para ti) ---
+    document.getElementById("btn-transfer").addEventListener("click", async () => {
+        const pilotoTarget = document.getElementById("transfer-target").value;
+        const oferta = document.getElementById("transfer-offer").value;
+        
+        if(!pilotoTarget || !oferta) return alert("Rellena los datos de la oferta.");
+
+        await addDoc(collection(db, "solicitudes_admin"), {
+            equipoId: currentTeamId,
+            nombreEquipo: currentTeamData.nombre,
+            tipo: "Fichaje",
+            detalle: `Oferta a ${pilotoTarget} por $${oferta}`,
+            estado: "Pendiente",
+            fecha: serverTimestamp()
+        });
+        
+        alert("Oferta enviada al Admin para su tramitación.");
+        document.getElementById("transfer-target").value = "";
+        document.getElementById("transfer-offer").value = "";
+    });
 }
 
-function setupInvestigacion() {
-    const selectSujeto = document.getElementById('investigacion-sujeto');
-    const btnInvestigar = document.getElementById('btn-investigar');
-    const restantesEl = document.getElementById('investigaciones-restantes');
+// 4. ESCUCHAR AVISOS/MENSAJES EN TIEMPO REAL
+function escucharNotificaciones() {
+    const messagesContainer = document.getElementById("dash-messages");
     
-    restantesEl.textContent = campeonatoState.investigaciones || 0;
-
-    selectSujeto.innerHTML = '<option value="">Selecciona un sujeto...</option>';
-    allPilotos.filter(p => p.equipo_id !== currentEquipo.id).forEach(p => {
-        selectSujeto.innerHTML += `<option value="piloto_${p.id}">Piloto: ${p.nombre} ${p.apellido}</option>`;
-    });
-    allEquipos.filter(e => e.id !== currentEquipo.id).forEach(e => {
-        selectSujeto.innerHTML += `<option value="equipo_${e.id}">Equipo: ${e.nombre}</option>`;
-    });
-
-    btnInvestigar.addEventListener('click', () => {
-        if (campeonatoState.estado !== 'en curso') {
-            return alert('Solo se puede investigar durante la temporada.');
-        }
-        if ((campeonatoState.investigaciones || 0) <= 0) {
-            return alert('No te quedan investigaciones esta temporada.');
-        }
-        const sujeto = selectSujeto.value;
-        if (!sujeto) return alert('Selecciona un sujeto para investigar.');
-
-        if (confirm('¿Confirmas que quieres usar una de tus investigaciones en este sujeto?')) {
-            const [tipo, id] = sujeto.split('_');
-            const detalle = tipo === 'piloto' ? 
-                { tipo: 'Piloto', pilotoId: id, pilotoNombre: allPilotos.find(p=>p.id===id).nombre + ' ' + allPilotos.find(p=>p.id===id).apellido } : 
-                { tipo: 'Equipo', equipoId: id, equipoNombre: allEquipos.find(e=>e.id===id).nombre };
-            sendRequest('Investigación', detalle);
-            // La lógica de reducir el contador de investigaciones se podría pasar al lado del admin al aprobar
-        }
-    });
-}
-
-function setupFichajes() {
-    const selectPiloto = document.getElementById('fichaje-piloto');
-    const inputOferta = document.getElementById('fichaje-oferta');
-    const btnFichar = document.getElementById('btn-fichar');
-
-    selectPiloto.innerHTML = '<option value="">Selecciona un piloto...</option>';
-    allPilotos.filter(p => p.equipo_id !== currentEquipo.id).forEach(p => {
-        selectPiloto.innerHTML += `<option value="${p.id}">${p.nombre} ${p.apellido}</option>`;
-    });
-
-    btnFichar.addEventListener('click', () => {
-        const pilotoId = selectPiloto.value;
-        const oferta = parseInt(inputOferta.value);
-        if (!pilotoId) return alert('Selecciona un piloto.');
-        if (!oferta || oferta <= 0) return alert('Introduce una oferta válida.');
-
-        const piloto = allPilotos.find(p => p.id === pilotoId);
-        if (confirm(`¿Realizar una oferta de ${oferta.toLocaleString()}$ a ${piloto.nombre} ${piloto.apellido}? El dinero se descontará si la FIA aprueba el fichaje.`)) {
-            sendRequest('Fichaje', { pilotoId: pilotoId, pilotoNombre: `${piloto.nombre} ${piloto.apellido}`, oferta: oferta }, oferta);
-        }
-    });
-}
-
-function listenForAvisos() {
-    const container = document.getElementById('avisos-container');
-    const q = query(collection(db, "avisos"), where("equipoId", "==", currentEquipo.id), orderBy("timestamp", "desc"));
-
-    // Guardamos la función de desuscripción que devuelve onSnapshot
-    unsubscribeAvisos = onSnapshot(q, (snapshot) => {
-        if (snapshot.empty) {
-            container.innerHTML = '<p>No tienes nuevos avisos.</p>';
+    // Escuchamos la colección "notificaciones" donde el 'equipoId' sea el nuestro o sea "todos"
+    const q = query(collection(db, "notificaciones"), where("equipoId", "in", [currentTeamId, "todos"]));
+    
+    onSnapshot(q, (snapshot) => {
+        messagesContainer.innerHTML = "";
+        if(snapshot.empty) {
+            messagesContainer.innerHTML = "<p class='text-muted'>No tienes mensajes nuevos.</p>";
             return;
         }
-        container.innerHTML = '';
-        snapshot.forEach(doc => {
-            const aviso = doc.data();
-            const date = aviso.timestamp?.toDate().toLocaleString() || 'Reciente';
-            const card = document.createElement('div');
-            card.className = 'aviso';
-            card.innerHTML = `
-                <p class="aviso-header"><strong>${aviso.remitente}</strong> - ${date}</p>
-                <p>${aviso.mensaje}</p>
+
+        let mensajesHTML = "";
+        snapshot.forEach(docSnap => {
+            const msg = docSnap.data();
+            mensajesHTML += `
+                <div class="message-item">
+                    <strong style="color:var(--text-primary);">${msg.remitente || 'Admin'}:</strong> 
+                    <span style="color:var(--text-secondary);">${msg.texto}</span>
+                </div>
             `;
-            container.appendChild(card);
         });
+        messagesContainer.innerHTML = mensajesHTML;
     });
 }

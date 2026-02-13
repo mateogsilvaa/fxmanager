@@ -3,55 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Manager</title>
+    <title>F1 Manager - Inicio</title>
     <link rel="stylesheet" href="modern.css">
 </head>
 <body>
 
-    <nav class="main-nav container">
-        <a href="index.html" class="logo">F1Manager</a>
-        <div class="nav-links">
-            <a href="index.html">Home</a>
-            <a href="calendario.html">Calendario</a>
-            <a href="clasificacion.html">Clasificación</a>
-            <a href="register.html">Registro</a>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <strong>F1 MANAGER</strong>
+        </div>
+        <ul class="nav-links">
+            <li><a href="home.html" class="active">Inicio</a></li>
+            <li><a href="equipos.html">Equipos</a></li>
+            <li><a href="clasificacion.html">Clasificación</a></li>
+            <li><a href="pilotos.html">Media</a></li>
+            
+            <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Escudería</a></li>
+            <li id="nav-admin" style="display: none;"><a href="admin.html">Panel Admin</a></li>
+        </ul>
+        <div class="nav-auth">
+            <button id="btnLogin" class="btn-outline">Iniciar Sesión</button>
+            <button id="btnLogout" class="btn-solid" style="display: none;">Cerrar Sesión</button>
         </div>
     </nav>
 
-    <main class="container">
-        <header style="text-align: center; margin-bottom: 40px;">
-            <h1>Próxima Carrera</h1>
-            <p>La cuenta atrás para el próximo Gran Premio ha comenzado.</p>
-        </header>
-
-        <div id="contador-container" class="card" style="display: flex; justify-content: space-around; padding: 40px; text-align: center;">
-            <div class="contador-box">
-                <div id="dias" class="contador-numero" style="font-size: 3rem; font-weight: 700;">--</div>
-                <div class="contador-label" style="color: var(--text-secondary);">Días</div>
+    <main class="hero-section">
+        <div class="hero-content">
+            <h1>DOMINA LA PISTA</h1>
+            <p>El simulador de gestión definitivo. Construye tu monoplaza, gestiona tu presupuesto y lleva a tus pilotos a la cima del campeonato.</p>
+            
+            <div class="hero-actions">
+                <a href="equipos.html" class="btn-solid">Ver Escuderías</a>
+                <a href="clasificacion.html" class="btn-outline">Ver Clasificación</a>
             </div>
-            <div class="contador-box">
-                <div id="horas" class="contador-numero" style="font-size: 3rem; font-weight: 700;">--</div>
-                <div class="contador-label" style="color: var(--text-secondary);">Horas</div>
-            </div>
-            <div class="contador-box">
-                <div id="minutos" class="contador-numero" style="font-size: 3rem; font-weight: 700;">--</div>
-                <div class="contador-label" style="color: var(--text-secondary);">Minutos</div>
-            </div>
-            <div class="contador-box">
-                <div id="segundos" class="contador-numero" style="font-size: 3rem; font-weight: 700;">--</div>
-                <div class="contador-label" style="color: var(--text-secondary);">Segundos</div>
-            </div>
-        </div>
-
-        <div id="dashboard-link-container" style="text-align: center; margin-top: 40px;">
-             <!-- El enlace al dashboard se insertará aquí -->
         </div>
     </main>
 
-    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
-        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
-    </footer>
-
-    <script src="home.js"></script>
+    <script type="module" src="home.js"></script>
 </body>
 </html>
