@@ -209,6 +209,13 @@ async function solicitarMejora(tipo, costo) {
 }
 
 async function investigarPiloto() {
+    // Verificar límite de investigaciones
+    const investigacionesHoy = await contarInvestigacionesHoy();
+    if (investigacionesHoy >= 3) {
+        alert("Has alcanzado el límite de 3 investigaciones hoy. Intenta mañana.");
+        return;
+    }
+
     const pilotoId = document.getElementById("select-pilot-research").value;
     if (!pilotoId) {
         alert("Selecciona un piloto");
@@ -244,6 +251,13 @@ async function investigarPiloto() {
 }
 
 async function investigarMejora() {
+    // Verificar límite de investigaciones
+    const investigacionesHoy = await contarInvestigacionesHoy();
+    if (investigacionesHoy >= 3) {
+        alert("Has alcanzado el límite de 3 investigaciones hoy. Intenta mañana.");
+        return;
+    }
+
     const equipoId = document.getElementById("select-team-upgrade").value;
     if (!equipoId) {
         alert("Selecciona un equipo");
@@ -271,6 +285,13 @@ async function investigarMejora() {
 }
 
 async function investigarComponente() {
+    // Verificar límite de investigaciones
+    const investigacionesHoy = await contarInvestigacionesHoy();
+    if (investigacionesHoy >= 3) {
+        alert("Has alcanzado el límite de 3 investigaciones hoy. Intenta mañana.");
+        return;
+    }
+
     const equipoId = document.getElementById("select-team-component").value;
     const componente = document.getElementById("select-component-type").value;
 
@@ -297,6 +318,26 @@ async function investigarComponente() {
         document.getElementById("select-team-component").value = "";
     } catch (error) {
         console.error("Error:", error);
+    }
+}
+
+async function contarInvestigacionesHoy() {
+    try {
+        const ahora = new Date();
+        const hace24h = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+
+        const q = query(
+            collection(db, "solicitudes_admin"),
+            where("equipoId", "==", currentTeamId),
+            where("tipo", "==", "Investigación"),
+            where("fecha", ">=", hace24h)
+        );
+
+        const snap = await getDocs(q);
+        return snap.size;
+    } catch (error) {
+        console.error("Error contando investigaciones:", error);
+        return 0;
     }
 }
 

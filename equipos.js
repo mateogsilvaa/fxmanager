@@ -33,6 +33,12 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 currentUserData = { uid: user.uid, equipo: null };
             }
+            
+            // Mostrar/ocultar nav-dashboard según si tiene equipo
+            const navDashboard = document.getElementById("nav-dashboard");
+            if (currentUserData.equipo) {
+                navDashboard.style.display = "inline-block";
+            }
         } else {
             currentUserData = null;
         }
@@ -104,13 +110,14 @@ function renderEquipos() {
             htmlPilotos = '<p style="text-align:center; color: var(--text-secondary); padding: 10px 0;">Sin pilotos confirmados</p>';
         }
 
+        card.style.setProperty('--team-color', equipo.color);
         card.innerHTML = `
             <div class="equipo-header-modern">
                 <div class="coche-display-modern">
                     ${equipo.imagenCoche ? `<img src="${equipo.imagenCoche}" alt="${equipo.nombre}">` : '<span style="color: var(--text-secondary);">Foto Coche</span>'}
                 </div>
                 <h2 class="equipo-nombre-moderno" style="color: ${equipo.color};">${equipo.nombre}</h2>
-                <button class="toggle-pilotos-btn" onclick="togglePilotos(this)">▼</button>
+                <button class="toggle-pilotos-btn" onclick="togglePilotos(this)" style="color: ${equipo.color};">▼</button>
             </div>
 
             <div class="equipo-pilotos-container">
@@ -122,9 +129,7 @@ function renderEquipos() {
                         <button class="btn-dirigir-moderno btn-asignar" data-team-id="${equipo.id}">Dirigir Equipo</button>
                     ` : !isLibre ? `
                         <div class="estado-equipo">Equipo Ocupado</div>
-                    ` : `
-                        <div class="estado-equipo">Inicia sesión para dirigir</div>
-                    `}
+                    ` : ``}
                 </div>
             </div>
         `;

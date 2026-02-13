@@ -25,7 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. GESTIÓN DEL MENÚ SUPERIOR
     // ==========================================
     const navDashboard = document.getElementById("nav-dashboard");
-    const navAdmin = document.getElementById("nav-admin");
     const btnLogin = document.getElementById("btnLogin");
     const btnLogout = document.getElementById("btnLogout");
 
@@ -40,7 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (userSnap.exists()) {
                     const userData = userSnap.data();
-                    if (userData.isAdmin) navAdmin.style.display = "inline-block";
                     if (userData.equipo && userData.equipo !== "") navDashboard.style.display = "inline-block";
                 }
             } catch (error) {

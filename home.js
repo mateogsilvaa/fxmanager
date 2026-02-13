@@ -18,7 +18,6 @@ const auth = getAuth(app);
 
 document.addEventListener("DOMContentLoaded", () => {
     const navDashboard = document.getElementById("nav-dashboard");
-    const navAdmin = document.getElementById("nav-admin");
     const btnLogin = document.getElementById("btnLogin");
     const btnLogout = document.getElementById("btnLogout");
 
@@ -34,10 +33,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (userSnap.exists()) {
                     const userData = userSnap.data();
                     
-                    if (userData.isAdmin === true) {
-                        navAdmin.style.display = "inline-block";
-                    }
-
                     if (userData.equipo && userData.equipo !== "") {
                         navDashboard.style.display = "inline-block";
                     }
@@ -49,7 +44,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             btnLogin.style.display = "inline-block";
             btnLogout.style.display = "none";
-            navAdmin.style.display = "none";
             navDashboard.style.display = "none";
         }
     });

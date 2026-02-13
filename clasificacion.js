@@ -25,7 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. GESTIÓN DEL MENÚ SUPERIOR
     // ==========================================
     const navDashboard = document.getElementById("nav-dashboard");
-    const navAdmin = document.getElementById("nav-admin");
     const btnLogin = document.getElementById("btnLogin");
     const btnLogout = document.getElementById("btnLogout");
 
@@ -40,7 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (userSnap.exists()) {
                     const userData = userSnap.data();
-                    if (userData.isAdmin) navAdmin.style.display = "inline-block";
                     if (userData.equipo && userData.equipo !== "") navDashboard.style.display = "inline-block";
                 }
             } catch (error) {
@@ -95,9 +93,10 @@ async function cargarClasificaciones() {
         equiposData.sort((a, b) => b.puntos - a.puntos);
         pilotosData.sort((a, b) => b.puntos - a.puntos);
 
-        // 4. Pintar Constructores
+        // 4. Pintar Constructores (máximo 20)
         listaEquipos.innerHTML = "";
-        equiposData.forEach((equipo, index) => {
+        const equiposTop20 = equiposData.slice(0, 20);
+        equiposTop20.forEach((equipo, index) => {
             const posicion = index + 1;
             const topClass = posicion <= 3 ? "top-3" : "";
             const bordeColor = posicion <= 3 ? equipo.color : "var(--border-color)";
@@ -116,9 +115,10 @@ async function cargarClasificaciones() {
             `;
         });
 
-        // 5. Pintar Pilotos
+        // 5. Pintar Pilotos (máximo 20)
         listaPilotos.innerHTML = "";
-        pilotosData.forEach((piloto, index) => {
+        const pilotosTop20 = pilotosData.slice(0, 20);
+        pilotosTop20.forEach((piloto, index) => {
             const posicion = index + 1;
             // Buscar la info del equipo del piloto (si la tiene)
             const infoEquipo = equiposMap[piloto.equipoId] || { nombre: "Agente Libre", color: "#888888" };

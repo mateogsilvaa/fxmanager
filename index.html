@@ -5,6 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F1 Manager - Simulador de Gestión</title>
     <link rel="stylesheet" href="modern.css">
+    <style>
+        .countdown-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-top: 40px;
+            padding: 30px;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        .countdown-boxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 15px;
+            text-align: center;
+        }
+        .countdown-box {
+            background-color: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+        .countdown-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .countdown-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+    </style>
 </head>
 <body>
 
@@ -19,7 +55,6 @@
             <li><a href="clasificacion.html">Clasificación</a></li>
             <li><a href="pilotos.html">Pilotos</a></li>
             <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Equipo</a></li>
-            <li id="nav-admin" style="display: none;"><a href="admin.html">Admin</a></li>
         </ul>
         <div class="nav-auth">
             <button id="btnLogin" class="btn-outline" onclick="window.location.href='login.html'">Iniciar Sesión</button>
@@ -28,36 +63,80 @@
     </nav>
 
     <main>
-        <div class="hero-section">
+        <div class="hero-section" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center;">
             <div class="hero-content">
-                <h1>🏁 DOMINA LA PISTA</h1>
-                <p>El simulador de gestión más realista. Construye tu monoplaza, gestiona tu presupuesto, recluta pilotos de élite y lleva a tu equipo a la cima del campeonato mundial de Fórmula 1.</p>
+                <h1 style="font-size: 3.5rem; margin-bottom: 20px;">🏁 BIENVENIDO A F1 MANAGER</h1>
+                <p style="font-size: 1.3rem; color: var(--text-secondary); margin-bottom: 50px; font-weight: 300;">La gestión de un equipo de Fórmula 1 es más que velocidad. Es estrategia, decisiones y pasión.</p>
                 
-                <div class="hero-actions">
-                    <a href="equipos.html" class="btn-solid">Ver Escuderías</a>
-                    <a href="clasificacion.html" class="btn-outline">Ver Clasificación</a>
+                <div class="hero-actions" style="gap: 20px; margin-bottom: 50px;">
+                    <a href="equipos.html" class="btn-solid" style="padding: 15px 40px; font-size: 1rem;">Ver Escuderías</a>
+                    <a href="clasificacion.html" class="btn-outline" style="padding: 15px 40px; font-size: 1rem;">Ver Clasificación</a>
+                </div>
+
+                <div class="countdown-section">
+                    <p style="margin: 0; font-size: 1.1rem; color: var(--text-secondary);">Tiempo hasta la próxima carrera</p>
+                    <div class="countdown-boxes" id="countdown-container">
+                        <div class="countdown-box">
+                            <div class="countdown-value" id="days">0</div>
+                            <div class="countdown-label">Días</div>
+                        </div>
+                        <div class="countdown-box">
+                            <div class="countdown-value" id="hours">0</div>
+                            <div class="countdown-label">Horas</div>
+                        </div>
+                        <div class="countdown-box">
+                            <div class="countdown-value" id="minutes">0</div>
+                            <div class="countdown-label">Minutos</div>
+                        </div>
+                        <div class="countdown-box">
+                            <div class="countdown-value" id="seconds">0</div>
+                            <div class="countdown-label">Segundos</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+    </main>
 
-        <div class="container" style="padding: 60px 20px; text-align: center;">
-            <h2 style="margin-bottom: 40px;">Lo que te espera</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px;">
-                <div class="card" style="text-align: left;">
-                    <h3 style="color: var(--accent); margin-bottom: 15px;">🚗 Gestiona tu Equipo</h3>
-                    <p style="font-size: 0.95rem;">Diseña el chasis, optimiza la aerodinámica, mejora el motor. Cada decisión cuenta para lograr la velocidad máxima.</p>
-                </div>
-                <div class="card" style="text-align: left;">
-                    <h3 style="color: var(--accent); margin-bottom: 15px;">👥 Recluta Pilotos</h3>
-                    <p style="font-size: 0.95rem;">Encuentra los mejores talentos. Negocia sueldos, gestiona egos y construye una dupla campeona.</p>
-                </div>
-                <div class="card" style="text-align: left;">
-                    <h3 style="color: var(--accent); margin-bottom: 15px;">💰 Presupuesto Estratégico</h3>
-                    <p style="font-size: 0.95rem;">Administra tus recursos limitados. Invierte en tecnología o en fichajes. ¿Cuál será tu estrategia?</p>
-                </div>
-                <div class="card" style="text-align: left;">
-                    <h3 style="color: var(--accent); margin-bottom: 15px;">🏆 Compite por el Título</h3>
-                    <p style="font-size: 0.95rem;">Participa en 24 carreras épicas. Sube al podio, consigue poles, bate récords. ¡El campeonato te llama!</p>
+    <div id="nav-auth" style="display: none;"></div>
+    <script type="module" src="home.js"></script>
+    <script>
+        // Countdown timer
+        function updateCountdown() {
+            // Próxima carrera: 15 de marzo de 2026
+            const nextRace = new Date('2026-03-15T14:00:00').getTime();
+            const now = new Date().getTime();
+            const distance = nextRace - now;
+
+            if (distance < 0) {
+                document.getElementById('days').textContent = '0';
+                document.getElementById('hours').textContent = '0';
+                document.getElementById('minutes').textContent = '0';
+                document.getElementById('seconds').textContent = '0';
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById('days').textContent = days;
+            document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+            document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+            document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+
+        function logout() {
+            localStorage.clear();
+            window.location.reload();
+        }
+    </script>
+</body>
+</html>
                 </div>
                 <div class="card" style="text-align: left;">
                     <h3 style="color: var(--accent); margin-bottom: 15px;">🔎 Espionaje Industrial</h3>
