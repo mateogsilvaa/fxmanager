@@ -131,12 +131,12 @@ function renderEquipos() {
         // Construir Tarjeta del equipo
         card.innerHTML = `
             <div class="equipo-header">
-                <div class="coche-placeholder" style="height: 120px; background-color: var(--bg-tertiary); margin-bottom: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                    ${equipo.imagenCoche ? `<img src="${equipo.imagenCoche}" alt="Coche ${equipo.nombre}" style="max-height:100%; max-width:100%; object-fit:contain;">` : '<span style="color: var(--text-secondary);">Foto Coche</span>'}
+                <div class="coche-placeholder" style="height: 150px; margin-bottom: 5px; display: flex; align-items: center; justify-content: center;">
+                    ${equipo.imagenCoche ? `<img src="${equipo.imagenCoche}" alt="Coche ${equipo.nombre}" style="width: 100%; height: 100%; object-fit: contain; transform: scale(1.3); filter: drop-shadow(0px 10px 15px rgba(0,0,0,0.6));">` : '<span style="color: var(--text-secondary);">Foto Coche</span>'}
                 </div>
                 
-                <h2 style="color: ${equipo.color}; margin-bottom: 10px; font-size: 1.5rem;">${equipo.nombre}</h2>
-                <button class="deploy-arrow">▼</button>
+                <h2 style="color: ${equipo.color}; margin-bottom: 5px; font-size: 1.5rem; position: relative; z-index: 2;">${equipo.nombre}</h2>
+                <button class="deploy-arrow" style="position: relative; z-index: 2;">▼</button>
             </div>
             
             <div class="pilotos-container" style="display: none;">
