@@ -7,14 +7,14 @@
     <link rel="stylesheet" href="modern.css">
 </head>
 <body>
-
+    
     <nav class="navbar">
         <div class="nav-brand">
             <strong>F1 MANAGER</strong>
         </div>
         <ul class="nav-links">
             <li><a href="home.html">Inicio</a></li>
-            <li><a href="equipos.html" class="active>Equipos</a></li>
+            <li><a href="equipos.html" class="active">Equipos</a></li>
             <li><a href="calendario.html">Calendario</a></li>
             <li><a href="clasificacion.html">Clasificación</a></li>
             <li><a href="pilotos.html">Media</a></li>
@@ -27,15 +27,18 @@
         </div>
     </nav>
 
-    <div class="container">
-        <div class="section-header" style="margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-            <h1>Parrilla Oficial</h1>
-            <p>Conoce a las 10 escuderías y sus alineaciones para esta temporada.</p>
+    <main class="container">
+        <div class="section-header">
+            <h1>Escuderías del Campeonato</h1>
+            <p>Estos son los equipos que compiten en la parrilla de F1 Manager.</p>
         </div>
-        
-        <div id="grid-equipos" class="grid-equipos"></div>
-    </div>
+
+        <div id="grid-equipos" class="team-grid">
+            <p style="text-align:center; color: var(--text-secondary); width: 100%;">Cargando equipos...</p>
+        </div>
+    </main>
 
     <script type="module" src="equipos.js"></script>
+
 </body>
 </html>
