@@ -112,16 +112,16 @@ function renderUI() {
                     <div class="driver-stat-value">${piloto.edad || '-'}</div>
                 </div>
                 <div class="driver-stat-modern">
+                    <div class="driver-stat-label">Moral</div>
+                    <div class="driver-stat-value">${piloto.moral || 'N/A'}</div>
+                </div>
+                <div class="driver-stat-modern">
                     <div class="driver-stat-label">Ritmo</div>
                     <div class="driver-stat-value">${piloto.ritmo || 0}</div>
                 </div>
                 <div class="driver-stat-modern">
                     <div class="driver-stat-label">Agresividad</div>
                     <div class="driver-stat-value">${piloto.agresividad || 0}</div>
-                </div>
-                <div class="driver-stat-modern">
-                    <div class="driver-stat-label">Moral</div>
-                    <div class="driver-stat-value">${piloto.moral || 'N/A'}</div>
                 </div>
             </div>
         `;

@@ -9,18 +9,18 @@
     --text-secondary: #a0a0b0;
     --border-color: #2d2d35;
     --border-hover: #3d3d47;
-    --accent: #ff1a3d;
-    --accent-light: #ff4d6d;
+    --accent: #d0d0d0; /* Blanco/Gris como color de acento pedido */
+    --accent-light: #e8e8e8;
     --success: #00d966;
     --warning: #ffa500;
     --danger: #ff2e3f;
     --info: #00d4ff;
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.8);
-    --shadow-xl: 0 20px 60px rgba(255, 26, 61, 0.15);
-    --transition-smooth: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-    --transition-fast: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.6);
+    --shadow-xl: 0 18px 50px rgba(0, 0, 0, 0.45);
+    --transition-smooth: all 0.30s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* =========================================
@@ -59,14 +59,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 h1 {
-    font-size: 3.5rem;
+    font-size: 2.25rem; /* Unificar tamaño de títulos */
     text-transform: uppercase;
-    letter-spacing: 2px;
-    font-weight: 900;
-    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-light) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    letter-spacing: 1px;
+    font-weight: 800;
+    color: var(--text-primary);
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: initial;
 }
 
 h2 {
@@ -131,7 +131,7 @@ button {
 .btn-solid {
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
     color: #ffffff;
-    box-shadow: 0 4px 15px rgba(255, 26, 61, 0.3);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.06);
 }
 
 .btn-solid::before {
@@ -147,7 +147,7 @@ button {
 
 .btn-solid:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 30px rgba(255, 26, 61, 0.4);
+    box-shadow: 0 8px 30px rgba(255, 255, 255, 0.05);
 }
 
 .btn-solid:hover::before {
@@ -162,12 +162,12 @@ button {
     background-color: transparent;
     color: var(--accent);
     border: 2px solid var(--accent);
-    box-shadow: inset 0 0 0 0 rgba(255, 26, 61, 0);
+    box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0);
     transition: var(--transition-smooth);
 }
 
 .btn-outline:hover {
-    box-shadow: inset 0 0 20px rgba(255, 26, 61, 0.2);
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.03);
     border-color: var(--accent-light);
     color: var(--accent-light);
     transform: translateY(-2px);
@@ -198,7 +198,7 @@ button {
     right: -50%;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle, rgba(255, 26, 61, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
     transition: all 0.5s ease;
     pointer-events: none;
 }
@@ -342,7 +342,7 @@ button {
     right: -20%;
     width: 600px;
     height: 600px;
-    background: radial-gradient(circle, rgba(255, 26, 61, 0.15) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
     animation: float 6s ease-in-out infinite;
 }
 
@@ -360,7 +360,7 @@ button {
 .hero-content h1 {
     font-size: 4.5rem;
     margin-bottom: 28px;
-    text-shadow: 0 4px 20px rgba(255, 26, 61, 0.2);
+    text-shadow: 0 4px 20px rgba(255, 255, 255, 0.03);
     animation: slideDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -424,8 +424,8 @@ button {
 
 .equipo-card:hover {
     border-color: var(--accent);
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-xl);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
 }
 
 /* =========================================
@@ -464,7 +464,7 @@ button {
 .equipo-card-modern:hover {
     border-color: var(--accent);
     transform: translateY(-10px) scale(1.02);
-    box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 26, 61, 0.2);
+    box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .equipo-card-modern:hover::before {
@@ -561,7 +561,7 @@ button {
 }
 
 .piloto-row-moderno:hover {
-    background: linear-gradient(135deg, rgba(255, 26, 61, 0.15), rgba(255, 77, 109, 0.1));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
     border-left-color: var(--accent);
     padding-left: 18px;
     transform: translateX(4px);
@@ -574,7 +574,7 @@ button {
     border: 2.5px solid var(--accent);
     overflow: hidden;
     flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(255, 26, 61, 0.2);
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.04);
 }
 
 .piloto-foto-moderno img {
@@ -624,7 +624,7 @@ button {
     cursor: pointer;
     transition: var(--transition-fast);
     font-size: 0.9rem;
-    box-shadow: 0 4px 15px rgba(255, 26, 61, 0.25);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.04);
     position: relative;
     overflow: hidden;
 }
@@ -642,7 +642,7 @@ button {
 
 .btn-dirigir-moderno:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(255, 26, 61, 0.4);
+    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.04);
 }
 
 .btn-dirigir-moderno:hover::before {
@@ -772,7 +772,7 @@ button {
 .stat-box:hover {
     border-color: var(--accent);
     transform: translateY(-4px);
-    box-shadow: 0 6px 16px rgba(255, 26, 61, 0.15);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.03);
 }
 
 .stat-box span {
@@ -816,14 +816,14 @@ button {
     right: -50%;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle, rgba(255, 26, 61, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
     transition: all 0.5s ease;
 }
 
 .driver-card-modern:hover {
     border-color: var(--accent);
-    box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 26, 61, 0.15);
-    transform: translateY(-8px);
+    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    transform: translateY(-2px);
 }
 
 .driver-card-modern:hover::before {
@@ -849,7 +849,7 @@ button {
     border: 3px solid var(--accent);
     overflow: hidden;
     flex-shrink: 0;
-    box-shadow: 0 6px 20px rgba(255, 26, 61, 0.3);
+    box-shadow: 0 6px 20px rgba(255, 255, 255, 0.04);
 }
 
 .driver-photo-modern img {
@@ -942,7 +942,7 @@ button {
 
 .upgrade-action:hover {
     border-color: var(--accent);
-    background: linear-gradient(135deg, rgba(255, 26, 61, 0.1), rgba(255, 77, 109, 0.05));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
 }
 
 .upgrade-info {
@@ -969,7 +969,7 @@ button {
 }
 
 .message-item:hover {
-    background: rgba(255, 26, 61, 0.05);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .text-muted {
@@ -1064,13 +1064,13 @@ button {
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 26, 61, 0.3), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
 }
 
 .race-card:hover {
     border-color: var(--accent);
     transform: translateX(8px);
-    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 26, 61, 0.1);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .race-info {
@@ -1118,7 +1118,7 @@ button {
 .status-completed {
     background: linear-gradient(135deg, var(--accent), var(--accent-light));
     color: #ffffff;
-    box-shadow: 0 4px 15px rgba(255, 26, 61, 0.3);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.05);
 }
 
 .status-completed:hover {
@@ -1168,19 +1168,19 @@ button {
     top: 0;
     bottom: 0;
     width: 4px;
-    background: linear-gradient(180deg, rgba(255, 26, 61, 0), rgba(255, 26, 61, 0.3));
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.03));
     border-radius: 10px 0 0 10px;
 }
 
 .standing-row:hover {
-    background: linear-gradient(135deg, rgba(255, 26, 61, 0.1), rgba(255, 77, 109, 0.05));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
     transform: translateX(8px);
     border-color: var(--accent);
 }
 
 .standing-row.top-3 {
     border: 2px solid var(--accent);
-    box-shadow: inset 0 0 20px rgba(255, 26, 61, 0.1);
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.02);
 }
 
 .pos-number {
@@ -1267,14 +1267,14 @@ button {
 .filter-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: rgba(255, 26, 61, 0.05);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .filter-btn.active {
     background: linear-gradient(135deg, var(--accent), var(--accent-light));
     color: #ffffff;
     border-color: transparent;
-    box-shadow: 0 4px 15px rgba(255, 26, 61, 0.3);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.05);
 }
 
 .media-grid {
@@ -1298,7 +1298,7 @@ button {
 
 .media-card:hover {
     border-color: var(--accent);
-    transform: translateY(-8px);
+    transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
 }
 
@@ -1318,7 +1318,7 @@ button {
     border: 1.5px solid var(--accent);
     margin-bottom: 12px;
     color: var(--accent);
-    background: rgba(255, 26, 61, 0.05);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .media-title {
@@ -1395,7 +1395,7 @@ button {
     right: -20%;
     width: 600px;
     height: 600px;
-    background: radial-gradient(circle, rgba(255, 26, 61, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
     animation: float 8s ease-in-out infinite;
 }
 
@@ -1462,7 +1462,7 @@ button {
     margin-bottom: 18px;
     text-align: center;
     font-weight: 700;
-    box-shadow: 0 4px 15px rgba(255, 46, 63, 0.3);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.05);
 }
 
 .auth-footer {
@@ -1520,16 +1520,16 @@ button {
 }
 
 .admin-tab-btn:hover {
-    background: linear-gradient(90deg, rgba(255, 26, 61, 0.1), transparent);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02), transparent);
     color: var(--accent);
     border-left-color: var(--accent);
 }
 
 .admin-tab-btn.active {
-    background: linear-gradient(90deg, rgba(255, 26, 61, 0.2), transparent);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent);
     color: var(--accent);
     border-left-color: var(--accent);
-    box-shadow: inset -4px 0 10px rgba(255, 26, 61, 0.1);
+    box-shadow: inset -4px 0 10px rgba(0, 0, 0, 0.18);
 }
 
 .admin-content {
@@ -1589,7 +1589,7 @@ button {
 }
 
 .admin-table tr:hover {
-    background: linear-gradient(90deg, rgba(255, 26, 61, 0.05), transparent);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02), transparent);
 }
 
 .solicitud-item {
@@ -1606,7 +1606,7 @@ button {
 
 .solicitud-item:hover {
     border-color: var(--accent);
-    background: linear-gradient(135deg, rgba(255, 26, 61, 0.1), rgba(255, 77, 109, 0.05));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
 }
 
 .modal-overlay {
@@ -1654,7 +1654,7 @@ input:focus, textarea:focus, select:focus {
     outline: none;
     border-color: var(--accent);
     background: linear-gradient(135deg, rgba(34, 34, 42, 0.8), rgba(22, 22, 26, 0.5));
-    box-shadow: 0 0 0 3px rgba(255, 26, 61, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 input::placeholder {
@@ -1995,10 +1995,11 @@ button {
 }
 
 .btn-solid:hover {
-    background-color: var(--accent);
-    color: var(--text-primary);
-    border-color: var(--accent);
-    box-shadow: 0 0 15px rgba(255, 46, 63, 0.5);
+    background-color: var(--accent-light);
+    color: var(--bg-primary);
+    border-color: var(--accent-light);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    transform: translateY(-1px);
 }
 
 .btn-outline {
@@ -2140,7 +2141,7 @@ button {
 }
 
 .hero-content h1 {
-    font-size: 4rem;
+    font-size: 2.25rem; /* Unificar títulos */
     margin-bottom: 20px;
 }
 
@@ -2228,8 +2229,8 @@ button {
 
 .equipo-card-modern:hover {
     border-color: var(--team-color, var(--accent));
-    transform: translateY(-8px);
-    box-shadow: 0 12px 36px rgba(255, 46, 63, 0.2);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
 }
 
 .equipo-header-modern {
@@ -2269,11 +2270,11 @@ button {
     max-height: 100%;
     object-fit: contain;
     filter: drop-shadow(0px 5px 10px rgba(0, 0, 0, 0.6));
-    transition: transform 0.3s ease;
+    transition: transform 0.35s ease;
 }
 
 .equipo-card-modern:hover .coche-display-modern img {
-    transform: scale(1.1);
+    transform: scale(1.05);
 }
 
 .equipo-nombre-moderno {
@@ -2284,6 +2285,7 @@ button {
     margin: 0;
     position: relative;
     z-index: 1;
+    color: var(--team-color, var(--text-primary)); /* Usar color del equipo */
 }
 
 .equipo-pilotos-container {
@@ -2313,9 +2315,8 @@ button {
 }
 
 .piloto-row-moderno:hover {
-    background-color: rgba(255, 46, 63, 0.1);
-    border-left: 3px solid var(--accent);
-    padding-left: 16px;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-left: 2px solid rgba(255, 255, 255, 0.04);
 }
 
 .piloto-foto-moderno {
@@ -2374,12 +2375,12 @@ button {
 }
 
 .btn-dirigir-moderno:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(255, 46, 63, 0.4);
+    transform: scale(1.03);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
 .btn-dirigir-moderno:active {
-    transform: scale(0.98);
+    transform: scale(0.995);
 }
 
 .estado-equipo {
@@ -2477,9 +2478,11 @@ button {
 
 .section-title {
     margin: 25px 0 15px 0;
-    font-size: 1.2rem;
+    font-size: 2.25rem; /* Unificar títulos */
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 1px;
+    color: var(--text-primary);
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px;
 }
@@ -2568,8 +2571,8 @@ button {
 
 .driver-card-modern:hover {
     border-color: var(--accent);
-    box-shadow: 0 8px 24px rgba(255, 46, 63, 0.15);
-    transform: translateY(-4px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
 }
 
 .driver-header-modern {
@@ -2729,7 +2732,7 @@ button {
 
 .race-card:hover {
     border-color: var(--text-secondary);
-    transform: translateX(5px);
+    transform: translateX(2px);
 }
 
 .race-info {
@@ -2828,7 +2831,7 @@ button {
 
 .standing-row:hover {
     background-color: var(--bg-tertiary);
-    transform: translateX(5px);
+    transform: translateX(2px);
 }
 
 /* El top 3 tendrá un borde especial o brillo sutil (opcional, lo mantengo oscuro pero destacado) */
@@ -2951,7 +2954,7 @@ button {
 
 .media-card:hover {
     border-color: var(--border-hover);
-    transform: translateY(-4px);
+    transform: translateY(-2px);
 }
 
 .media-header {
@@ -2973,10 +2976,12 @@ button {
 }
 
 .media-title {
-    font-size: 1.3rem;
+    font-size: 2.25rem; /* Unificar títulos */
     color: var(--text-primary);
     margin-bottom: 10px;
-    line-height: 1.3;
+    line-height: 1.2;
+    font-weight: 800;
+    text-transform: uppercase;
 }
 
 .media-date {
@@ -3061,9 +3066,12 @@ button {
 }
 
 .auth-title {
-    font-size: 1.8rem;
+    font-size: 2.25rem; /* Unificar títulos */
     margin-bottom: 5px;
     text-align: center;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-primary);
 }
 
 .auth-subtitle {
@@ -3137,16 +3145,16 @@ button {
 }
 
 .admin-tab-btn:hover {
-    background: linear-gradient(90deg, rgba(255, 26, 61, 0.1), transparent);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02), transparent);
     color: var(--accent);
     border-left-color: var(--accent);
 }
 
 .admin-tab-btn.active {
-    background: linear-gradient(90deg, rgba(255, 26, 61, 0.2), transparent);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent);
     color: var(--accent);
     border-left-color: var(--accent);
-    box-shadow: inset -4px 0 10px rgba(255, 26, 61, 0.1);
+    box-shadow: inset -4px 0 10px rgba(255, 255, 255, 0.03);
 }
 
 .admin-content {
@@ -3206,7 +3214,7 @@ button {
 }
 
 .admin-table tr:hover {
-    background: linear-gradient(90deg, rgba(255, 26, 61, 0.05), transparent);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02), transparent);
 }
 
 .solicitud-item {
@@ -3223,7 +3231,7 @@ button {
 
 .solicitud-item:hover {
     border-color: var(--accent);
-    background: linear-gradient(135deg, rgba(255, 26, 61, 0.1), rgba(255, 77, 109, 0.05));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
 }
 
 .modal-overlay {
@@ -3271,7 +3279,7 @@ input:focus, textarea:focus, select:focus {
     outline: none;
     border-color: var(--accent);
     background: linear-gradient(135deg, rgba(34, 34, 42, 0.8), rgba(22, 22, 26, 0.5));
-    box-shadow: 0 0 0 3px rgba(255, 26, 61, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 input::placeholder {
@@ -3583,5 +3591,5 @@ label {
         font-size: 0.8rem;
     }
 }
-
+}
 
