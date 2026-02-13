@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Manager - Panel de Control</title>
+    <title>F1 Manager - Panel de Control MAX</title>
     <link rel="stylesheet" href="modern.css">
 </head>
 <body>
 
     <nav class="navbar">
-        <div class="nav-brand"><strong>F1 MANAGER</strong> <span style="color:var(--danger); font-size:0.8rem; margin-left:10px;">[ADMIN]</span></div>
+        <div class="nav-brand"><strong>F1 MANAGER</strong> <span style="color:var(--danger); font-size:0.8rem; margin-left:10px;">[ADMIN MAX]</span></div>
         <ul class="nav-links">
             <li><a href="home.html">Inicio</a></li>
             <li><a href="equipos.html">Equipos</a></li>
             <li><a href="calendario.html">Calendario</a></li>
             <li><a href="clasificacion.html">Clasificación</a></li>
             <li><a href="pilotos.html">Media</a></li>
-            <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Escudería</a></li>
             <li id="nav-admin"><a href="admin.html" class="active">Panel Admin</a></li>
         </ul>
         <div class="nav-auth">
@@ -27,63 +26,46 @@
     <div class="admin-layout">
         
         <aside class="admin-sidebar">
-            <button class="admin-tab-btn active" data-target="panel-general">Ajustes y Solicitudes</button>
-            <button class="admin-tab-btn" data-target="panel-mensajes">Mensajería FIA</button>
-            <button class="admin-tab-btn" data-target="panel-equipos">Gestión Equipos</button>
-            <button class="admin-tab-btn" data-target="panel-pilotos">Gestión Pilotos</button>
-            <button class="admin-tab-btn" data-target="panel-carreras">Carreras y Resultados</button>
-            <button class="admin-tab-btn" data-target="panel-media">Media Center</button>
+            <button class="admin-tab-btn active" data-target="panel-mensajes">1. Comunicados</button>
+            <button class="admin-tab-btn" data-target="panel-equipos">2. Equipos</button>
+            <button class="admin-tab-btn" data-target="panel-pilotos">3. Pilotos</button>
+            <button class="admin-tab-btn" data-target="panel-carreras">4. Carreras y Resultados</button>
+            <button class="admin-tab-btn" data-target="panel-media">5. Media Center</button>
         </aside>
 
         <main class="admin-content">
 
-            <section id="panel-general" class="admin-panel active">
-                <h2>Estado del Campeonato</h2>
-                <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h3 style="margin:0;">Modo Actual: <span id="admin-status-text" style="color:var(--text-secondary);">Cargando...</span></h3>
-                        <p style="margin:0; font-size: 0.85rem;">Si está en "Offseason", los equipos sin dueño podrán ser elegidos.</p>
-                    </div>
-                    <button id="btn-toggle-status" class="btn-outline">Cambiar Estado</button>
-                </div>
-
-                <h2 style="margin-top: 30px;">Bandeja de Solicitudes (Mejoras/Fichajes)</h2>
-                <div id="admin-solicitudes" class="solicitudes-list">
-                    <p class="text-muted">Cargando solicitudes pendientes...</p>
-                </div>
-            </section>
-
-            <section id="panel-mensajes" class="admin-panel">
-                <h2>Enviar Notificación Oficial</h2>
+            <section id="panel-mensajes" class="admin-panel active">
+                <h2>Enviar Comunicado Oficial</h2>
                 <div class="card">
                     <form id="form-mensaje">
-                        <label>Remitente</label>
-                        <select id="msg-remitente">
-                            <option value="FIA">FIA (Dirección de Carrera)</option>
-                            <option value="Piloto">Piloto</option>
+                        <label>De quién:</label>
+                        <select id="msg-remitente" required>
+                            <option value="Admin">Admin</option>
+                            <option value="FIA">FIA</option>
                         </select>
                         
-                        <label>Destinatario</label>
-                        <select id="msg-destinatario">
-                            <option value="todos">Todos los Equipos</option>
+                        <label>A quién (Destinatario):</label>
+                        <select id="msg-destinatario" required>
+                            <option value="todos">A todos los equipos</option>
                             </select>
 
-                        <label>Mensaje</label>
-                        <textarea id="msg-texto" rows="4" placeholder="Escribe el comunicado oficial..." required></textarea>
+                        <label>Mensaje:</label>
+                        <textarea id="msg-texto" rows="4" placeholder="Escribe el comunicado..." required></textarea>
 
-                        <button type="submit" class="btn-solid">Enviar Mensaje</button>
+                        <button type="submit" class="btn-solid" style="width: 100%; margin-top: 15px;">Enviar Comunicado</button>
                     </form>
                 </div>
             </section>
 
             <section id="panel-equipos" class="admin-panel">
                 <div style="display:flex; justify-content:space-between; margin-bottom: 20px;">
-                    <h2>Equipos Registrados</h2>
-                    <button class="btn-outline" onclick="abrirModal('modal-equipo')">+ Nuevo Equipo</button>
+                    <h2>Gestión de Equipos</h2>
+                    <button class="btn-outline" onclick="abrirModal('modal-equipo')">+ Crear Equipo</button>
                 </div>
                 <div class="table-container">
                     <table class="admin-table">
-                        <thead><tr><th>Nombre</th><th>Color</th><th>Presupuesto</th><th>Acciones</th></tr></thead>
+                        <thead><tr><th>Logo</th><th>Nombre</th><th>Color</th><th>Acciones</th></tr></thead>
                         <tbody id="tabla-equipos"></tbody>
                     </table>
                 </div>
@@ -91,12 +73,12 @@
 
             <section id="panel-pilotos" class="admin-panel">
                 <div style="display:flex; justify-content:space-between; margin-bottom: 20px;">
-                    <h2>Pilotos Registrados</h2>
-                    <button class="btn-outline" onclick="abrirModal('modal-piloto')">+ Nuevo Piloto</button>
+                    <h2>Gestión de Pilotos</h2>
+                    <button class="btn-outline" onclick="abrirModal('modal-piloto')">+ Crear Piloto</button>
                 </div>
                 <div class="table-container">
                     <table class="admin-table">
-                        <thead><tr><th>Nombre</th><th>Equipo</th><th>Pts</th><th>Acciones</th></tr></thead>
+                        <thead><tr><th>Dorsal</th><th>Nombre</th><th>País</th><th>Acciones</th></tr></thead>
                         <tbody id="tabla-pilotos"></tbody>
                     </table>
                 </div>
@@ -104,12 +86,12 @@
 
             <section id="panel-carreras" class="admin-panel">
                 <div style="display:flex; justify-content:space-between; margin-bottom: 20px;">
-                    <h2>Calendario</h2>
-                    <button class="btn-outline" onclick="abrirModal('modal-carrera')">+ Nueva Carrera</button>
+                    <h2>Gestión del Calendario</h2>
+                    <button class="btn-outline" onclick="abrirModal('modal-carrera')">+ Crear Carrera</button>
                 </div>
                 <div class="table-container">
                     <table class="admin-table">
-                        <thead><tr><th>Ronda</th><th>GP</th><th>Estado</th><th>Acciones</th></tr></thead>
+                        <thead><tr><th>Ronda</th><th>Gran Premio</th><th>Fecha</th><th>Acciones</th></tr></thead>
                         <tbody id="tabla-carreras"></tbody>
                     </table>
                 </div>
@@ -117,12 +99,12 @@
 
             <section id="panel-media" class="admin-panel">
                 <div style="display:flex; justify-content:space-between; margin-bottom: 20px;">
-                    <h2>Publicaciones</h2>
-                    <button class="btn-outline" onclick="abrirModal('modal-media')">+ Nueva Publicación</button>
+                    <h2>Media Center</h2>
+                    <button class="btn-outline" onclick="abrirModal('modal-media')">+ Crear Publicación</button>
                 </div>
                 <div class="table-container">
                     <table class="admin-table">
-                        <thead><tr><th>Tipo</th><th>Título</th><th>Acciones</th></tr></thead>
+                        <thead><tr><th>Tipo</th><th>Título</th><th>Fecha</th><th>Acciones</th></tr></thead>
                         <tbody id="tabla-media"></tbody>
                     </table>
                 </div>
@@ -133,12 +115,13 @@
 
     <div id="modal-equipo" class="modal-overlay">
         <div class="modal-content card">
-            <h3>Datos del Equipo</h3>
+            <h3 id="titulo-modal-equipo">Crear Equipo</h3>
             <form id="form-equipo">
                 <input type="hidden" id="eq-id">
-                <label>Nombre Escudería</label><input type="text" id="eq-nombre" required>
-                <label>Color (Hexadecimal)</label><input type="color" id="eq-color" style="height:40px; padding:0;" required>
-                <label>Presupuesto Inicial ($)</label><input type="number" id="eq-presupuesto" required>
+                <label>Nombre del Equipo</label><input type="text" id="eq-nombre" required>
+                <label>Color (Hex)</label><input type="color" id="eq-color" style="height:40px; padding:0;" required>
+                <label>URL Foto del Coche</label><input type="url" id="eq-coche" placeholder="https://...">
+                <label>URL Logo del Equipo</label><input type="url" id="eq-logo" placeholder="https://...">
                 <div style="display:flex; gap:10px; margin-top:20px;">
                     <button type="submit" class="btn-solid" style="flex:1;">Guardar</button>
                     <button type="button" class="btn-outline" onclick="cerrarModal('modal-equipo')" style="flex:1;">Cancelar</button>
@@ -147,16 +130,84 @@
         </div>
     </div>
 
+    <div id="modal-piloto" class="modal-overlay">
+        <div class="modal-content card">
+            <h3 id="titulo-modal-piloto">Crear Piloto</h3>
+            <form id="form-piloto">
+                <input type="hidden" id="pil-id">
+                <label>Nombre Completo</label><input type="text" id="pil-nombre" required>
+                <label>Número (Dorsal)</label><input type="number" id="pil-numero" required>
+                <label>País (Siglas o Nombre)</label><input type="text" id="pil-pais" required>
+                <label>Equipo Actual</label>
+                <select id="pil-equipo">
+                    <option value="">Ninguno (Agente Libre)</option>
+                    </select>
+                <label>URL Foto (Opcional)</label><input type="url" id="pil-foto" placeholder="https://...">
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="btn-solid" style="flex:1;">Guardar</button>
+                    <button type="button" class="btn-outline" onclick="cerrarModal('modal-piloto')" style="flex:1;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-carrera" class="modal-overlay">
+        <div class="modal-content card" style="max-height: 90vh; overflow-y: auto;">
+            <h3 id="titulo-modal-carrera">Crear / Editar Carrera</h3>
+            <form id="form-carrera">
+                <input type="hidden" id="car-id">
+                
+                <h4 style="color:var(--text-secondary); margin-top:10px;">Datos Básicos</h4>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;"><label>Ronda</label><input type="number" id="car-ronda" required></div>
+                    <div style="flex:2;"><label>Nombre GP</label><input type="text" id="car-nombre" required placeholder="Ej: GP Bahréin"></div>
+                </div>
+                <label>Circuito</label><input type="text" id="car-circuito" required>
+                <label>Fecha y Hora</label><input type="datetime-local" id="car-fecha" required>
+
+                <h4 style="color:var(--text-secondary); margin-top:20px; border-top:1px solid var(--border-color); padding-top:10px;">Resultados (Dejar vacío si no se ha corrido)</h4>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;"><label>Pole Position</label><input type="text" id="car-pole" placeholder="Nombre piloto"></div>
+                    <div style="flex:1;"><label>Vuelta Rápida (VR)</label><input type="text" id="car-vr" placeholder="Nombre piloto"></div>
+                </div>
+                <label>Podio Qualy (1º, 2º, 3º)</label><input type="text" id="car-qualy" placeholder="Ej: Verstappen, Leclerc, Norris">
+                <label>Podio Carrera (1º, 2º, 3º)</label><input type="text" id="car-podio" placeholder="Ej: Leclerc, Sainz, Pérez">
+                
+                <label style="display:flex; align-items:center; gap:10px; margin-top:15px; cursor:pointer;">
+                    <input type="checkbox" id="car-completada" style="width:auto; margin:0;"> Marcar como carrera completada
+                </label>
+
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="btn-solid" style="flex:1;">Guardar</button>
+                    <button type="button" class="btn-outline" onclick="cerrarModal('modal-carrera')" style="flex:1;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-media" class="modal-overlay">
+        <div class="modal-content card">
+            <h3 id="titulo-modal-media">Crear Publicación</h3>
+            <form id="form-media">
+                <input type="hidden" id="med-id">
+                <label>Tipo de Contenido</label>
+                <select id="med-tipo" required>
+                    <option value="articulo">Artículo / Noticia</option>
+                    <option value="foto">Fotografía</option>
+                    <option value="video">Vídeo</option>
+                </select>
+                <label>Título</label><input type="text" id="med-titulo" required>
+                <label>URL (Obligatorio para Foto/Vídeo)</label><input type="url" id="med-url" placeholder="Enlace imagen o YouTube">
+                <label>Texto (Obligatorio para Artículo)</label><textarea id="med-texto" rows="5" placeholder="Cuerpo de la noticia..."></textarea>
+                
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="btn-solid" style="flex:1;">Publicar</button>
+                    <button type="button" class="btn-outline" onclick="cerrarModal('modal-media')" style="flex:1;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script type="module" src="admin.js"></script>
-    <script>
-        // Funciones simples para abrir/cerrar modales desde el HTML
-        function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function cerrarModal(id) { 
-            document.getElementById(id).style.display = 'none'; 
-            // Limpiar form al cerrar
-            const form = document.getElementById(id).querySelector('form');
-            if(form) form.reset();
-        }
-    </script>
 </body>
-</html> 
+</html>
