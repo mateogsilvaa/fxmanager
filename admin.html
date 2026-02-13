@@ -31,6 +31,7 @@
             <button class="admin-tab-btn" data-target="panel-pilotos">3. Pilotos</button>
             <button class="admin-tab-btn" data-target="panel-carreras">4. Carreras y Resultados</button>
             <button class="admin-tab-btn" data-target="panel-media">5. Media Center</button>
+            <button class="admin-tab-btn" data-target="panel-actividad">6. Actividad de Equipos</button>
         </aside>
 
         <main class="admin-content">
@@ -48,7 +49,7 @@
                         <label>A quién (Destinatario):</label>
                         <select id="msg-destinatario" required>
                             <option value="todos">A todos los equipos</option>
-                            </select>
+                        </select>
 
                         <label>Mensaje:</label>
                         <textarea id="msg-texto" rows="4" placeholder="Escribe el comunicado..." required></textarea>
@@ -91,7 +92,7 @@
                 </div>
                 <div class="table-container">
                     <table class="admin-table">
-                        <thead><tr><th>Ronda</th><th>Gran Premio</th><th>Fecha</th><th>Acciones</th></tr></thead>
+                        <thead><tr><th>Ronda</th><th>Gran Premio</th><th>Estado</th><th>Acciones</th></tr></thead>
                         <tbody id="tabla-carreras"></tbody>
                     </table>
                 </div>
@@ -107,6 +108,14 @@
                         <thead><tr><th>Tipo</th><th>Título</th><th>Fecha</th><th>Acciones</th></tr></thead>
                         <tbody id="tabla-media"></tbody>
                     </table>
+                </div>
+            </section>
+
+            <section id="panel-actividad" class="admin-panel">
+                <h2>Registro de Actividad y Peticiones</h2>
+                <p class="text-muted">Aquí verás todo lo que hacen los mánagers en sus equipos.</p>
+                <div id="lista-actividad" class="media-grid" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+                    <p class="text-muted">Cargando registros...</p>
                 </div>
             </section>
 
@@ -141,8 +150,8 @@
                 <label>Equipo Actual</label>
                 <select id="pil-equipo">
                     <option value="">Ninguno (Agente Libre)</option>
-                    </select>
-                    <label>URL Foto (Opcional)</label><input type="text" id="pil-foto" placeholder="Ej: assets/img/piloto.png">
+                </select>
+                <label>URL Foto (Opcional)</label><input type="text" id="pil-foto" placeholder="Ej: assets/img/piloto.png">
                 <div style="display:flex; gap:10px; margin-top:20px;">
                     <button type="submit" class="btn-solid" style="flex:1;">Guardar</button>
                     <button type="button" class="btn-outline" onclick="cerrarModal('modal-piloto')" style="flex:1;">Cancelar</button>
@@ -152,7 +161,7 @@
     </div>
 
     <div id="modal-carrera" class="modal-overlay">
-        <div class="modal-content card" style="max-height: 90vh; overflow-y: auto;">
+        <div class="modal-content card" style="max-height: 90vh; overflow-y: auto; max-width: 600px;">
             <h3 id="titulo-modal-carrera">Crear / Editar Carrera</h3>
             <form id="form-carrera">
                 <input type="hidden" id="car-id">
@@ -165,20 +174,23 @@
                 <label>Circuito</label><input type="text" id="car-circuito" required>
                 <label>Fecha y Hora</label><input type="datetime-local" id="car-fecha" required>
 
-                <h4 style="color:var(--text-secondary); margin-top:20px; border-top:1px solid var(--border-color); padding-top:10px;">Resultados (Dejar vacío si no se ha corrido)</h4>
+                <h4 style="color:var(--text-secondary); margin-top:20px; border-top:1px solid var(--border-color); padding-top:10px;">Puntos Extra</h4>
                 <div style="display:flex; gap:10px;">
-                    <div style="flex:1;"><label>Pole Position</label><input type="text" id="car-pole" placeholder="Nombre piloto"></div>
-                    <div style="flex:1;"><label>Vuelta Rápida (VR)</label><input type="text" id="car-vr" placeholder="Nombre piloto"></div>
+                    <div style="flex:1;"><label>Pole Position</label><select id="car-pole"><option value="">Ninguno</option></select></div>
+                    <div style="flex:1;"><label>Vuelta Rápida (VR)</label><select id="car-vr"><option value="">Ninguno</option></select></div>
                 </div>
-                <label>Podio Qualy (1º, 2º, 3º)</label><input type="text" id="car-qualy" placeholder="Ej: Verstappen, Leclerc, Norris">
-                <label>Podio Carrera (1º, 2º, 3º)</label><input type="text" id="car-podio" placeholder="Ej: Leclerc, Sainz, Pérez">
+
+                <h4 style="color:var(--text-secondary); margin-top:20px;">Clasificación Final (1º al 20º)</h4>
+                <div id="carrera-posiciones" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--bg-tertiary); padding: 15px; border-radius: 8px;">
+                </div>
                 
-                <label style="display:flex; align-items:center; gap:10px; margin-top:15px; cursor:pointer;">
-                    <input type="checkbox" id="car-completada" style="width:auto; margin:0;"> Marcar como carrera completada
+                <label style="display:flex; align-items:center; gap:10px; margin-top:20px; cursor:pointer; background: var(--bg-secondary); padding: 10px; border-radius: 6px;">
+                    <input type="checkbox" id="car-completada" style="width:auto; margin:0; transform: scale(1.5);"> 
+                    <strong>Marcar como carrera COMPLETADA</strong>
                 </label>
 
                 <div style="display:flex; gap:10px; margin-top:20px;">
-                    <button type="submit" class="btn-solid" style="flex:1;">Guardar</button>
+                    <button type="submit" class="btn-solid" style="flex:1;">Guardar Resultados</button>
                     <button type="button" class="btn-outline" onclick="cerrarModal('modal-carrera')" style="flex:1;">Cancelar</button>
                 </div>
             </form>
@@ -209,5 +221,14 @@
     </div>
 
     <script type="module" src="admin.js"></script>
+    <script>
+        // Funciones simples para abrir/cerrar modales desde el HTML (por si las necesitas)
+        window.abrirModal = function(id) { 
+            document.getElementById(id).style.display = 'flex'; 
+        }
+        window.cerrarModal = function(id) { 
+            document.getElementById(id).style.display = 'none'; 
+        }
+    </script>
 </body>
 </html>

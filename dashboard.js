@@ -187,6 +187,7 @@ function configurarBotonesAccion() {
     });
 
     // --- ACTUALIZAR SUELDOS ---
+    // --- ACTUALIZAR SUELDOS ---
     const botonesSueldo = document.querySelectorAll(".btn-update-salary");
     botonesSueldo.forEach(btn => {
         btn.addEventListener("click", async (e) => {
@@ -195,33 +196,73 @@ function configurarBotonesAccion() {
 
             if(confirm(`¿Actualizar el sueldo de este piloto a $${nuevoSueldo.toLocaleString()}?`)) {
                 await updateDoc(doc(db, "pilotos", pId), { sueldo: nuevoSueldo });
+                
+                // --- NUEVO: ENVIAR AVISO AL ADMIN ---
+                await addDoc(collection(db, "solicitudes_admin"), {
+                    equipoId: currentTeamId,
+                    nombreEquipo: currentTeamData.nombre,
+                    tipo: "Cambio de Sueldo",
+                    detalle: `Nuevo sueldo establecido a $${nuevoSueldo.toLocaleString()}`,
+                    estado: "Info", // 'Info' no pide aprobar ni denegar, solo informa.
+                    fecha: serverTimestamp()
+                });
+
                 alert("Sueldo actualizado.");
                 cargarDatosDashboard();
             }
         });
     });
 
-    // --- FICHAS Y OTRAS ACCIONES (Bases dejadas para ti) ---
+    // --- FICHAJES Y OFERTAS A OTROS PILOTOS ---
     document.getElementById("btn-transfer").addEventListener("click", async () => {
         const pilotoTarget = document.getElementById("transfer-target").value;
         const oferta = document.getElementById("transfer-offer").value;
         
         if(!pilotoTarget || !oferta) return alert("Rellena los datos de la oferta.");
 
+        // Formateamos el número para que se vea bonito con las comas en el panel de Admin
+        const ofertaFormateada = parseInt(oferta).toLocaleString();
+
         await addDoc(collection(db, "solicitudes_admin"), {
             equipoId: currentTeamId,
             nombreEquipo: currentTeamData.nombre,
-            tipo: "Fichaje",
-            detalle: `Oferta a ${pilotoTarget} por $${oferta}`,
-            estado: "Pendiente",
+            tipo: "Mercado de Fichajes",
+            detalle: `Desea fichar a ${pilotoTarget} por $${ofertaFormateada}`,
+            estado: "Pendiente", // Al ser 'Pendiente', en tu Admin saldrán los botones de Aprobar/Denegar
             fecha: serverTimestamp()
         });
         
-        alert("Oferta enviada al Admin para su tramitación.");
+        alert("Oferta enviada a la Dirección de Carrera (Admin) para su tramitación.");
         document.getElementById("transfer-target").value = "";
         document.getElementById("transfer-offer").value = "";
     });
-}
+
+    // --- INVESTIGACIÓN DE RIVALES ---
+    const btnResearch = document.getElementById("btn-research");
+    if (btnResearch) {
+        btnResearch.addEventListener("click", async () => {
+            const target = document.getElementById("research-target").value;
+            let detalleTexto = "";
+
+            if (target === "piloto") detalleTexto = "Solicita conocer los atributos (Ritmo/Agresividad) de un piloto rival.";
+            else if (target === "mejora") detalleTexto = "Solicita conocer cuál ha sido la última mejora de un equipo rival.";
+            else if (target === "elemento") detalleTexto = "Solicita conocer el nivel de una pieza de un rival.";
+
+            if(confirm(`¿Quieres gastar un uso de investigación en: ${target}?`)) {
+                await addDoc(collection(db, "solicitudes_admin"), {
+                    equipoId: currentTeamId,
+                    nombreEquipo: currentTeamData.nombre,
+                    tipo: "Investigación (Espionaje)",
+                    detalle: detalleTexto,
+                    estado: "Pendiente", // Al ser 'Pendiente', el admin decidirá si darle la info
+                    fecha: serverTimestamp()
+                });
+
+                alert("Investigación solicitada. El Admin evaluará la petición y te enviará los datos por la Bandeja de Mensajes.");
+            }
+        });
+    }
+} // <-- Aquí termina la función configurarBotonesAccion()
 
 // 4. ESCUCHAR AVISOS/MENSAJES EN TIEMPO REAL
 function escucharNotificaciones() {
