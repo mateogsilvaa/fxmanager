@@ -94,52 +94,94 @@ async function cargarClasificaciones() {
         pilotosData.sort((a, b) => b.puntos - a.puntos);
 
         // 4. Pintar Constructores (máximo 20)
-        listaEquipos.innerHTML = "";
-        const equiposTop20 = equiposData.slice(0, 20);
-        equiposTop20.forEach((equipo, index) => {
-            const posicion = index + 1;
-            const topClass = posicion <= 3 ? "top-3" : "";
-            const bordeColor = posicion <= 3 ? equipo.color : "var(--border-color)";
+        // 1. Empezamos a construir el HTML de la tabla. 
+// Usamos border-collapse para que las filas se "peguen" y se vea como una tabla junta.
+htmlTabla = `<table style="width: 100%; border-collapse: collapse; text-align: left;">`;
 
-            listaEquipos.innerHTML += `
-                <div class="standing-row ${topClass}" style="border-left-color: ${bordeColor};">
-                    <div class="pos-number">${posicion}</div>
-                    <div class="standing-info">
-                        <div class="team-color-bar" style="background-color: ${equipo.color || '#fff'};"></div>
-                        <div class="standing-name">
-                            <strong>${equipo.nombre}</strong>
-                        </div>
+const equiposTop20 = equiposData.slice(0, 20);
+
+equiposTop20.forEach((equipo, index) => {
+    const posicion = index + 1;
+    const topClass = posicion <= 3 ? "top-3" : "";
+    const bordeColor = posicion <= 3 ? equipo.color : "var(--border-color)";
+
+    // 2. Cambiamos los divs principales por filas (tr) y celdas (td)
+    htmlTabla += `
+        <tr class="standing-row ${topClass}" style="border-bottom: 1px solid var(--border-color);">
+            
+            <td class="pos-number" style="border-left: 5px solid ${bordeColor}; padding: 12px; text-align: center; width: 40px;">
+                ${posicion}
+            </td>
+            
+            <td class="standing-info" style="padding: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="team-color-bar" style="background-color: ${equipo.color || '#fff'}; width: 4px; height: 20px; border-radius: 2px;"></div>
+                    <div class="standing-name">
+                        <strong>${equipo.nombre}</strong>
                     </div>
-                    <div class="standing-pts">${equipo.puntos}</div>
                 </div>
-            `;
-        });
+            </td>
+            
+            <td class="standing-pts" style="padding: 12px; text-align: right;">
+                ${equipo.puntos}
+            </td>
+            
+        </tr>
+    `;
+});
+
+// 3. Cerramos la tabla
+htmlTabla += `</table>`;
+
+// 4. Inyectamos todo el HTML al contenedor de una sola vez
+listaEquipos.innerHTML = htmlTabla;
 
         // 5. Pintar Pilotos (máximo 20)
-        listaPilotos.innerHTML = "";
-        const pilotosTop20 = pilotosData.slice(0, 20);
-        pilotosTop20.forEach((piloto, index) => {
-            const posicion = index + 1;
-            // Buscar la info del equipo del piloto (si la tiene)
-            const infoEquipo = equiposMap[piloto.equipoId] || { nombre: "Agente Libre", color: "#888888" };
-            
-            const topClass = posicion <= 3 ? "top-3" : "";
-            const bordeColor = posicion <= 3 ? infoEquipo.color : "var(--border-color)";
+        // 1. Empezamos a construir la tabla
+htmlTabla = `<table style="width: 100%; border-collapse: collapse; text-align: left;">`;
 
-            listaPilotos.innerHTML += `
-                <div class="standing-row ${topClass}" style="border-left-color: ${bordeColor};">
-                    <div class="pos-number">${posicion}</div>
-                    <div class="standing-info">
-                        <div class="team-color-bar" style="background-color: ${infoEquipo.color};"></div>
-                        <div class="standing-name">
-                            <strong>${piloto.nombre} ${piloto.apellido || ''}</strong>
-                            <span>${infoEquipo.nombre}</span>
-                        </div>
+const pilotosTop20 = pilotosData.slice(0, 20);
+
+pilotosTop20.forEach((piloto, index) => {
+    const posicion = index + 1;
+    // Buscar la info del equipo del piloto (si la tiene)
+    const infoEquipo = equiposMap[piloto.equipoId] || { nombre: "Agente Libre", color: "#888888" };
+    
+    const topClass = posicion <= 3 ? "top-3" : "";
+    const bordeColor = posicion <= 3 ? infoEquipo.color : "var(--border-color)";
+
+    // 2. Construimos cada fila de la tabla (<tr>) con sus celdas (<td>)
+    htmlTabla += `
+        <tr class="standing-row ${topClass}" style="border-bottom: 1px solid var(--border-color);">
+            
+            <td class="pos-number" style="border-left: 5px solid ${bordeColor}; padding: 12px; text-align: center; width: 40px;">
+                ${posicion}
+            </td>
+            
+            <td class="standing-info" style="padding: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="team-color-bar" style="background-color: ${infoEquipo.color}; width: 4px; height: 36px; border-radius: 2px;"></div>
+                    
+                    <div class="standing-name" style="display: flex; flex-direction: column; justify-content: center;">
+                        <strong style="line-height: 1.2;">${piloto.nombre} ${piloto.apellido || ''}</strong>
+                        <span style="font-size: 0.85em; color: var(--text-secondary); line-height: 1.2;">${infoEquipo.nombre}</span>
                     </div>
-                    <div class="standing-pts">${piloto.puntos}</div>
                 </div>
-            `;
-        });
+            </td>
+            
+            <td class="standing-pts" style="padding: 12px; text-align: right; font-weight: bold;">
+                ${piloto.puntos}
+            </td>
+            
+        </tr>
+    `;
+});
+
+// 3. Cerramos la tabla
+htmlTabla += `</table>`;
+
+// 4. Inyectamos todo el HTML al contenedor
+listaPilotos.innerHTML = htmlTabla;
 
         if (pilotosData.length === 0) listaPilotos.innerHTML = "<p class='text-muted'>No hay datos de pilotos.</p>";
         if (equiposData.length === 0) listaEquipos.innerHTML = "<p class='text-muted'>No hay datos de equipos.</p>";
