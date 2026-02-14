@@ -5,12 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F1 Manager - Media Center</title>
     <link rel="stylesheet" href="modern.css">
+    <style>
+        /* Hamburger menu for mobile responsiveness */
+        .hamburger-btn { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 8px; z-index: 101; }
+        .hamburger-btn span { width: 28px; height: 3px; background-color: var(--text-primary); border-radius: 2px; transition: all 0.3s ease; }
+        .hamburger-btn.active span:nth-child(1) { transform: rotate(45deg) translate(10px, 10px); }
+        .hamburger-btn.active span:nth-child(2) { opacity: 0; }
+        .hamburger-btn.active span:nth-child(3) { transform: rotate(-45deg) translate(7px, -7px); }
+        @media (max-width: 768px) {
+            .hamburger-btn { display: flex; }
+            .nav-links { display: none; position: fixed; top: 70px; left: 0; right: 0; flex-direction: column; background: linear-gradient(180deg, rgba(23, 23, 25, 0.99), rgba(15, 15, 18, 0.99)); padding: 20px; gap: 12px; list-style: none; z-index: 100; border-bottom: 1px solid var(--border-color); backdrop-filter: blur(15px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); max-height: calc(100vh - 70px); overflow-y: auto; }
+            .nav-links.active { display: flex; }
+            .nav-links li { padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+            .nav-links li:last-child { border-bottom: none; }
+            .nav-links a { display: block; padding: 8px; font-size: 0.95rem; }
+            .nav-auth { width: 100%; gap: 8px; flex-wrap: wrap; order: -1; }
+            .nav-auth button { flex: 1; min-width: 120px; font-size: 0.85rem; padding: 10px 16px; }
+        }
+    </style>
 </head>
 <body>
 
     <nav class="navbar">
         <div class="nav-brand"><strong>⚡ F1 MANAGER</strong></div>
-        <ul class="nav-links">
+        <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+        <ul class="nav-links" id="nav-links">
             <li><a href="index.html">Inicio</a></li>
             <li><a href="equipos.html">Equipos</a></li>
             <li><a href="calendario.html">Calendario</a></li>
@@ -19,10 +38,16 @@
             <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Equipo</a></li>
         </ul>
         <div class="nav-auth">
-            <button id="btnLogin" class="btn-outline">Iniciar Sesión</button>
-            <button id="btnLogout" class="btn-solid" style="display: none;">Cerrar Sesión</button>
+            <button id="btnLogin" class="btn-outline" onclick="window.location.href='login.html'">Iniciar Sesión</button>
+            <button id="btnLogout" class="btn-solid" style="display: none;" onclick="logout()">Cerrar Sesión</button>
         </div>
     </nav>
+    <script>
+        function toggleMenu() { const h = document.getElementById('hamburger-btn'); const n = document.getElementById('nav-links'); h.classList.toggle('active'); n.classList.toggle('active'); }
+        document.querySelectorAll('.nav-links a').forEach(link => { link.addEventListener('click', () => { document.getElementById('hamburger-btn').classList.remove('active'); document.getElementById('nav-links').classList.remove('active'); }); });
+        function logout() { (async () => { try { const module = await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js'); const { getAuth, signOut } = module; await signOut(getAuth()); window.location.reload(); } catch(e) { localStorage.clear(); window.location.reload(); } })(); }
+        document.getElementById('btnLogout')?.addEventListener('click', logout);
+    </script>
 
     <main class="container" style="padding: 40px 20px;">
     
