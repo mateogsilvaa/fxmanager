@@ -22,12 +22,22 @@
             grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
             gap: 15px;
             text-align: center;
+            justify-items: center;
+            align-items: center;
         }
         .countdown-box {
             background-color: var(--bg-tertiary);
-            padding: 15px;
+            padding: 12px;
             border-radius: 6px;
             border: 1px solid var(--border-color);
+            min-width: 90px;
+            width: 100%;
+            max-width: 110px;
+            aspect-ratio: 1 / 1;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
         }
         .countdown-value {
             font-size: 2rem;
@@ -73,7 +83,7 @@
                     <a href="clasificacion.html" class="btn-outline" style="padding: 15px 40px; font-size: 1rem;">Ver Clasificación</a>
                 </div>
 
-                <<div class="countdown-section">
+                <div class="countdown-section">
     <p style="margin: 0 0 10px 0; font-size: 1.1rem; color: var(--text-secondary); text-align: center;">Tiempo hasta la próxima carrera</p>
     
     <div class="countdown-boxes" id="countdown-container" style="display: flex; justify-content: center; gap: 15px;">
@@ -136,30 +146,6 @@
         updateCountdown();
         setInterval(updateCountdown, 1000);
 
-        function logout() {
-            localStorage.clear();
-            window.location.reload();
-        }
-    </script>
-</body>
-</html>
-        <div style="background-color: var(--bg-secondary); border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent); padding: 40px 20px; text-align: center; margin: 40px 0;">
-            <div class="container">
-                <h2 style="margin-bottom: 30px;">¿Listo para comenzar?</h2>
-                <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-                    <a href="register.html" class="btn-solid" style="padding: 15px 30px; font-size: 1rem;">Crear Cuenta Ahora</a>
-                    <a href="equipos.html" class="btn-outline" style="padding: 15px 30px; font-size: 1rem;">Explorar Equipos</a>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <footer style="text-align: center; padding: 30px 20px; border-top: 1px solid var(--border-color); color: var(--text-secondary);">
-        <p>&copy; 2024-2026 F1 Manager. Todos los derechos reservados. | <a href="reglas.html" style="color: var(--text-secondary);">Términos y Reglas</a></p>
-    </footer>
-
-    <script type="module" src="home.js"></script>
-    <script>
         function logout() {
             localStorage.clear();
             window.location.reload();

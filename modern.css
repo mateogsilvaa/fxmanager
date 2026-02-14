@@ -532,6 +532,15 @@ button {
     background-clip: text;
 }
 
+/* Preferir color del equipo cuando la tarjeta define --team-color */
+.equipo-card-modern .equipo-nombre-moderno {
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: initial;
+    background-clip: initial;
+    color: var(--team-color, var(--text-primary));
+}
+
 .equipo-pilotos-container {
     padding: 24px;
     display: none;
@@ -1629,9 +1638,11 @@ button {
     background: linear-gradient(135deg, rgba(23, 23, 25, 0.95), rgba(34, 34, 42, 0.85));
     border: 1.5px solid var(--border-color);
     border-radius: 16px;
-    padding: 40px;
+    padding: 32px;
     box-shadow: var(--shadow-lg);
     backdrop-filter: blur(10px);
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
 }
 
 /* =========================================

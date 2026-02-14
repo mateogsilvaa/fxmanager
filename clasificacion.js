@@ -138,7 +138,7 @@ listaEquipos.innerHTML = htmlTabla;
 
         // 5. Pintar Pilotos (máximo 20)
         // 1. Empezamos a construir la tabla
-        let htmlTabla = `<table style="width: 100%; border-collapse: collapse; text-align: left;">`;
+        htmlTabla = `<table style="width: 100%; border-collapse: collapse; text-align: left;">`;
 
 const pilotosTop20 = pilotosData.slice(0, 20);
 
