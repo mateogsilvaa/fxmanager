@@ -5,22 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F1 Manager - Mi Escudería</title>
     <link rel="stylesheet" href="modern.css">
+    <link rel="stylesheet" href="mobile-responsive.css">
     <style>
         /* Hamburger menu for mobile responsiveness */
-        .hamburger-btn { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 8px; z-index: 101; }
-        .hamburger-btn span { width: 28px; height: 3px; background-color: var(--text-primary); border-radius: 2px; transition: all 0.3s ease; }
-        .hamburger-btn.active span:nth-child(1) { transform: rotate(45deg) translate(10px, 10px); }
+        .hamburger-btn { display: none; flex-direction: column; gap: 3px; background: none; border: none; cursor: pointer; padding: 4px 6px; z-index: 101; }
+        .hamburger-btn span { width: 22px; height: 2px; background-color: var(--text-primary); border-radius: 2px; transition: all 0.3s ease; }
+        .hamburger-btn.active span:nth-child(1) { transform: rotate(45deg) translate(8px, 8px); }
         .hamburger-btn.active span:nth-child(2) { opacity: 0; }
-        .hamburger-btn.active span:nth-child(3) { transform: rotate(-45deg) translate(7px, -7px); }
+        .hamburger-btn.active span:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px); }
         @media (max-width: 768px) {
             .hamburger-btn { display: flex; }
-            .nav-links { display: none; position: fixed; top: 70px; left: 0; right: 0; flex-direction: column; background: linear-gradient(180deg, rgba(23, 23, 25, 0.99), rgba(15, 15, 18, 0.99)); padding: 20px; gap: 12px; list-style: none; z-index: 100; border-bottom: 1px solid var(--border-color); backdrop-filter: blur(15px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); max-height: calc(100vh - 70px); overflow-y: auto; }
+            .nav-links { display: none; position: fixed; top: 60px; left: 0; right: 0; flex-direction: column; background: linear-gradient(180deg, rgba(23, 23, 25, 0.99), rgba(15, 15, 18, 0.99)); padding: 8px 0; gap: 0; list-style: none; z-index: 100; border-bottom: 1px solid var(--border-color); backdrop-filter: blur(15px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); max-height: calc(100vh - 60px); overflow-y: auto; }
             .nav-links.active { display: flex; }
-            .nav-links li { padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+            .nav-links li { padding: 0; border-bottom: 1px solid var(--border-color); }
             .nav-links li:last-child { border-bottom: none; }
-            .nav-links a { display: block; padding: 8px; font-size: 0.95rem; }
-            .nav-auth { width: 100%; gap: 8px; flex-wrap: wrap; order: -1; }
-            .nav-auth button { flex: 1; min-width: 120px; font-size: 0.85rem; padding: 10px 16px; }
+            .nav-links a { display: block; padding: 10px 15px; font-size: 0.9rem; }
+            .nav-auth { width: 100%; gap: 6px; flex-wrap: wrap; order: -1; }
+            .nav-auth button { flex: 1; min-width: 100px; font-size: 0.75rem; padding: 8px 12px; }
         }
     </style>
 </head>
