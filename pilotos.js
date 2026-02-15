@@ -33,25 +33,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            btnLogin.style.display = "none";
-            btnLogout.style.display = "block";
+            if (btnLogin) btnLogin.style.display = "none";
+            if (btnLogout) btnLogout.style.display = "block";
             try {
                 const userSnap = await getDoc(doc(db, "usuarios", user.uid));
                 if (userSnap.exists()) {
                     const userData = userSnap.data();
-                    if (userData.equipo) navDashboard.style.display = "inline-block";
+                    if (userData.equipo && navDashboard) navDashboard.style.display = "inline-block";
                 }
             } catch (error) { console.error(error); }
         } else {
-            btnLogin.style.display = "inline-block";
-            btnLogout.style.display = "none";
+            if (btnLogin) btnLogin.style.display = "inline-block";
+            if (btnLogout) btnLogout.style.display = "none";
         }
         
         cargarPublicaciones();
     });
 
-    btnLogin.addEventListener("click", () => window.location.href = "login.html");
-    btnLogout.addEventListener("click", async () => { await signOut(auth); window.location.reload(); });
+    if (btnLogin) btnLogin.addEventListener("click", () => window.location.href = "login.html");
+    if (btnLogout) btnLogout.addEventListener("click", async () => { await signOut(auth); window.location.reload(); });
 
     // ==========================================
     // 3. LÓGICA DE FILTROS

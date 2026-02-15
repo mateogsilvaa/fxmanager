@@ -2,6 +2,22 @@
    MEDIA QUERIES MEJORADAS PARA MOBILE
    ========================================= */
 
+/* Thin single-line navbar style (global) */
+.navbar.thin-navbar, .thin-navbar {
+    padding: 6px 12px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-color);
+    background: linear-gradient(180deg, rgba(18,18,20,0.96), rgba(12,12,14,0.96));
+}
+.nav-right { display: flex; align-items: center; }
+.nav-select, .nav-right select.nav-select { padding: 6px 10px; border-radius: 8px; background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); font-weight:700; }
+.nav-select option { font-weight: normal; }
+
+
 /* =========================================
    Responsive - 768px (Tablets y móviles grandes)
    ========================================= */

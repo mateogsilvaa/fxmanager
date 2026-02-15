@@ -34,7 +34,8 @@ document.addEventListener("DOMContentLoaded", () => {
         cargarActividad(); 
     });
 
-    document.getElementById("btnLogout").addEventListener("click", () => signOut(auth));
+    const btnLogout = document.getElementById("btnLogout");
+    if (btnLogout) btnLogout.addEventListener("click", () => signOut(auth));
 
     // 2. NAVEGACIÓN PESTAÑAS
     const tabBtns = document.querySelectorAll(".admin-tab-btn");

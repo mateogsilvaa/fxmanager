@@ -30,8 +30,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            btnLogin.style.display = "none";
-            btnLogout.style.display = "block";
+            if (btnLogin) btnLogin.style.display = "none";
+            if (btnLogout) btnLogout.style.display = "block";
 
             try {
                 const userRef = doc(db, "usuarios", user.uid);
@@ -39,22 +39,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (userSnap.exists()) {
                     const userData = userSnap.data();
-                    if (userData.equipo && userData.equipo !== "") navDashboard.style.display = "inline-block";
+                    if (userData.equipo && userData.equipo !== "" && navDashboard) navDashboard.style.display = "inline-block";
                 }
             } catch (error) {
                 console.error("Error cargando permisos:", error);
             }
         } else {
-            btnLogin.style.display = "inline-block";
-            btnLogout.style.display = "none";
+            if (btnLogin) btnLogin.style.display = "inline-block";
+            if (btnLogout) btnLogout.style.display = "none";
         }
         
         // Cargar las clasificaciones (público)
         cargarClasificaciones();
     });
 
-    btnLogin.addEventListener("click", () => window.location.href = "login.html");
-    btnLogout.addEventListener("click", async () => {
+    if (btnLogin) btnLogin.addEventListener("click", () => window.location.href = "login.html");
+    if (btnLogout) btnLogout.addEventListener("click", async () => {
         await signOut(auth);
         window.location.reload();
     });

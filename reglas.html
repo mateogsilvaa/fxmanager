@@ -25,27 +25,23 @@
 </head>
 <body>
 
-    <nav class="navbar">
+    <nav class="navbar thin-navbar">
         <div class="nav-brand"><strong>⚡ F1 MANAGER</strong></div>
-        <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMenu()"><span></span><span></span><span></span></button>
-        <ul class="nav-links" id="nav-links">
-            <li><a href="index.html">Inicio</a></li>
-            <li><a href="equipos.html">Equipos</a></li>
-            <li><a href="calendario.html">Calendario</a></li>
-            <li><a href="clasificacion.html">Clasificación</a></li>
-            <li><a href="pilotos.html">Pilotos</a></li>
-            <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Equipo</a></li>
-        </ul>
-        <div class="nav-auth">
-            <button id="btnLogin" class="btn-outline" onclick="window.location.href='login.html'">Iniciar Sesión</button>
-            <button id="btnLogout" class="btn-solid" onclick="logout()" style="display: none;">Cerrar Sesión</button>
+        <div class="nav-right">
+            <select id="nav-select" aria-label="Ir a" class="nav-select">
+                <option value="">Ir a ▾</option>
+                <option value="index.html">Inicio</option>
+                <option value="equipos.html">Equipos</option>
+                <option value="calendario.html">Calendario</option>
+                <option value="clasificacion.html">Clasificación</option>
+                <option value="pilotos.html">Pilotos</option>
+                <option value="dashboard.html">Mi Equipo</option>
+            </select>
         </div>
     </nav>
     <script>
-        function toggleMenu() { const h = document.getElementById('hamburger-btn'); const n = document.getElementById('nav-links'); h.classList.toggle('active'); n.classList.toggle('active'); }
-        document.querySelectorAll('.nav-links a').forEach(link => { link.addEventListener('click', () => { document.getElementById('hamburger-btn').classList.remove('active'); document.getElementById('nav-links').classList.remove('active'); }); });
-        function logout() { (async () => { try { const module = await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js'); const { getAuth, signOut } = module; await signOut(getAuth()); window.location.reload(); } catch(e) { localStorage.clear(); window.location.reload(); } })(); }
-        document.getElementById('btnLogout')?.addEventListener('click', logout);
+        const navSelect = document.getElementById('nav-select');
+        if (navSelect) navSelect.addEventListener('change', (e) => { const v = e.target.value; if (v) location.href = v; });
     </script>
 
     <main class="container">
