@@ -17,6 +17,33 @@
 .nav-select, .nav-right select.nav-select { padding: 6px 10px; border-radius: 8px; background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); font-weight:700; }
 .nav-select option { font-weight: normal; }
 
+/* Navigation overlay (hamburger) */
+.nav-links { display: flex; gap: 14px; align-items: center; }
+.nav-links li { list-style: none; }
+.nav-links a { color: var(--text-primary); text-decoration: none; padding: 6px 10px; border-radius: 6px; }
+.nav-links a.active { background: rgba(255,255,255,0.03); }
+
+/* Mobile overlay behavior */
+@media (max-width: 768px) {
+    .navbar.thin-navbar { padding: 8px 12px; height: 52px; }
+    .nav-links { display: none; position: fixed; top: 52px; left: 0; right: 0; flex-direction: column; background: linear-gradient(180deg, rgba(18,18,20,0.98), rgba(12,12,14,0.98)); padding: 8px 0; z-index: 120; border-bottom: 1px solid var(--border-color); }
+    .nav-links.active { display: flex; }
+    .hamburger-btn { display: flex; }
+}
+
+/* Standing table improvements */
+.standing-table { width: 100%; border-collapse: collapse; }
+.standing-table .standing-header th { text-transform: uppercase; font-size: 0.75rem; color: var(--text-secondary); padding: 8px 10px; letter-spacing: 0.8px; }
+.standing-table tbody .standing-row { transition: background 0.12s ease; }
+.standing-table tbody .standing-row:hover { background: rgba(255,255,255,0.02); }
+.standing-table tbody .standing-row:nth-child(even) { background: rgba(255,255,255,0.01); }
+.standing-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.06); }
+.standing-row.top-3 { font-weight: 700; }
+.standing-row.top-3 .pos-number { color: var(--accent); }
+.standing-row[data-pos="1"] .pos-number { color: #FFD700; }
+.standing-row[data-pos="2"] .pos-number { color: #C0C0C0; }
+.standing-row[data-pos="3"] .pos-number { color: #CD7F32; }
+
 
 /* =========================================
    Responsive - 768px (Tablets y móviles grandes)
