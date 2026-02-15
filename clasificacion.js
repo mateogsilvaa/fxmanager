@@ -105,11 +105,9 @@ async function cargarClasificaciones() {
             const posicion = index + 1;
             const topClass = posicion <= 3 ? "top-3" : "";
             const bordeColor = posicion <= 3 ? equipo.color : "var(--border-color)";
-            const medal = posicion === 1 ? '🥇' : posicion === 2 ? '🥈' : posicion === 3 ? '🥉' : '';
-
             htmlTabla += `
                 <tr class="standing-row ${topClass}" data-pos="${posicion}" style="border-bottom:1px solid var(--border-color);">
-                    <td class="pos-number" style="padding:10px; text-align:center;">${medal} ${posicion}</td>
+                    <td class="pos-number" style="padding:10px; text-align:center;">${posicion}</td>
                     <td class="standing-info" style="padding:10px;">
                         <div style="display:flex; align-items:center; gap:10px;">
                             ${equipo.logo ? `<img src="${equipo.logo}" class="standing-avatar" alt="${equipo.nombre}" onerror="this.style.display='none'">` : `<div class="team-color-bar" style="background-color:${equipo.color||'#999'}; width:12px; height:28px; border-radius:4px;"></div>`}
@@ -135,11 +133,10 @@ async function cargarClasificaciones() {
             const posicion = index + 1;
             const infoEquipo = equiposMap[piloto.equipoId] || { nombre: "Agente Libre", color: "#888888" };
             const topClass = posicion <= 3 ? "top-3" : "";
-            const medal = posicion === 1 ? '🥇' : posicion === 2 ? '🥈' : posicion === 3 ? '🥉' : '';
 
             htmlTabla += `
                 <tr class="standing-row ${topClass}" data-pos="${posicion}" style="border-bottom:1px solid var(--border-color);">
-                    <td class="pos-number" style="padding:10px; text-align:center;">${medal} ${posicion}</td>
+                    <td class="pos-number" style="padding:10px; text-align:center;">${posicion}</td>
                     <td class="standing-info" style="padding:10px;">
                         <div style="display:flex; align-items:center; gap:10px;">
                             ${piloto.foto ? `<img src="${piloto.foto}" class="standing-avatar" alt="${piloto.nombre}">` : `<div class="standing-avatar" style="background:${infoEquipo.color};"></div>`}

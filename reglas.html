@@ -27,21 +27,19 @@
 
     <nav class="navbar thin-navbar">
         <div class="nav-brand"><strong>⚡ F1 MANAGER</strong></div>
-        <div class="nav-right">
-            <select id="nav-select" aria-label="Ir a" class="nav-select">
-                <option value="">Ir a ▾</option>
-                <option value="index.html">Inicio</option>
-                <option value="equipos.html">Equipos</option>
-                <option value="calendario.html">Calendario</option>
-                <option value="clasificacion.html">Clasificación</option>
-                <option value="pilotos.html">Pilotos</option>
-                <option value="dashboard.html">Mi Equipo</option>
-            </select>
-        </div>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menú" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+        <ul class="nav-links" id="nav-links">
+            <li><a href="index.html">Inicio</a></li>
+            <li><a href="equipos.html">Equipos</a></li>
+            <li><a href="calendario.html">Calendario</a></li>
+            <li><a href="clasificacion.html">Clasificación</a></li>
+            <li><a href="pilotos.html">Pilotos</a></li>
+            <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Equipo</a></li>
+        </ul>
     </nav>
     <script>
-        const navSelect = document.getElementById('nav-select');
-        if (navSelect) navSelect.addEventListener('change', (e) => { const v = e.target.value; if (v) location.href = v; });
+        function toggleMenu() { const h = document.getElementById('hamburger-btn'); const n = document.getElementById('nav-links'); h.classList.toggle('active'); n.classList.toggle('active'); }
+        document.querySelectorAll('.nav-links a').forEach(link => { link.addEventListener('click', () => { document.getElementById('hamburger-btn').classList.remove('active'); document.getElementById('nav-links').classList.remove('active'); }); });
     </script>
 
     <main class="container">

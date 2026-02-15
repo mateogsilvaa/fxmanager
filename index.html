@@ -56,22 +56,18 @@
             display: none;
             flex-direction: column;
             gap: 3px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px 6px;
-            z-index: 101;
-        }
-        .hamburger-btn span {
-            width: 22px;
-            height: 2px;
-            background-color: var(--text-primary);
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
-        .hamburger-btn.active span:nth-child(1) {
-            transform: rotate(45deg) translate(8px, 8px);
-        }
+                <nav class="navbar thin-navbar">
+                    <div class="nav-brand"><strong>⚡ F1 MANAGER</strong></div>
+                    <button class="hamburger-btn" id="hamburger-btn" aria-label="Menú" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+                    <ul class="nav-links" id="nav-links">
+                        <li><a href="index.html" class="active">Inicio</a></li>
+                        <li><a href="equipos.html">Equipos</a></li>
+                        <li><a href="calendario.html">Calendario</a></li>
+                        <li><a href="clasificacion.html">Clasificación</a></li>
+                        <li><a href="media.html">Media</a></li>
+                        <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Equipo</a></li>
+                    </ul>
+                </nav>
         .hamburger-btn.active span:nth-child(2) {
             opacity: 0;
         }
@@ -140,19 +136,15 @@
 
     <nav class="navbar thin-navbar">
         <div class="nav-brand"><strong>⚡ F1 MANAGER</strong></div>
-        <div class="nav-right">
-            <select id="nav-select" aria-label="Ir a" class="nav-select">
-                <option value="">Ir a ▾</option>
-                <option value="index.html">Inicio</option>
-                <option value="equipos.html">Equipos</option>
-                <option value="calendario.html">Calendario</option>
-                <option value="clasificacion.html">Clasificación</option>
-                <option value="media.html">Media</option>
-                <option value="dashboard.html">Mi Equipo</option>
-                <option value="reglas.html">Reglas</option>
-                <option value="admin.html">Admin</option>
-            </select>
-        </div>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menú" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+        <ul class="nav-links" id="nav-links">
+            <li><a href="index.html" class="active">Inicio</a></li>
+            <li><a href="equipos.html">Equipos</a></li>
+            <li><a href="calendario.html">Calendario</a></li>
+            <li><a href="clasificacion.html">Clasificación</a></li>
+            <li><a href="media.html">Media</a></li>
+            <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Equipo</a></li>
+        </ul>
     </nav>
 
     <main>
@@ -227,13 +219,7 @@
         updateCountdown();
         setInterval(updateCountdown, 1000);
 
-        const navSelect = document.getElementById('nav-select');
-        if (navSelect) {
-            navSelect.addEventListener('change', (e) => {
-                const v = e.target.value;
-                if (v) location.href = v;
-            });
-        }
+        // removed old select-based nav
     </script>
 </body>
 </html>

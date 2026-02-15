@@ -44,6 +44,29 @@
 .standing-row[data-pos="2"] .pos-number { color: #C0C0C0; }
 .standing-row[data-pos="3"] .pos-number { color: #CD7F32; }
 
+/* Desktop-friendly table spacing and minimal borders */
+@media (min-width: 769px) {
+    .standing-table { font-size: 0.95rem; }
+    .standing-table tbody .standing-row { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .standing-table .standing-header th { padding: 12px 14px; }
+    .standing-table td { padding: 12px 14px; vertical-align: middle; }
+    .standing-avatar { width: 44px; height: 44px; }
+}
+
+/* Navbar ordering: brand left, hamburger right, links on the right */
+.navbar.thin-navbar { display:flex; align-items:center; justify-content:space-between; }
+.navbar.thin-navbar .nav-brand { order: 1; }
+.navbar.thin-navbar .nav-links { order: 3; display:flex; }
+.navbar.thin-navbar .hamburger-btn { order: 4; margin-left: 12px; }
+
+/* Ensure hamburger hidden on desktop and visible on mobile */
+.hamburger-btn { display: none; }
+@media (max-width: 768px) {
+    .hamburger-btn { display: flex; }
+    .navbar.thin-navbar .nav-links { display: none; }
+    .navbar.thin-navbar .nav-links.active { display: flex; }
+}
+
 
 /* =========================================
    Responsive - 768px (Tablets y móviles grandes)
