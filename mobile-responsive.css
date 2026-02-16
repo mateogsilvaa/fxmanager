@@ -26,8 +26,9 @@
 /* Mobile overlay behavior (animated, uses max-height so toggle animates) */
 @media (max-width: 768px) {
     .navbar.thin-navbar { 
+        --navbar-height: 52px;
         padding: 8px 12px; 
-        height: 52px; 
+        height: var(--navbar-height); 
         position: fixed;
         top: 0;
         left: 0;
@@ -36,14 +37,14 @@
         backdrop-filter: blur(6px);
     }
     body {
-        padding-top: 52px;
+        padding-top: var(--navbar-height);
     }
 
     /* make nav-links a hidden, collapsible panel instead of removing from flow */
     .nav-links {
         display: flex;
         position: fixed;
-        top: 52px;
+        top: var(--navbar-height) !important;
         left: 0;
         right: 0;
         flex-direction: column;
@@ -115,7 +116,7 @@
     display: block;
     width: 22px;
     height: 2.5px;
-    background: var(--text-primary);
+    background: var(--accent, #ffffff) !important;
     border-radius: 2px;
     transition: transform 220ms ease, opacity 180ms ease, background 180ms ease;
 }
