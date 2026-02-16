@@ -15,12 +15,19 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // --- INICIALIZACIÓN ---
-document.addEventListener('DOMContentLoaded', loadMedia);
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('grid-media');
+    if (!container) {
+        console.error('Contenedor #grid-media no encontrado');
+        return;
+    }
+    loadMedia();
+});
 
 async function loadMedia() {
     const container = document.getElementById('grid-media');
     if (!container) {
-        console.error('Contenedor #grid-media no encontrado');
+        console.error('Contenedor #grid-media no encontrado en loadMedia');
         return;
     }
     container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Cargando publicaciones...</p>';

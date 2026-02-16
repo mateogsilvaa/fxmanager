@@ -24,7 +24,7 @@
 .nav-links a.active { background: rgba(255,255,255,0.03); }
 
 /* Mobile overlay behavior (animated, uses max-height so toggle animates) */
-@media (max-width: 768px) {
+@media (max-width: 600px) {
     .navbar.thin-navbar { 
         --navbar-height: 52px;
         padding: 8px 12px; 
@@ -114,9 +114,8 @@
 .navbar.thin-navbar .hamburger-btn { order: 4 !important; margin-left: 12px !important; }
 
 /* Ensure hamburger hidden on desktop and visible on mobile */
-.hamburger-btn { display: none !important; }
-/* Hamburger visual styles (small, unobtrusive, animated) */
-.hamburger-btn {
+.hamburger-btn { 
+    display: none !important;
     background: transparent !important;
     border: none !important;
     cursor: pointer !important;
@@ -143,17 +142,23 @@
 .hamburger-btn.active span:nth-child(2) { opacity: 0 !important; transform: scaleX(0.6) !important; }
 .hamburger-btn.active span:nth-child(3) { transform: translateY(-6px) rotate(-45deg) !important; }
 
-@media (max-width: 768px) {
-    .hamburger-btn { display: flex !important; }
-}
-
 
 /* =========================================
    Responsive - 768px (Tablets y móviles grandes)
    ========================================= */
-@media (max-width: 768px) {
+@media (max-width: 600px) {
     body {
         font-size: 14px;
+        padding-top: 52px !important;
+    }
+
+    main, main.container {
+        padding-top: 20px !important;
+    }
+
+    h1, h2 {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
     }
 
     /* -------- NAVEGACIÓN -------- */
@@ -762,7 +767,7 @@
    Overrides adicionales para apariencia móvil (barra superior más delgada,
    menú más limpio, 'Mi Equipo' visual y clasificación tipo tabla)
    ========================================= */
-@media (max-width: 768px) {
+@media (max-width: 600px) {
     /* Barra superior más compacta */
     .navbar {
         padding: 6px 10px !important;

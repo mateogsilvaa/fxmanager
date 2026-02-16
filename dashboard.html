@@ -13,7 +13,7 @@
         .hamburger-btn.active span:nth-child(1) { transform: rotate(45deg) translate(8px, 8px); }
         .hamburger-btn.active span:nth-child(2) { opacity: 0; }
         .hamburger-btn.active span:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px); }
-        @media (max-width: 768px) {
+        @media (max-width: 600px) {
             .hamburger-btn { display: flex; }
             .nav-links { display: none; position: fixed; top: 60px; left: 0; right: 0; flex-direction: column; background: linear-gradient(180deg, rgba(23, 23, 25, 0.99), rgba(15, 15, 18, 0.99)); padding: 8px 0; gap: 0; list-style: none; z-index: 100; border-bottom: 1px solid var(--border-color); backdrop-filter: blur(15px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); max-height: calc(100vh - 60px); overflow-y: auto; }
             .nav-links.active { display: flex; }
