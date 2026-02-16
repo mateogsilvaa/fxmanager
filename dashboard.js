@@ -174,6 +174,9 @@ function setupListeners() {
     document.getElementById("btn-research-pilot").addEventListener("click", investigarPiloto);
     document.getElementById("btn-research-upgrade").addEventListener("click", investigarMejora);
     document.getElementById("btn-research-component").addEventListener("click", investigarComponente);
+    
+    // --> AÑADE ESTA LÍNEA AQUÍ:
+    document.getElementById("btn-buy-investigation").addEventListener("click", comprarInvestigacionExtra);
 }
 
 async function solicitarMejora(tipo, costo) {
@@ -370,6 +373,50 @@ async function tryConsumeInvestigation() {
     } catch (error) {
         console.error("Error consumiendo investigación:", error);
         return false;
+    }
+}
+
+async function comprarInvestigacionExtra() {
+    const costo = 1000000; // Precio de la investigación extra (1 Millón)
+    
+    // 1. Comprobar si hay dinero
+    if (currentTeamData.presupuesto < costo) {
+        alert("Presupuesto insuficiente para comprar una investigación extra.");
+        return;
+    }
+
+    // 2. Comprobar si ya tiene el contador a tope (no tendría sentido que compre si aún no ha gastado las gratis)
+    const teamRef = doc(db, "equipos", currentTeamId);
+    const teamSnap = await getDoc(teamRef);
+    const team = teamSnap.data();
+    let currentCount = team.investigacionesCount || 0;
+
+    if (currentCount === 0) {
+        alert("Aún tienes todas tus investigaciones gratis disponibles hoy. ¡Úsalas primero!");
+        return;
+    }
+
+    const confirmar = confirm(`¿Gastar $${costo.toLocaleString()} de tu presupuesto para obtener 1 investigación extra hoy?`);
+    if (!confirmar) return;
+
+    try {
+        // 3. Restamos 1 al contador (sin dejar que baje de 0) para habilitar un hueco libre
+        let newCount = currentCount > 0 ? currentCount - 1 : 0;
+
+        // 4. Actualizamos la base de datos (dinero y contador)
+        await updateDoc(teamRef, {
+            presupuesto: currentTeamData.presupuesto - costo,
+            investigacionesCount: newCount
+        });
+
+        alert("¡Has comprado una investigación extra con éxito! Ya puedes usarla.");
+        
+        // 5. Recargamos los datos para que el presupuesto se actualice visualmente en la pantalla
+        await cargarDatos(); 
+        
+    } catch (error) {
+        console.error("Error comprando investigación:", error);
+        alert("Hubo un error al procesar la compra.");
     }
 }
 

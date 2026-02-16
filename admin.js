@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
             edad: parseInt(document.getElementById("pil-edad").value) || 0,
             ritmo: parseInt(document.getElementById("pil-ritmo").value) || 0,
             agresividad: parseInt(document.getElementById("pil-agresividad").value) || 0,
-            moral: parseInt(document.getElementById("pil-moral").value) || 0,
+            moral: document.getElementById("pil-moral").value || "Normal",
             equipoId: document.getElementById("pil-equipo").value,
             foto: document.getElementById("pil-foto").value
         };
@@ -369,7 +369,7 @@ window.editarPiloto = (data) => {
     document.getElementById("pil-edad").value = data.edad || "";
     document.getElementById("pil-ritmo").value = data.ritmo || "";
     document.getElementById("pil-agresividad").value = data.agresividad || "";
-    document.getElementById("pil-moral").value = data.moral || "";
+    document.getElementById("pil-moral").value = data.moral || "Normal";
     document.getElementById("pil-equipo").value = data.equipoId || "";
     document.getElementById("pil-foto").value = data.foto || "";
     document.getElementById("titulo-modal-piloto").textContent = "Editar Piloto";

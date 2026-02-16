@@ -71,13 +71,12 @@ async function cargarClasificaciones() {
         // 1. Obtener Equipos
         const equiposSnap = await getDocs(collection(db, "equipos"));
         const equiposData = [];
-        const equiposMap = {}; // Diccionario para buscar el color/nombre del equipo del piloto rápido
+        const equiposMap = {}; 
 
         equiposSnap.forEach(docSnap => {
             const data = docSnap.data();
             const equipo = { id: docSnap.id, ...data, puntos: data.puntos || 0 };
             equiposData.push(equipo);
-            // Aseguramos un color por defecto en caso de que no lo tenga
             equiposMap[docSnap.id] = { nombre: equipo.nombre, color: equipo.color || "#8a8b98" };
         });
 
@@ -95,58 +94,19 @@ async function cargarClasificaciones() {
         pilotosData.sort((a, b) => b.puntos - a.puntos);
 
         // ==========================================
-        // 4. TABLA DE CONSTRUCTORES (EQUIPOS)
-        // ==========================================
-        let htmlTablaEquipos = `
-        <table style="width:100%; border-collapse:collapse; margin-top:10px;">
-            <thead>
-                <tr>
-                    <th style="text-align:left; color:var(--text-sec); padding:10px 15px; border-bottom:1px solid var(--border); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; width:40px;">Pos</th>
-                    <th style="text-align:left; color:var(--text-sec); padding:10px 15px; border-bottom:1px solid var(--border); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;">Equipo</th>
-                    <th style="text-align:right; color:var(--text-sec); padding:10px 15px; border-bottom:1px solid var(--border); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;">Pts</th>
-                </tr>
-            </thead>
-            <tbody>`;
-
-        const equiposTop20 = equiposData.slice(0, 20);
-
-        equiposTop20.forEach((equipo, index) => {
-            const posicion = index + 1;
-            // Colores para el Top 3
-            let posColor = "#555";
-            if (posicion === 1) posColor = "#ffd700"; // Oro
-            if (posicion === 2) posColor = "#c0c0c0"; // Plata
-            if (posicion === 3) posColor = "#cd7f32"; // Bronce
-
-            htmlTablaEquipos += `
-                <tr style="transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
-                    <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.03); vertical-align:middle; font-weight:800; font-size:1.1rem; color:${posColor};">${posicion}</td>
-                    <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.03); vertical-align:middle;">
-                        <span style="color:${equipo.color || '#fff'}; font-weight:800; font-size:1.15rem; text-transform:uppercase; letter-spacing:0.5px;">
-                            ${equipo.nombre}
-                        </span>
-                    </td>
-                    <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.03); vertical-align:middle; text-align:right; font-size:1.2rem; font-weight:700;">${equipo.puntos}</td>
-                </tr>`;
-        });
-
-        htmlTablaEquipos += `</tbody></table>`;
-        listaEquipos.innerHTML = htmlTablaEquipos;
-
-
-        // ==========================================
-        // 5. TABLA DE PILOTOS
+        // 4. TABLA DE PILOTOS
         // ==========================================
         let htmlTablaPilotos = `
-        <table style="width:100%; border-collapse:collapse; margin-top:10px;">
-            <thead>
-                <tr>
-                    <th style="text-align:left; color:var(--text-sec); padding:10px 15px; border-bottom:1px solid var(--border); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; width:40px;">Pos</th>
-                    <th style="text-align:left; color:var(--text-sec); padding:10px 15px; border-bottom:1px solid var(--border); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;">Piloto</th>
-                    <th style="text-align:right; color:var(--text-sec); padding:10px 15px; border-bottom:1px solid var(--border); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;">Pts</th>
-                </tr>
-            </thead>
-            <tbody>`;
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; overflow: hidden; margin-top: 15px;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background: rgba(255, 255, 255, 0.05);">
+                        <th style="text-align:center; color:#8a8b98; padding:12px 15px; border-bottom:2px solid rgba(255, 255, 255, 0.1); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; width:50px;">Pos</th>
+                        <th style="text-align:left; color:#8a8b98; padding:12px 15px; border-bottom:2px solid rgba(255, 255, 255, 0.1); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;">Piloto</th>
+                        <th style="text-align:right; color:#8a8b98; padding:12px 15px; border-bottom:2px solid rgba(255, 255, 255, 0.1); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; width:80px;">Pts</th>
+                    </tr>
+                </thead>
+                <tbody>`;
 
         const pilotosTop20 = pilotosData.slice(0, 20);
 
@@ -154,14 +114,6 @@ async function cargarClasificaciones() {
             const posicion = index + 1;
             const infoEquipo = equiposMap[piloto.equipoId] || { nombre: "Agente Libre", color: "#8a8b98" };
             
-            // Colores para el Top 3
-            let posColor = "#555";
-            if (posicion === 1) posColor = "#ffd700";
-            if (posicion === 2) posColor = "#c0c0c0";
-            if (posicion === 3) posColor = "#cd7f32";
-
-            // Lógica para nombre en blanco y apellido en color del equipo
-            // Si el campo apellido existe explícitamente, lo usamos. Si no, intentamos extraerlo del campo nombre.
             let firstName = "";
             let lastName = "";
             
@@ -175,32 +127,68 @@ async function cargarClasificaciones() {
             }
 
             htmlTablaPilotos += `
-                <tr style="transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
-                    <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.03); vertical-align:middle; font-weight:800; font-size:1.1rem; color:${posColor};">${posicion}</td>
-                    <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.03); vertical-align:middle;">
-                        <div>
-                            <div style="font-size:1.05rem; letter-spacing:0.5px;">
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding:15px; text-align:center; vertical-align:middle; font-weight:800; font-size:1.1rem; color:#ffffff;">${posicion}</td>
+                    <td style="padding:15px; vertical-align:middle;">
+                        <div style="display:flex; flex-direction:column; justify-content:center;">
+                            <div style="font-size:1.05rem; letter-spacing:0.5px; line-height:1.2;">
                                 <span style="color:#ffffff; font-weight:400;">${firstName}</span> 
                                 <span style="color:${infoEquipo.color}; font-weight:800; text-transform:uppercase;">${lastName}</span>
                             </div>
-                            <div style="color:var(--text-sec); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; margin-top:3px; font-weight:600;">
+                            <div style="color:#8a8b98; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; margin-top:2px; font-weight:600;">
                                 ${infoEquipo.nombre}
                             </div>
                         </div>
                     </td>
-                    <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.03); vertical-align:middle; text-align:right; font-size:1.2rem; font-weight:700;">${piloto.puntos}</td>
+                    <td style="padding:15px; vertical-align:middle; text-align:right; font-size:1.1rem; font-weight:700; color:#ffffff;">${piloto.puntos}</td>
                 </tr>`;
         });
 
-        htmlTablaPilotos += `</tbody></table>`;
+        htmlTablaPilotos += `</tbody></table></div>`;
         listaPilotos.innerHTML = htmlTablaPilotos;
+
+
+        // ==========================================
+        // 5. TABLA DE CONSTRUCTORES (EQUIPOS)
+        // ==========================================
+        let htmlTablaEquipos = `
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; overflow: hidden; margin-top: 15px;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background: rgba(255, 255, 255, 0.05);">
+                        <th style="text-align:center; color:#8a8b98; padding:12px 15px; border-bottom:2px solid rgba(255, 255, 255, 0.1); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; width:50px;">Pos</th>
+                        <th style="text-align:left; color:#8a8b98; padding:12px 15px; border-bottom:2px solid rgba(255, 255, 255, 0.1); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;">Equipo</th>
+                        <th style="text-align:right; color:#8a8b98; padding:12px 15px; border-bottom:2px solid rgba(255, 255, 255, 0.1); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; width:80px;">Pts</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        const equiposTop20 = equiposData.slice(0, 20);
+
+        equiposTop20.forEach((equipo, index) => {
+            const posicion = index + 1;
+
+            htmlTablaEquipos += `
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding:15px; text-align:center; vertical-align:middle; font-weight:800; font-size:1.1rem; color:#ffffff;">${posicion}</td>
+                    <td style="padding:15px; vertical-align:middle;">
+                        <span style="color:${equipo.color || '#ffffff'}; font-weight:800; font-size:1.1rem; text-transform:uppercase; letter-spacing:0.5px;">
+                            ${equipo.nombre}
+                        </span>
+                    </td>
+                    <td style="padding:15px; vertical-align:middle; text-align:right; font-size:1.1rem; font-weight:700; color:#ffffff;">${equipo.puntos}</td>
+                </tr>`;
+        });
+
+        htmlTablaEquipos += `</tbody></table></div>`;
+        listaEquipos.innerHTML = htmlTablaEquipos;
 
         if (pilotosData.length === 0) listaPilotos.innerHTML = "<p class='text-muted'>No hay datos de pilotos.</p>";
         if (equiposData.length === 0) listaEquipos.innerHTML = "<p class='text-muted'>No hay datos de equipos.</p>";
 
     } catch (error) {
         console.error("Error cargando clasificaciones:", error);
-        listaPilotos.innerHTML = "<p style='color: var(--danger);'>Error al cargar los datos.</p>";
-        listaEquipos.innerHTML = "<p style='color: var(--danger);'>Error al cargar los datos.</p>";
+        listaPilotos.innerHTML = "<p style='color: #ff4444;'>Error al cargar los datos.</p>";
+        listaEquipos.innerHTML = "<p style='color: #ff4444;'>Error al cargar los datos.</p>";
     }
 }
