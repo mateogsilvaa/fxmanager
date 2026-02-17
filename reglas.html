@@ -3,97 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Manager | Reglamento</title>
+    <title>FXManager | Reglamento Oficial</title>
     <link rel="stylesheet" href="modern.css">
     <link rel="stylesheet" href="mobile-responsive.css">
-    <link rel="stylesheet" href="hamburger.css">    <style>
-        /* Hamburger menu for mobile responsiveness */
-        .hamburger-btn { display: none; flex-direction: column; gap: 3px; background: none; border: none; cursor: pointer; padding: 4px 6px; z-index: 101; }
-        .hamburger-btn span { width: 22px; height: 2px; background-color: var(--text-primary); border-radius: 2px; transition: all 0.3s ease; }
-        .hamburger-btn.active span:nth-child(1) { transform: rotate(45deg) translate(8px, 8px); }
-        .hamburger-btn.active span:nth-child(2) { opacity: 0; }
-        .hamburger-btn.active span:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px); }
-        @media (max-width: 900px) {
-            .hamburger-btn { display: flex !important; }
-            .nav-links { display: none; position: fixed; top: 60px; left: 0; right: 0; flex-direction: column; background: linear-gradient(180deg, rgba(23, 23, 25, 0.99), rgba(15, 15, 18, 0.99)); padding: 8px 0; gap: 0; list-style: none; z-index: 100; border-bottom: 1px solid var(--border-color); backdrop-filter: blur(15px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); max-height: calc(100vh - 60px); overflow-y: auto; }
-            .nav-links.active { display: flex; }
-            .nav-links li { padding: 0; border-bottom: 1px solid var(--border-color); }
-            .nav-links li:last-child { border-bottom: none; }
-            .nav-links a { display: block; padding: 10px 15px; font-size: 0.9rem; }
-            .nav-auth { width: 100%; gap: 6px; flex-wrap: wrap; order: -1; }
-            .nav-auth button { flex: 1; min-width: 100px; font-size: 0.75rem; padding: 8px 12px; }
-        }
-    </style>
+    <link rel="stylesheet" href="hamburger.css">
 </head>
 <body>
 
     <nav class="navbar thin-navbar">
-        <div class="nav-brand"><strong>⚡ F1 MANAGER</strong></div>
-        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menú"><span></span><span></span><span></span></button>
+        <div class="nav-brand"><strong>⚡ FXMANAGER</strong></div>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menú">
+            <span></span><span></span><span></span>
+        </button>
         <ul class="nav-links" id="nav-links">
             <li><a href="index.html">Inicio</a></li>
             <li><a href="equipos.html">Equipos</a></li>
             <li><a href="calendario.html">Calendario</a></li>
             <li><a href="clasificacion.html">Clasificación</a></li>
-            <li><a href="pilotos.html">Pilotos</a></li>
+            <li><a href="media.html">Media</a></li>
+            <li><a href="reglas.html" class="active">Reglas</a></li>
             <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Equipo</a></li>
         </ul>
     </nav>
-    <script>
-        function toggleMenu() { const h = document.getElementById('hamburger-btn'); const n = document.getElementById('nav-links'); h.classList.toggle('active'); n.classList.toggle('active'); }
-        document.querySelectorAll('.nav-links a').forEach(link => { link.addEventListener('click', () => { document.getElementById('hamburger-btn').classList.remove('active'); document.getElementById('nav-links').classList.remove('active'); }); });
-    </script>
 
-    <main class="container">
-        <header style="text-align: center; margin-bottom: 40px;">
-            <h1>Reglamento Deportivo y Técnico</h1>
-            <p>Las reglas que rigen el campeonato F1 Manager.</p>
+    <main class="container" style="padding: 40px 20px; max-width: 900px;">
+        <header style="text-align: center; margin-bottom: 50px;">
+            <h1 style="margin-bottom: 10px; color: var(--accent);">REGLAMENTO OFICIAL</h1>
+            <p style="font-size: 1.1rem; color: var(--text-secondary);">
+                Bienvenido al simulador de gestión de Fórmula 1. En este juego, la estrategia, la gestión económica y la toma de decisiones son la clave para llevar a tu escudería a la gloria.
+            </p>
         </header>
 
-        <div class="card">
-            <h2><span class="step-number">1.</span> El Concepto</h2>
-            <p>Bienvenido al F1 Manager. Aquí eres el <strong>Team Principal</strong>. Tu trabajo no es conducir, es gestionar.</p>
-            <p>Las carreras se simulan en un software de carreras profesional usando una Inteligencia Artificial avanzada. Tus decisiones en esta web afectarán directamente al rendimiento de tu coche en la simulación real.</p>
-        </div>
-
-        <div class="card">
-            <h2><span class="step-number">2.</span> Gestión del Equipo</h2>
-            <p>Cada semana tendrás un presupuesto. Debes decidir dónde invertirlo:</p>
-            <ul style="list-style-position: inside; margin-left: 20px;">
-                <li><strong>Motor:</strong> Aumenta la velocidad punta.</li>
-                <li><strong>Aerodinámica:</strong> Mejora el paso por curva.</li>
-                <li><strong>Chasis:</strong> Mejora la estabilidad y el desgaste de neumáticos.</li>
-                <li><strong>Pilotos:</strong> Contrata a los mejores talentos para maximizar el rendimiento.</li>
-            </ul>
-            <p style="opacity: 0.7; font-style: italic;">Cuidado: Si entras en números rojos, la FIA podría sancionarte con la expulsión del campeonato.</p>
-        </div>
-
-        <div class="card">
-            <h2><span class="step-number">3.</span> Fin de Semana de Carrera</h2>
-            <p>El campeonato sigue un calendario fijo. El flujo de trabajo es el siguiente:</p>
-            <ul style="list-style-position: inside; margin-left: 20px;">
-                <li><strong>Lunes a Viernes:</strong> El mercado de fichajes y mejoras está abierto. Realiza tus ajustes estratégicos desde el Dashboard.</li>
-                <li><strong>Sábado:</strong> Se cierran los boxes. El sistema se bloquea y los administradores configuran la carrera.</li>
-                <li><strong>Domingo:</strong> Se publica el vídeo de la carrera en el canal oficial y se actualizan las clasificaciones y presupuestos.</li>
+        <div class="card" style="margin-bottom: 25px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">1.</span> Estados del Campeonato</h2>
+            <p>La partida fluye entre dos estados principales controlados por la FIA:</p>
+            <ul style="list-style-type: none; padding-left: 0; margin-top: 15px;">
+                <li style="margin-bottom: 10px; padding-left: 15px; border-left: 2px solid var(--accent);">
+                    <strong style="color: white;">Modo Offseason (Pretemporada):</strong> Es el único momento en el que un nuevo jugador puede entrar a la página pública de "Equipos", desplegar la información de una escudería sin dueño y pulsar el botón "Dirigir Equipo". También es el momento donde se aplican los fichajes para la nueva temporada.
+                </li>
+                <li style="padding-left: 15px; border-left: 2px solid var(--accent);">
+                    <strong style="color: white;">Modo Temporada en Curso:</strong> Las plantillas se bloquean. Se corren las carreras, se suman puntos, se desarrollan los coches y se negocian los fichajes para el año siguiente.
+                </li>
             </ul>
         </div>
 
-        <div class="card">
-            <h2><span class="step-number">4.</span> Sistema de Puntos y Premios</h2>
-            <p>Ganar carreras y obtener buenos resultados te dará puntos para el campeonato y recompensas económicas para seguir mejorando tu equipo.</p>
-            <p>El sistema de puntuación es el oficial de la F1: <strong>25, 18, 15, 12, 10, 8, 6, 4, 2, 1</strong>.</p>
-            <p>Además, hay bonificaciones económicas por objetivos especiales, como la <strong>Pole Position</strong> o la <strong>Vuelta Rápida</strong>.</p>
+        <div class="card" style="margin-bottom: 25px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">2.</span> El Dashboard (Panel de Control)</h2>
+            <p>Solo accesible para el Jefe de Equipo. Es la sala de mandos de la escudería. Aquí se visualiza:</p>
+            <ul style="color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
+                <li><strong>El Monoplaza:</strong> Imagen del coche actual.</li>
+                <li><strong>Estadísticas Históricas:</strong> Carreras disputadas, Victorias, Puntos, Podios, Poles, DNFs (Abandonos) y Campeonatos del Mundo.</li>
+                <li><strong>Perfil de Pilotos:</strong> Nombre, edad, nacionalidad, y tres atributos ocultos al público: Ritmo, Agresividad y Moral.</li>
+                <li><strong>Economía:</strong> El presupuesto actual del equipo.</li>
+                <li><strong>Zona de mejoras.</strong></li>
+                <li><strong>Zona de investigación.</strong></li>
+            </ul>
         </div>
 
-        <div style="text-align: center; margin-top: 40px;">
-            <a href="index.html" id="btnVolver" class="btn">Volver al Paddock</a>
+        <div class="card" style="margin-bottom: 25px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">3.</span> Economía y Desarrollo</h2>
+            <p>El dinero es limitado y debe usarse sabiamente para pagar salarios e investigar o fichar pilotos.</p>
+            <p><strong style="color: white;">Mejoras del Coche:</strong> Puedes invertir parte de tu presupuesto en desarrollar el coche en dos áreas con diferentes niveles. Todos los coches empiezan en el nivel 0 y hay 7 disponibles (Por temporada):</p>
+            <ul style="color: var(--text-secondary); margin-left: 20px; margin-bottom: 15px;">
+                <li>Chasis y aerodinámica</li>
+                <li>Motor</li>
+            </ul>
+            <p><strong style="color: white;">Regla de Desarrollo:</strong> Cuando solicitas una mejora, se invierte el dinero inmediatamente (no se recupera). La solicitud llega a la FIA, quien transmite el resultado. Hay 2 escenarios posibles:</p>
+            <ul style="list-style-type: none; padding-left: 0; margin-top: 10px;">
+                <li style="margin-bottom: 10px;"><strong style="color: var(--success);">✓ Éxito:</strong> La mejora se instala y el coche es más rápido (o no, puede ser una mejora como las de Aston Martin).</li>
+                <li><strong style="color: var(--danger);">✕ Denegada:</strong> La FIA declara la mejora ilegal o fallida.</li>
+            </ul>
+        </div>
+
+        <div class="card" style="margin-bottom: 25px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">4.</span> Espionaje e Investigación</h2>
+            <p>El conocimiento es poder. Durante una "Temporada en curso", cada equipo dispone de <strong>solo 3 fichas de investigación</strong> diarias/gratuitas. Puedes usarlas para descubrir secretos de tus rivales:</p>
+            <ul style="color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
+                <li><strong style="color: white;">Scouting de Piloto Rival:</strong> Revela los valores ocultos de Ritmo y Agresividad de un piloto de otro equipo.</li>
+                <li><strong style="color: white;">Espionaje de Fábrica (Última mejora):</strong> Revela cuál ha sido la última área que un equipo rival ha intentado mejorar.</li>
+                <li><strong style="color: white;">Espionaje de Fábrica (Nivel de área):</strong> Eliges un área específica de un rival (ej. Motor de McLaren) y la investigación revela exactamente en qué nivel de desarrollo se encuentra.</li>
+            </ul>
+        </div>
+
+        <div class="card" style="margin-bottom: 25px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">5.</span> Mercado de Fichajes y Salarios</h2>
+            <p>Tu responsabilidad es tener a los mejores pilotos, pero estos cuestan dinero.</p>
+            <p style="margin-bottom: 10px;"><strong style="color: white;">Salarios:</strong> Cada piloto tiene un sueldo que se deduce del presupuesto de la escudería. En el Dashboard puedes modificar/renegociar su sueldo. <span style="color: var(--warning);">(Cuidado: bajar el sueldo drásticamente hundirá su moral)</span>.</p>
+            <p><strong style="color: white;">Fichar Pilotos Rivales:</strong> Puedes enviar una oferta económica a un piloto de otra escudería.</p>
+            <ul style="color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
+                <li><strong>Proceso:</strong> La oferta llega primero a la FIA. La FIA actúa de intermediario y notifica al equipo actual del piloto sobre tus intenciones.</li>
+                <li>Si el piloto (y la FIA) acepta la oferta, recibirás una notificación de confirmación.</li>
+                <li>El traspaso no es inmediato: el piloto se unirá a tus filas en la siguiente temporada (Offseason).</li>
+            </ul>
+        </div>
+
+        <div class="card" style="margin-bottom: 25px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">6.</span> Sistema de Comunicación</h2>
+            <p>En tu Dashboard tienes una bandeja de entrada. La FIA se comunicará contigo a través de este buzón usando diferentes remitentes:</p>
+            <ul style="color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
+                <li><strong style="color: white;">De la FIA a Equipo:</strong> Avisos sobre resoluciones de mejoras (Éxito/Fracaso), sanciones, o confirmaciones de investigación.</li>
+                <li><strong style="color: white;">De un Piloto a Equipo:</strong> Mensajes de quejas sobre el sueldo, exigencias de mejoras, o respuestas a ofertas de fichajes.</li>
+            </ul>
+        </div>
+
+        <div class="card" style="margin-bottom: 25px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">7.</span> Calendario, Medios y Clasificación</h2>
+            <p>El juego cuenta con apartados públicos accesibles para todos:</p>
+            <ul style="color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
+                <li><strong style="color: white;">Media Center:</strong> Una página de prensa donde la FIA publicará artículos, rumores del paddock e imágenes de las carreras. ¡Atento a lo que dice la prensa!</li>
+                <li><strong style="color: white;">Clasificación:</strong> Tablas actualizadas en tiempo real con el Mundial de Pilotos y el Mundial de Constructores.</li>
+                <li><strong style="color: white;">Calendario:</strong> Registro de cómo han quedado los pilotos en las carreras ya disputadas, o de las carreras siguientes y cuándo serán.</li>
+            </ul>
+        </div>
+
+        <div style="background: linear-gradient(135deg, rgba(208,208,208,0.1), transparent); border: 1px solid var(--accent); border-radius: 12px; padding: 30px; margin-top: 40px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 20px; color: white; text-align: center;">🔄 Resumen del Bucle de Juego</h2>
+            <ol style="color: var(--text-secondary); margin-left: 20px; line-height: 2; font-size: 1.05rem;">
+                <li>Revisa tu presupuesto y decide si inviertes en <strong>Mejoras</strong> o guardas dinero para <strong>Salarios/Fichajes</strong>.</li>
+                <li>Gestiona la <strong>moral</strong> de tus pilotos.</li>
+                <li>Si estás ciego respecto a los rivales, gasta una de tus <strong>Investigaciones</strong> de la temporada.</li>
+                <li>Espera el veredicto de la FIA en tu bandeja de <strong>Avisos</strong> sobre tus mejoras.</li>
+                <li>La FIA simula la <strong>carrera</strong> y sube los resultados.</li>
+                <li>Revisa la <strong>Clasificación</strong> y la página de <strong>Media</strong> para ver las noticias post-carrera. ¡Repite hasta ser Campeón del Mundo!</li>
+            </ol>
+        </div>
+
+        <div style="text-align: center; margin-top: 50px;">
+            <a href="index.html" id="btnVolver" class="btn-solid" style="padding: 15px 30px; font-size: 1rem;">Volver al Paddock</a>
         </div>
     </main>
 
-    <footer style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color); margin-top: 40px;">
-        <p>&copy; 2024 F1 Manager. Todos los derechos reservados.</p>
+    <footer style="text-align: center; padding: 30px 20px; border-top: 1px solid var(--border-color); color: var(--text-secondary); margin-top: 60px;">
+        <p>&copy; 2024-2026 FXManager. Todos los derechos reservados.</p>
     </footer>
 
+    <script src="nav.js" defer></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -111,17 +155,18 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const btnVolver = document.getElementById('btnVolver');
+        const navDashboard = document.getElementById("nav-dashboard");
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 btnVolver.href = "dashboard.html";
                 btnVolver.innerText = "Ir a mi Dashboard";
+                if(navDashboard) navDashboard.style.display = "inline-block";
             } else {
                 btnVolver.href = "index.html";
                 btnVolver.innerText = "Volver al Inicio";
             }
         });
     </script>
-
 </body>
 </html>
