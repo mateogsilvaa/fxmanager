@@ -110,13 +110,13 @@ function pintarMedia(filtro) {
                 <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; background:#000;">
                     <iframe src="${pub.url}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:none;" allowfullscreen></iframe>
                 </div>`;
-        } else if (pub.url) {
-            // Imagen
-            contenidoMultimedia = `
-                <div style="width: 100%; height: 200px; overflow: hidden; background:#1a1a24;">
-                    <img src="${pub.url}" alt="${pub.titulo}" style="width:100%; height:100%; object-fit:cover;">
-                </div>`;
-        }
+            } else if (pub.url) {
+                // Imagen (Adaptada a proporción 4:5 sin recortes)
+                contenidoMultimedia = `
+                    <div style="width: 100%; aspect-ratio: 4 / 5; background: #0f1014; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                        <img src="${pub.url}" alt="${pub.titulo}" style="width: 100%; height: 100%; object-fit: contain;">
+                    </div>`;
+            }
 
         // Tipo de badge
         let badgeColor = "#3b82f6"; // Azul por defecto (Noticia)
