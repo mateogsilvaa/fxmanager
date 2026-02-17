@@ -49,3 +49,4 @@ document.addEventListener('DOMContentLoaded', () => {
             videoGallery.innerHTML = '<p>Error al cargar los videos.</p>';
         });
 });
+
