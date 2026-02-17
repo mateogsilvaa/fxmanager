@@ -1,52 +1,144 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const photoGallery = document.querySelector('.photo-gallery');
-    const videoGallery = document.querySelector('.video-gallery');
+// media.js
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-    if (!photoGallery || !videoGallery) {
-        console.error('No se encontraron las galerías de fotos o videos.');
+// ==========================================
+// 1. CONFIGURACIÓN FIREBASE
+// ==========================================
+const firebaseConfig = {
+    apiKey: "AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",
+    authDomain: "fxmanager-c5868.firebaseapp.com",
+    projectId: "fxmanager-c5868",
+    storageBucket: "fxmanager-c5868.appspot.com",
+    messagingSenderId: "652487009924",
+    appId: "1:652487009924:web:c976804d6b48c4dda004d1",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+// Variables globales para la media
+let todasLasPublicaciones = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+    
+    // Configurar menú si está logueado
+    const navDashboard = document.getElementById("nav-dashboard");
+    onAuthStateChanged(auth, (user) => {
+        if (user && navDashboard) {
+            navDashboard.style.display = "inline-block";
+        }
+    });
+
+    const gridMedia = document.getElementById('grid-media');
+
+    try {
+        // 1. Consultar Firebase: Colección "publicaciones" ordenada por fecha
+        const q = query(collection(db, "publicaciones"), orderBy("fecha", "desc"));
+        const snapshot = await getDocs(q);
+
+        // Limpiar el texto de "Cargando..."
+        if (gridMedia) gridMedia.innerHTML = '';
+
+        if (snapshot.empty) {
+            if (gridMedia) gridMedia.innerHTML = '<p style="color:var(--text-secondary); text-align:center; width:100%;">No hay publicaciones disponibles.</p>';
+            return;
+        }
+
+        // 2. Guardar en memoria para poder filtrar luego
+        snapshot.forEach(docSnap => {
+            todasLasPublicaciones.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        // 3. Pintar todas por defecto
+        pintarMedia("todos");
+
+        // 4. Configurar los botones de filtro
+        const filterBtns = document.querySelectorAll(".filter-btn");
+        filterBtns.forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                // Quitar clase active a todos
+                filterBtns.forEach(b => b.classList.remove("active"));
+                // Poner active al pulsado
+                e.target.classList.add("active");
+                // Pintar filtrando por el data-filter
+                pintarMedia(e.target.getAttribute("data-filter"));
+            });
+        });
+
+    } catch (error) {
+        console.error('Error al cargar la media desde Firebase:', error);
+        if (gridMedia) gridMedia.innerHTML = '<p style="color: #ff4444; text-align:center; width:100%;">Error al cargar las noticias. Revisa tu conexión.</p>';
+    }
+});
+
+function pintarMedia(filtro) {
+    const gridMedia = document.getElementById('grid-media');
+    if (!gridMedia) return;
+
+    gridMedia.innerHTML = ''; // Limpiar grid
+
+    // Filtrar publicaciones
+    const pubsFiltradas = filtro === "todos" 
+        ? todasLasPublicaciones 
+        : todasLasPublicaciones.filter(p => p.tipo === filtro);
+
+    if (pubsFiltradas.length === 0) {
+        gridMedia.innerHTML = `<p style="color:var(--text-secondary); text-align:center; width:100%;">No hay publicaciones de tipo "${filtro}".</p>`;
         return;
     }
 
-    fetch('media.json')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Error al cargar los datos de media: ' + response.statusText);
-            }
-            return response.json();
-        })
-        .then(data => {
-            // Limpiar galerías antes de agregar nuevo contenido
-            photoGallery.innerHTML = '';
-            videoGallery.innerHTML = '';
+    // Dibujar cada publicación
+    pubsFiltradas.forEach(pub => {
+        const fechaFormateada = pub.fecha ? new Date(pub.fecha.toDate()).toLocaleDateString() : 'Reciente';
 
-            // Cargar fotos
-            if (data.photos && data.photos.length > 0) {
-                data.photos.forEach(photo => {
-                    const photoElement = document.createElement('div');
-                    photoElement.classList.add('photo');
-                    photoElement.innerHTML = `<img src="${photo.src}" alt="${photo.alt}">`;
-                    photoGallery.appendChild(photoElement);
-                });
-            } else {
-                photoGallery.innerHTML = '<p>No hay fotos disponibles.</p>';
-            }
+        const elemento = document.createElement('div');
+        // Estilos modernos en línea si no tienes clase "card" en CSS. Si la tienes, pon "card"
+        elemento.style.cssText = "background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s;";
+        
+        // Efecto hover sutil
+        elemento.onmouseover = () => elemento.style.transform = "translateY(-5px)";
+        elemento.onmouseout = () => elemento.style.transform = "translateY(0)";
 
-            // Cargar videos
-            if (data.videos && data.videos.length > 0) {
-                data.videos.forEach(video => {
-                    const videoElement = document.createElement('div');
-                    videoElement.classList.add('video');
-                    videoElement.innerHTML = `<iframe src="${video.src}" frameborder="0" allowfullscreen></iframe>`;
-                    videoGallery.appendChild(videoElement);
-                });
-            } else {
-                videoGallery.innerHTML = '<p>No hay videos disponibles.</p>';
-            }
-        })
-        .catch(error => {
-            console.error('Error en la carga de contenido multimedia:', error);
-            photoGallery.innerHTML = '<p>Error al cargar las fotos.</p>';
-            videoGallery.innerHTML = '<p>Error al cargar los videos.</p>';
-        });
-});
+        let contenidoMultimedia = '';
 
+        if (pub.tipo === 'video' && pub.url) {
+            // Iframe responsivo para YouTube o vídeos
+            contenidoMultimedia = `
+                <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; background:#000;">
+                    <iframe src="${pub.url}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:none;" allowfullscreen></iframe>
+                </div>`;
+        } else if (pub.url) {
+            // Imagen
+            contenidoMultimedia = `
+                <div style="width: 100%; height: 200px; overflow: hidden; background:#1a1a24;">
+                    <img src="${pub.url}" alt="${pub.titulo}" style="width:100%; height:100%; object-fit:cover;">
+                </div>`;
+        }
+
+        // Tipo de badge
+        let badgeColor = "#3b82f6"; // Azul por defecto (Noticia)
+        if (pub.tipo === "foto") badgeColor = "#eab308"; // Amarillo
+        if (pub.tipo === "video") badgeColor = "#ef4444"; // Rojo
+
+        elemento.innerHTML = `
+            ${contenidoMultimedia}
+            <div style="padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="background: ${badgeColor}30; color: ${badgeColor}; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; text-transform: uppercase; font-weight: bold; border: 1px solid ${badgeColor}50;">
+                        ${pub.tipo || 'Noticia'}
+                    </span>
+                    <span style="color: var(--text-secondary); font-size: 0.8rem;">${fechaFormateada}</span>
+                </div>
+                <h2 style="margin: 0 0 10px 0; font-size: 1.3rem; line-height: 1.3;">${pub.titulo}</h2>
+                <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem; margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                    ${pub.texto || ''}
+                </p>
+            </div>
+        `;
+
+        gridMedia.appendChild(elemento);
+    });
+}
