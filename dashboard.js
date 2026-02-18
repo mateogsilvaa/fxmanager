@@ -98,12 +98,12 @@ function renderUI() {
         card.className = "driver-card-modern";
         
         // Génerar barra de desempeño visual
-        const ritmoWidth = (piloto.ritmo || 0) * 10;
-        const agresividadWidth = (piloto.agresividad || 0) * 10;
+        const ritmoWidth = (piloto.ritmo || 0) * 100;
+        const agresividadWidth = (piloto.agresividad || 0) * 100;
         
         // Código de moral con emoji
         const moralEmoji = piloto.moral === "Alta" ? "😊" : (piloto.moral === "Baja" ? "😔" : "😐");
-        const moralColor = piloto.moral === "Alta" ? "#4CAF50" : (piloto.moral === "Baja" ? "#f44336" : "#FF9800");
+        const moralColor = piloto.moral === "Alta" ? "#4CAF50" : (piloto.moral === "Baja" ? "#f44336" : "#8888aa");
         
         card.innerHTML = `
             <div class="driver-header-modern" style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
@@ -114,7 +114,7 @@ function renderUI() {
                     <p class="driver-name-modern" style="margin: 0 0 4px 0; font-size: 1.2rem; font-weight: bold;">#${piloto.numero} ${piloto.nombre} <span style="color: ${currentTeamData.color}; font-weight: 600;">${piloto.apellido || ''}</span></p>
                     <p class="driver-number-modern" style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">${piloto.pais} • ${piloto.edad} años</p>
                     <div style="margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap;">
-                        <span style="background: rgba(255,107,53,0.15); color: #ff6b35; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Activo ✓</span>
+                        <span style="background: rgba(255,255,255,0.1); color: #ffffff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Activo ✓</span>
                     </div>
                 </div>
             </div>
@@ -125,10 +125,10 @@ function renderUI() {
                     <div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                             <span style="font-size: 0.8rem; color: var(--text-secondary);">Ritmo</span>
-                            <span style="font-size: 0.85rem; font-weight: 600; color: #ff6b35;">${piloto.ritmo || 0}/10</span>
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #ffffff;">${piloto.ritmo || 0}/10</span>
                         </div>
                         <div style="width: 100%; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
-                            <div style="width: ${ritmoWidth}%; height: 100%; background: linear-gradient(90deg, #ff6b35, #ff9800); border-radius: 3px;"></div>
+                            <div style="width: ${ritmoWidth}%; height: 100%; background: linear-gradient(90deg, #ffffff, #e8e8e8); border-radius: 3px;"></div>
                         </div>
                     </div>
                     <div>
