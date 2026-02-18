@@ -529,14 +529,15 @@ window.actualizarPilotosPorEquipo = () => {
 async function cargarOfertasAdmin() {
     const contenedor = document.getElementById("lista-ofertas-admin");
     try {
-        // Obtener todas las ofertas sin filtrar por estado
-        const q = query(collection(db, "ofertas"), orderBy("fecha", "desc"));
-        const snapshot = await getDocs(q);
+        // Obtener todas las ofertas
+        const snapshot = await getDocs(collection(db, "ofertas"));
         
-        // Filtrar solo las pendientes en memoria
-        const ofertasPendientes = snapshot.docs
+        // Filtrar solo las pendientes
+        const ofertasPendientes = Array.from(snapshot.docs)
             .filter(doc => doc.data().estado === "Pendiente")
             .map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        console.log("Ofertas encontradas:", ofertasPendientes.length);
         
         if(ofertasPendientes.length === 0) { 
             contenedor.innerHTML = "<p class='text-muted'>No hay ofertas pendientes.</p>"; 
@@ -578,7 +579,7 @@ async function cargarOfertasAdmin() {
         });
     } catch (e) { 
         console.error("Error cargando ofertas:", e);
-        contenedor.innerHTML = "<p class='text-muted'>Error al cargar ofertas.</p>";
+        contenedor.innerHTML = "<p class='text-muted'>Error al cargar ofertas: " + e.message + "</p>";
     }
 }
 

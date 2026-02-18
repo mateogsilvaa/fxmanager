@@ -170,9 +170,6 @@ function renderUI() {
 
     // Poblar selectores de investigación
     poblarSelectores();
-    
-    // Renderizar pilotos rivales para ofertas
-    renderizarPilotosRivales();
 }
 
 function poblarSelectores() {
@@ -840,73 +837,64 @@ window.verDetalles = function(pilotoId) {
 // ==========================================
 // MERCADO DE PILOTOS Y OFERTAS
 // ==========================================
-function renderizarPilotosRivales() {
-    const contenedor = document.getElementById("pilotos-rivales-container");
-    
-    // Obtener pilotos de otros equipos
+window.abrirModalSeleccionarPiloto = function() {
+    // Obtener pilotos rivales
     const pilotosRivales = allPilotos.filter(p => p.equipoId !== currentTeamId);
     
     if (pilotosRivales.length === 0) {
-        contenedor.innerHTML = '<p style="color: var(--text-secondary);">No hay rivales disponibles en la liga.</p>';
+        alert("No hay pilotos rivales disponibles");
         return;
     }
     
-    contenedor.innerHTML = "";
+    // Llenar el select
+    const selectPiloto = document.getElementById("oferta-piloto-select");
+    selectPiloto.innerHTML = '<option value="">-- Selecciona un piloto --</option>';
+    
     pilotosRivales.forEach(piloto => {
-        const equipoRival = allEquipos.find(e => e.id === piloto.equipoId);
-        const moralEmoji = piloto.moral === "Alta" ? "😊" : (piloto.moral === "Baja" ? "😔" : "😐");
-        const moralColor = piloto.moral === "Alta" ? "#4CAF50" : (piloto.moral === "Baja" ? "#f44336" : "#8888aa");
-        
-        const card = document.createElement("div");
-        card.style.cssText = "padding: 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; transition: all 0.3s ease;";
-        
-        card.innerHTML = `
-            <div style="display: flex; gap: 10px; align-items: start; margin-bottom: 10px;">
-                <div>
-                    ${piloto.foto ? `<img src="${piloto.foto}" style="width: 50px; height: 50px; border-radius: 6px; object-fit: cover; border: 2px solid ${equipoRival?.color || '#ffffff'};">` : '<div style="width: 50px; height: 50px; background: var(--bg-secondary); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">👤</div>'}
-                </div>
-                <div style="flex: 1;">
-                    <p style="margin: 0 0 2px 0; font-weight: 600; font-size: 0.95rem;">#${piloto.numero} ${piloto.nombre}</p>
-                    <p style="margin: 0; font-size: 0.8rem; color: ${equipoRival?.color || '#ffffff'};">${equipoRival?.nombre || 'Equipo'}</p>
-                    <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: var(--text-secondary);">${piloto.pais}</p>
-                </div>
-            </div>
-            
-            <div style="display: flex; align-items: center; gap: 6px; padding: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 10px; border-left: 2px solid ${moralColor};">
-                <span style="font-size: 1rem;">${moralEmoji}</span>
-                <span style="font-size: 0.75rem; color: ${moralColor}; font-weight: 600;">${piloto.moral || 'Normal'}</span>
-            </div>
-            
-            <button onclick="abrirModalOferta('${piloto.id}')" class="btn-solid" style="width: 100%; padding: 8px; background: linear-gradient(135deg, #4CAF50, #45a049); border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; font-size: 0.85rem; transition: all 0.3s ease;">
-                🔄 Fichar
-            </button>
-        `;
-        
-        contenedor.appendChild(card);
+        const equipo = allEquipos.find(e => e.id === piloto.equipoId);
+        const texto = `#${piloto.numero} ${piloto.nombre} ${piloto.apellido || ''} (${equipo?.nombre || 'Equipo'})`;
+        selectPiloto.innerHTML += `<option value="${piloto.id}">${texto}</option>`;
     });
-}
-
-window.abrirModalOferta = function(pilotoId) {
-    const piloto = allPilotos.find(p => p.id === pilotoId);
-    const equipo = allEquipos.find(e => e.id === piloto.equipoId);
     
-    document.getElementById("oferta-piloto-nombre").textContent = `#${piloto.numero} ${piloto.nombre} ${piloto.apellido || ''}`;
-    document.getElementById("oferta-piloto-equipo").textContent = `Equipo actual: ${equipo?.nombre || 'Desconocido'}`;
-    
-    // Guardar el ID del piloto en un atributo del modal
-    document.getElementById("modal-oferta").dataset.pilotoId = pilotoId;
+    // Abrir modal
     document.getElementById("modal-oferta").style.display = "flex";
     
     // Limpiar el formulario
     document.getElementById("form-oferta").reset();
+    document.getElementById("oferta-piloto-info").style.display = "none";
 };
+
+// Listener para cambio de piloto en el select
+document.addEventListener("DOMContentLoaded", () => {
+    const selectPiloto = document.getElementById("oferta-piloto-select");
+    if (selectPiloto) {
+        selectPiloto.addEventListener("change", function() {
+            if (this.value) {
+                const piloto = allPilotos.find(p => p.id === this.value);
+                const equipo = allEquipos.find(e => e.id === piloto.equipoId);
+                
+                document.getElementById("oferta-piloto-nombre").textContent = `#${piloto.numero} ${piloto.nombre} ${piloto.apellido || ''}`;
+                document.getElementById("oferta-piloto-equipo").textContent = `Equipo actual: ${equipo?.nombre || 'Desconocido'}`;
+                document.getElementById("oferta-piloto-info").style.display = "block";
+            } else {
+                document.getElementById("oferta-piloto-info").style.display = "none";
+            }
+        });
+    }
+});
 
 window.cerrarModalOferta = function() {
     document.getElementById("modal-oferta").style.display = "none";
 };
 
 async function enviarOferta() {
-    const pilotoId = document.getElementById("modal-oferta").dataset.pilotoId;
+    const pilotoId = document.getElementById("oferta-piloto-select").value;
+    
+    if (!pilotoId) {
+        alert("❌ Selecciona un piloto primero");
+        return;
+    }
+    
     const compensacion = parseInt(document.getElementById("oferta-compensacion").value);
     const sueldo = parseInt(document.getElementById("oferta-sueldo").value);
     const mensaje = document.getElementById("oferta-mensaje").value || "Oferta de fichaje";
