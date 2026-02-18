@@ -37,7 +37,8 @@
             <button class="admin-tab-btn" data-target="panel-pilotos">3. Pilotos</button>
             <button class="admin-tab-btn" data-target="panel-carreras">4. Carreras y Resultados</button>
             <button class="admin-tab-btn" data-target="panel-media">5. Media Center</button>
-            <button class="admin-tab-btn" data-target="panel-actividad">6. Actividad de Equipos</button>
+            <button class="admin-tab-btn" data-target="panel-sponsors">6. Patrocinadores</button>
+            <button class="admin-tab-btn" data-target="panel-actividad">7. Actividad de Equipos</button>
         </aside>
 
         <main class="admin-content">
@@ -107,6 +108,24 @@
                     <table class="admin-table">
                         <thead><tr><th>Tipo</th><th>Título</th><th>Fecha</th><th>Acciones</th></tr></thead>
                         <tbody id="tabla-media"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="panel-sponsors" class="admin-panel">
+                <h2>💰 Gestión de Patrocinadores</h2>
+                <div class="table-container" style="margin-top: 20px;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Equipo</th>
+                                <th>Tipo Contrato</th>
+                                <th>Estado</th>
+                                <th>Detalles</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-sponsors"></tbody>
                     </table>
                 </div>
             </section>

@@ -175,6 +175,9 @@ function setupListeners() {
     document.getElementById("btn-research-upgrade").addEventListener("click", investigarMejora);
     document.getElementById("btn-research-component").addEventListener("click", investigarComponente);
     
+    // Botón de sponsors
+    document.getElementById("btn-sponsors").addEventListener("click", openSponsorModal);
+    
     // --> AÑADE ESTA LÍNEA AQUÍ:
     document.getElementById("btn-buy-investigation").addEventListener("click", comprarInvestigacionExtra);
 }
@@ -443,3 +446,254 @@ function escucharNotificaciones() {
         });
     });
 }
+
+// ============== SISTEMA DE SPONSORS ==============
+
+async function openSponsorModal() {
+    const modal = document.getElementById("sponsors-modal");
+    modal.style.display = "flex";
+
+    try {
+        const teamRef = doc(db, "equipos", currentTeamId);
+        const teamSnap = await getDoc(teamRef);
+        const team = teamSnap.data() || {};
+
+        const contract = team.sponsor_contract;
+        const isUnlocked = team.sponsor_contract_unlocked || false;
+
+        // Si no hay contrato o está desbloqueado, mostrar opciones
+        if (!contract || isUnlocked) {
+            mostrarSeccionOpcion();
+            // Limpiar flag de desbloqueo si está activo
+            if (isUnlocked && contract) {
+                await updateDoc(teamRef, {
+                    sponsor_contract_unlocked: false
+                });
+            }
+        } else {
+            // Mostrar contrato existente bloqueado
+            mostrarSeccionContrato(contract);
+        }
+    } catch (error) {
+        console.error("Error al abrir modal de sponsors:", error);
+        mostrarSeccionOpcion();
+    }
+}
+
+function mostrarSeccionOpcion() {
+    document.getElementById("sponsors-choice-section").style.display = "flex";
+    document.getElementById("sponsors-expectations-section").style.display = "none";
+    document.getElementById("sponsors-contract-section").style.display = "none";
+}
+
+function mostrarSeccionExpectativas() {
+    document.getElementById("sponsors-choice-section").style.display = "none";
+    document.getElementById("sponsors-expectations-section").style.display = "block";
+    document.getElementById("sponsors-contract-section").style.display = "none";
+    updatePositionDisplay(5);
+}
+
+function mostrarSeccionContrato(contract) {
+    document.getElementById("sponsors-choice-section").style.display = "none";
+    document.getElementById("sponsors-expectations-section").style.display = "none";
+    document.getElementById("sponsors-contract-section").style.display = "block";
+
+    const contractDisplay = document.getElementById("sponsors-contract-section");
+    const tipoTexto = contract.type === "fixed" ? "Dinero Garantizado" : "Dinero + Bonus";
+    const totalTexto = contract.type === "fixed" 
+        ? `$${contract.guaranteed.toLocaleString()}` 
+        : `$${contract.base.toLocaleString()} - $${contract.max.toLocaleString()}`;
+
+    contractDisplay.innerHTML = `
+        <h3 style="margin-top: 0; color: var(--accent);">✅ Contrato Activo</h3>
+        <div style="background-color: var(--bg-tertiary); padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+            <p style="margin: 0 0 10px 0;"><strong>Tipo:</strong> ${tipoTexto}</p>
+            ${contract.type === "performance" ? `
+                <p style="margin: 0 0 10px 0;"><strong>Base Garantizada:</strong> $${contract.base.toLocaleString()}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Bonus Máximo:</strong> $${contract.bonus.toLocaleString()}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Objetivo de Posición:</strong> Posición ${contract.targetPosition}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Total Máximo:</strong> $${contract.max.toLocaleString()}</p>
+            ` : `
+                <p style="margin: 0 0 10px 0;"><strong>Total Garantizado:</strong> $${contract.guaranteed.toLocaleString()}</p>
+            `}
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">El bonus se calcula al final de la temporada según tu desempeño.</p>
+    `;
+}
+
+window.selectSponsorOption = function(type) {
+    if (type === "fixed") {
+        // Contrato fijo de $45M
+        saveFixedContract();
+    } else if (type === "performance") {
+        // Mostrar selector de posición
+        mostrarSeccionExpectativas();
+    }
+};
+
+async function saveFixedContract() {
+    try {
+        const contract = {
+            type: "fixed",
+            guaranteed: 45000000,
+            savedAt: serverTimestamp()
+        };
+
+        await updateDoc(doc(db, "equipos", currentTeamId), {
+            sponsor_contract: contract,
+            presupuesto: currentTeamData.presupuesto + 45000000
+        });
+
+        currentTeamData.sponsor_contract = contract;
+        currentTeamData.presupuesto += 45000000;
+        mostrarSeccionContrato(contract);
+        
+        // Actualizar UI
+        document.getElementById("team-budget").textContent = `$${currentTeamData.presupuesto.toLocaleString()}`;
+    } catch (error) {
+        console.error("Error al guardar contrato fijo:", error);
+        alert("Error al guardar el contrato");
+    }
+}
+
+window.updatePositionDisplay = function(value) {
+    const slider = document.getElementById("position-slider");
+    slider.value = value;
+
+    // Cálculos del contrato performance
+    const targetPosition = parseInt(value);
+    const baseGuaranteed = 40000000;
+    const maxBonus = 15000000;
+    const maxTotal = 55000000;
+
+    // Se muestra cuál sería el bonus máximo
+    document.getElementById("expected-position").textContent = targetPosition;
+    document.getElementById("estimated-base").textContent = `$${baseGuaranteed.toLocaleString()}`;
+    document.getElementById("estimated-bonus").textContent = `+$${maxBonus.toLocaleString()}`;
+    document.getElementById("estimated-total").textContent = `$${maxTotal.toLocaleString()}`;
+};
+
+window.confirmSponsorExpectations = function() {
+    const targetPosition = parseInt(document.getElementById("position-slider").value);
+
+    const contract = {
+        type: "performance",
+        base: 40000000,
+        bonus: 15000000,
+        max: 55000000,
+        targetPosition: targetPosition,
+        savedAt: serverTimestamp()
+    };
+
+    savePerformanceContract(contract);
+};
+
+async function savePerformanceContract(contract) {
+    try {
+        await updateDoc(doc(db, "equipos", currentTeamId), {
+            sponsor_contract: contract,
+            presupuesto: currentTeamData.presupuesto + contract.base
+        });
+
+        currentTeamData.sponsor_contract = contract;
+        currentTeamData.presupuesto += contract.base;
+        mostrarSeccionContrato(contract);
+
+        // Actualizar UI
+        document.getElementById("team-budget").textContent = `$${currentTeamData.presupuesto.toLocaleString()}`;
+    } catch (error) {
+        console.error("Error al guardar contrato performance:", error);
+        alert("Error al guardar el contrato");
+    }
+}
+
+window.cancelSponsorOption = function() {
+    mostrarSeccionOpcion();
+};
+
+window.closeSponsorModal = function() {
+    document.getElementById("sponsors-modal").style.display = "none";
+};
+
+// Cerrar modal al hacer click fuera
+document.addEventListener("click", function(event) {
+    const modal = document.getElementById("sponsors-modal");
+    if (event.target === modal) {
+        modal.style.display = "none";
+    }
+});
+
+// Función para calcular el porcentaje de bonus según la diferencia de posiciones
+function calculateBonusPercentage(finalPosition, targetPosition) {
+    const difference = finalPosition - targetPosition;
+    
+    if (difference <= 0) {
+        // Mejor o en la posición objetivo
+        return 100;
+    } else if (difference >= 1 && difference <= 1) {
+        // -1 o -2 puestos
+        return 100;
+    } else if (difference >= 2 && difference < 4) {
+        // -2 puestos
+        return 75;
+    } else if (difference >= 4 && difference < 6) {
+        // -4 puestos
+        return 55;
+    } else if (difference >= 6) {
+        // -6 o más puestos
+        return 40;
+    }
+    return 40; // Fallback
+}
+
+// Función para procesar al final de temporada (llamada por admin)
+window.processSeasonSponsorBonus = async function(teamId, finalTeamPosition) {
+    try {
+        const teamRef = doc(db, "equipos", teamId);
+        const teamSnap = await getDoc(teamRef);
+        
+        if (!teamSnap.exists()) return false;
+        
+        const team = teamSnap.data();
+        const contract = team.sponsor_contract;
+        
+        if (!contract || contract.type !== "performance") {
+            return false; // Solo procesa performance contracts
+        }
+        
+        const bonusPercentage = calculateBonusPercentage(finalTeamPosition, contract.targetPosition);
+        const bonusAmount = Math.floor((contract.bonus * bonusPercentage) / 100);
+        const totalAmount = contract.base + bonusAmount;
+        
+        // Guardar resultado del bonus
+        await updateDoc(teamRef, {
+            sponsor_bonus_processed: {
+                targetPosition: contract.targetPosition,
+                finalPosition: finalTeamPosition,
+                bonusPercentage: bonusPercentage,
+                bonusAmount: bonusAmount,
+                totalAmount: totalAmount,
+                processedAt: serverTimestamp()
+            }
+        });
+        
+        return { bonusPercentage, bonusAmount, totalAmount };
+    } catch (error) {
+        console.error("Error procesando bonus:", error);
+        return false;
+    }
+};
+
+// Función para desbloquear contratos (llamada por admin)
+window.unlockSponsorContracts = async function(teamId) {
+    try {
+        const teamRef = doc(db, "equipos", teamId);
+        await updateDoc(teamRef, {
+            sponsor_contract_unlocked: true
+        });
+        return true;
+    } catch (error) {
+        console.error("Error desbloqueando contratos:", error);
+        return false;
+    }
+};

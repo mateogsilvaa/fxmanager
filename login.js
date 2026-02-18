@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await signInWithEmailAndPassword(auth, email, password);
             
             // Si el login es correcto, enviamos al usuario al inicio
-            window.location.href = "home.html";
+            window.location.href = "index.html";
 
         } catch (error) {
             console.error("Error en login:", error.code);

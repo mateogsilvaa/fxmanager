@@ -156,6 +156,7 @@ async function refrescarDatosGlobales() {
     pintarTablaPilotos();
     pintarTablaCarreras();
     pintarTablaMedia();
+    pintarTablaSponsors();
 }
 
 // ... (Funciones de Actividad igual que antes) ...
@@ -343,6 +344,74 @@ async function recalcularClasificacion() {
     for (const equipoId in equiposMap) promesas.push(updateDoc(doc(db, "equipos", equipoId), { puntos: equiposMap[equipoId] }));
     await Promise.all(promesas);
 }
+
+// ============== SISTEMAS DE SPONSORS ==============
+
+async function pintarTablaSponsors() {
+    const tbody = document.getElementById("tabla-sponsors");
+    tbody.innerHTML = "";
+    
+    for (const eq of equiposList) {
+        const teamRef = doc(db, "equipos", eq.id);
+        const teamSnap = await getDoc(teamRef);
+        const team = teamSnap.data() || {};
+        const contract = team.sponsor_contract;
+        
+        let tipoTexto = "Sin contrato";
+        let estadoTexto = "Disponible";
+        let detallesTexto = "-";
+        let botonesHTML = `<button onclick="unlockSponsorModalAdmin('${eq.id}')" class="btn-outline" style="padding: 5px 10px; font-size: 0.8rem;">Desbloquear</button>`;
+        
+        if (contract) {
+            tipoTexto = contract.type === "fixed" ? "Dinero Garantizado" : "Performance";
+            detallesTexto = contract.type === "fixed" 
+                ? `$${contract.guaranteed.toLocaleString()}`
+                : `Base: $${contract.base.toLocaleString()} | Bonus: $${contract.bonus.toLocaleString()} | Objetivo: Top ${contract.targetPosition}`;
+            
+            if (team.sponsor_contract_unlocked) {
+                estadoTexto = "Desbloqueado";
+                botonesHTML = `<span style="color: var(--warning);">⚠️ Desbloqueado</span>`;
+            } else {
+                estadoTexto = "Bloqueado";
+                botonesHTML = `<button onclick="unlockSponsorModalAdmin('${eq.id}')" class="btn-solid" style="padding: 5px 10px; font-size: 0.8rem;">Desbloquear</button>`;
+            }
+        }
+        
+        tbody.innerHTML += `
+            <tr>
+                <td>${eq.nombre}</td>
+                <td>${tipoTexto}</td>
+                <td>${estadoTexto}</td>
+                <td style="font-size: 0.9rem;">${detallesTexto}</td>
+                <td>${botonesHTML}</td>
+            </tr>
+        `;
+    }
+}
+
+window.unlockSponsorModalAdmin = async function(teamId) {
+    if (confirm("¿Desbloquear el contrato de sponsors para que el equipo pueda elegir de nuevo?")) {
+        try {
+            await updateDoc(doc(db, "equipos", teamId), {
+                sponsor_contract_unlocked: true
+            });
+            
+            // Enviar notificación
+            await addDoc(collection(db, "notificaciones"), {
+                equipoId: teamId,
+                remitente: "Admin",
+                texto: "🔓 Tu contrato de patrocinadores ha sido desbloqueado. Puedes elegir un nuevo patrocinio.",
+                fecha: serverTimestamp()
+            });
+            
+            alert("Contrato desbloqueado exitosamente.");
+            pintarTablaSponsors();
+        } catch (error) {
+            console.error("Error desbloqueando contrato:", error);
+            alert("Error al desbloquear el contrato");
+        }
+    }
+};
 
 async function guardarDoc(coleccion, id, data, modalId) {
     try {

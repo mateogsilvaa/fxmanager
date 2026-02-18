@@ -8,50 +8,83 @@
     <link rel="stylesheet" href="mobile-responsive.css">
     <link rel="stylesheet" href="hamburger.css">
     <style>
-        /* Hamburger menu for mobile responsiveness */
-        .hamburger-btn { display: none; flex-direction: column; gap: 3px; background: none; border: none; cursor: pointer; padding: 4px 6px; z-index: 101; }
-        .hamburger-btn span { width: 22px; height: 2px; background-color: var(--text-primary); border-radius: 2px; transition: all 0.3s ease; }
-        .hamburger-btn.active span:nth-child(1) { transform: rotate(45deg) translate(8px, 8px); }
-        .hamburger-btn.active span:nth-child(2) { opacity: 0; }
-        .hamburger-btn.active span:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px) !important; }
-        
-        @media (max-width: 900px) {
-            .hamburger-btn { 
-                display: flex !important;
-            .nav-links { 
-                display: none !important; 
-                position: fixed !important; 
-                top: 60px !important; 
-                left: 0 !important; 
-                right: 0 !important; 
-                flex-direction: column !important; 
-                background: linear-gradient(180deg, rgba(23, 23, 25, 0.99), rgba(15, 15, 18, 0.99)) !important; 
-                padding: 8px 0 !important; 
-                gap: 0 !important; 
-                list-style: none !important; 
-                z-index: 100 !important; 
-                border-bottom: 1px solid var(--border-color) !important; 
-                backdrop-filter: blur(15px) !important; 
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important; 
-                max-height: calc(100vh - 60px) !important; 
-                overflow-y: auto !important; 
-            }
-            .nav-links.active { display: flex !important; }
-            .nav-links li { 
-                padding: 0 !important; 
-                border-bottom: 1px solid var(--border-color) !important; 
-                list-style: none !important;
-            }
-            .nav-links li:last-child { border-bottom: none !important; }
-            .nav-links a { 
-                display: block !important; 
-                padding: 10px 15px !important; 
-                font-size: 0.9rem !important;
-                color: var(--text-primary) !important;
-                text-decoration: none !important;
-            }
-            .nav-auth { width: 100% !important; gap: 6px !important; flex-wrap: wrap !important; order: -1 !important; }
-            .nav-auth button { flex: 1 !important; min-width: 100px !important; font-size: 0.75rem !important; padding: 8px 12px !important; }
+        /* Sponsors management modal */
+        .sponsors-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 5000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .sponsors-modal.active {
+            display: flex;
+        }
+        .sponsors-modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .sponsors-option {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .sponsors-option:hover {
+            border-color: var(--accent);
+            background: rgba(208,208,208,0.05);
+        }
+        .sponsors-option.selected {
+            border-color: var(--accent);
+            background: rgba(208,208,208,0.1);
+        }
+        .slider-container {
+            margin: 20px 0;
+        }
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border-color);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+        }
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: none;
+        }
+        .contract-display {
+            background: var(--bg-tertiary);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -102,6 +135,7 @@
                             <h3 id="team-championships" style="margin: 6px 0 0 0;">0</h3>
                         </div>
                     </div>
+                    <button class="btn-solid" id="btn-sponsors" style="margin-top: 15px; width: 100%; max-width: 250px;">💰 Gestionar Patrocinadores</button>
                 </div>
             </div>
         </div>
@@ -204,6 +238,68 @@
         </div>
 
         <a href="reglas.html" class="btn-outline" style="display: inline-block; margin-top: 20px;">📋 Ver Reglas de Juego</a>
+
+        <!-- SPONSORS MODAL -->
+        <div class="sponsors-modal" id="sponsors-modal">
+            <div class="sponsors-modal-content">
+                <h2 style="margin-top: 0; color: var(--accent);">💰 Gestión de Patrocinadores</h2>
+                
+                <div id="sponsors-choice-section">
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">Elige tu modelo de patrocinio para esta temporada:</p>
+                    
+                    <div class="sponsors-option" onclick="selectSponsorOption('fixed')">
+                        <h3 style="margin-top: 0; color: var(--accent);">💵 Dinero Garantizado</h3>
+                        <p style="margin: 10px 0; color: var(--text-secondary); font-size: 0.95rem;">Recibe todo el dinero antes de la temporada. Cantidad: <strong>$45,000,000</strong></p>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">✓ Sin riesgo. ✓ Predecible. ✗ Sin bonus.</p>
+                    </div>
+                    
+                    <div class="sponsors-option" onclick="selectSponsorOption('performance')">
+                        <h3 style="margin-top: 0; color: var(--accent);">📈 Dinero + Bonus por Resultados</h3>
+                        <p style="margin: 10px 0; color: var(--text-secondary); font-size: 0.95rem;">Dinero base + bonus por alcanzar objetivos. Rango: $40M a $55M.</p>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">✓ Más dinero potencial. ✓ Bonus dinámico. ✗ Depende de resultados.</p>
+                    </div>
+                </div>
+                
+                <div id="sponsors-expectations-section" style="display: none;">
+                    <h3 style="margin-top: 0; color: var(--accent);">Expectativas de Posición</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">¿Cuál es tu objetivo de posición en campeonato? Cuanto más arriba, más bonus si lo logras, pero castigo si fallas.</p>
+                    
+                    <div class="slider-container" style="margin: 20px 0;">
+                        <label style="color: var(--text-secondary); display: block; margin-bottom: 10px;">Posición Objetivo: <strong id="expected-position">5</strong>º lugar</label>
+                        <input type="range" min="1" max="20" value="5" class="slider" id="position-slider" oninput="updatePositionDisplay(this.value)">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 5px;">1 = Primero | 20 = Vigésimo</div>
+                    </div>
+                    
+                    <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0; color: var(--text-secondary); font-size: 0.9rem;">
+                            <strong>Dinero Base:</strong> <span id="estimated-base" style="color: var(--accent);">$40,000,000</span>
+                        </p>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                            <strong>Bonus Máximo:</strong> <span id="estimated-bonus" style="color: var(--accent);">+$15,000,000</span>
+                        </p>
+                        <p style="margin: 8px 0 0 0; color: var(--text-secondary); font-size: 0.85rem;">
+                            Total si cumples: <span id="estimated-total" style="color: var(--accent); font-weight: bold;">$55,000,000</span>
+                        </p>
+                    </div>
+                    
+                    <button class="btn-solid" onclick="confirmSponsorExpectations()" style="width: 100%; margin-bottom: 10px;">Confirmar Patrocinio</button>
+                    <button class="btn-outline" onclick="cancelSponsorOption()" style="width: 100%;">Volver Atrás</button>
+                </div>
+                
+                <div id="sponsors-contract-section" style="display: none;">
+                    <h3 style="margin-top: 0; color: var(--accent); text-align: center;">✅ Patrocinio Confirmado</h3>
+                    <div class="contract-display">
+                        <p style="margin: 0 0 12px 0;"><strong>Tipo de Contrato:</strong> <span id="contract-type">Dinero Garantizado</span></p>
+                        <p style="margin: 0 0 12px 0;"><strong>Dinero Garantizado:</strong> <span id="contract-guaranteed">$45,000,000</span></p>
+                        <p style="margin: 0 0 12px 0;"><strong>Dinero Base (si aplica):</strong> <span id="contract-base">N/A</span></p>
+                        <p style="margin: 0 0 12px 0;"><strong>Bonus por Resultados (si aplica):</strong> <span id="contract-bonus">N/A</span></p>
+                        <p style="margin: 0 0 12px 0;"><strong>Posición Objetivo (si aplica):</strong> <span id="contract-position">N/A</span></p>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">⚠️ Este contrato no puede ser cambiado durante la temporada.</p>
+                    </div>
+                    <button class="btn-solid" onclick="closeSponsorModal()" style="width: 100%; margin-top: 15px;">Entendido</button>
+                </div>
+            </div>
+        </div>
 
     </main>
 

@@ -20,12 +20,16 @@
             border-radius: 8px;
         }
         .countdown-boxes {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
             gap: 15px;
             text-align: center;
-            justify-items: center;
+            justify-content: center;
             align-items: center;
+        }
+        @media (max-width: 600px) {
+            .countdown-boxes { gap: 10px; }
         }
         .countdown-box {
             background-color: var(--bg-tertiary);
@@ -105,6 +109,10 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 50px; margin-bottom: 40px;">
+                <a href="login.html" class="btn-solid" style="padding: 12px 30px; font-size: 1rem;">Iniciar Sesión</a>
             </div>
         </div>
     </main>
