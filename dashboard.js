@@ -98,8 +98,8 @@ function renderUI() {
         card.className = "driver-card-modern";
         
         // Génerar barra de desempeño visual
-        const ritmoWidth = (piloto.ritmo || 0) * 100;
-        const agresividadWidth = (piloto.agresividad || 0) * 100;
+        const ritmoWidth = (piloto.ritmo || 0);
+        const agresividadWidth = (piloto.agresividad || 0);
         
         // Código de moral con emoji
         const moralEmoji = piloto.moral === "Alta" ? "😊" : (piloto.moral === "Baja" ? "😔" : "😐");
@@ -125,7 +125,7 @@ function renderUI() {
                     <div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                             <span style="font-size: 0.8rem; color: var(--text-secondary);">Ritmo</span>
-                            <span style="font-size: 0.85rem; font-weight: 600; color: #ffffff;">${piloto.ritmo || 0}/10</span>
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #ffffff;">${piloto.ritmo || 0}/100</span>
                         </div>
                         <div style="width: 100%; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
                             <div style="width: ${ritmoWidth}%; height: 100%; background: linear-gradient(90deg, #ffffff, #e8e8e8); border-radius: 3px;"></div>
@@ -134,7 +134,7 @@ function renderUI() {
                     <div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                             <span style="font-size: 0.8rem; color: var(--text-secondary);">Agresividad</span>
-                            <span style="font-size: 0.85rem; font-weight: 600; color: #FF6B6B;">${piloto.agresividad || 0}/10</span>
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #FF6B6B;">${piloto.agresividad || 0}/100</span>
                         </div>
                         <div style="width: 100%; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
                             <div style="width: ${agresividadWidth}%; height: 100%; background: linear-gradient(90deg, #FF6B6B, #ff1744); border-radius: 3px;"></div>
@@ -153,7 +153,6 @@ function renderUI() {
             
             <div class="driver-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <button class="btn-outline" style="flex: 1; padding: 8px 12px; font-size: 0.85rem; min-width: 100px;" onclick="negociarSalario('${piloto.id}')">💰 Renegociar</button>
-                <button class="btn-outline" style="flex: 1; padding: 8px 12px; font-size: 0.85rem; min-width: 100px;" onclick="hacerOferta('${piloto.id}')">📤 Ofertar</button>
                 <button class="btn-outline" style="flex: 1; padding: 8px 12px; font-size: 0.85rem; min-width: 100px;" onclick="verDetalles('${piloto.id}')">ℹ️ Detalles</button>
             </div>
         `;
@@ -751,31 +750,76 @@ window.unlockSponsorContracts = async function(teamId) {
 
 // ============== FUNCIONES DE PILOTOS ==============
 
-window.negociarSalario = function(pilotoId) {
-    alert("⚠️ Funcionalidad en desarrollo: Renegociación de salario");
-    // TODO: Implementar modal de renegociación de salario
+window.negociarSalario = async function(pilotoId) {
+    const piloto = allPilotos.find(p => p.id === pilotoId);
+    if (!piloto) return;
+    
+    const moralEmoji = piloto.moral === "Alta" ? "😊" : (piloto.moral === "Baja" ? "😔" : "😐");
+    const salarioActual = piloto.salario || 0;
+    
+    const nuevoSalario = prompt(
+        `${moralEmoji} Renegociación de Salario\n\n` +
+        `Piloto: ${piloto.nombre} ${piloto.apellido || ""}\n` +
+        `Salario actual: $${salarioActual.toLocaleString()} por carrera\n\n` +
+        `Presupuesto disponible: $${currentTeamData.presupuesto.toLocaleString()}\n\n` +
+        `Ingresa el nuevo salario por carrera (números solo):`,
+        salarioActual.toString()
+    );
+    
+    if (nuevoSalario === null) return; // Usuario canceló
+    
+    const salarioNumerico = parseInt(nuevoSalario);
+    if (isNaN(salarioNumerico) || salarioNumerico < 0) {
+        alert("❌ Ingresa un número válido");
+        return;
+    }
+    
+    const diferencia = salarioNumerico - salarioActual;
+    
+    if (diferencia > 0 && currentTeamData.presupuesto < diferencia) {
+        alert("❌ Presupuesto insuficiente para esta renegociación");
+        return;
+    }
+    
+    try {
+        // Actualizar salario del piloto
+        await updateDoc(doc(db, "pilotos", pilotoId), {
+            salario: salarioNumerico
+        });
+        
+        // Si hay diferencia positiva, restar del presupuesto
+        if (diferencia > 0) {
+            await updateDoc(doc(db, "equipos", currentTeamId), {
+                presupuesto: currentTeamData.presupuesto - diferencia
+            });
+        }
+        
+        alert(`✅ Salario actualizado a $${salarioNumerico.toLocaleString()} por carrera`);
+        cargarDatos();
+    } catch (error) {
+        console.error("Error actualizando salario:", error);
+        alert("❌ Error al actualizar el salario");
+    }
 };
 
-window.hacerOferta = function(pilotoId) {
-    alert("⚠️ Funcionalidad en desarrollo: Sistema de ofertas a pilotos rivales");
-    // TODO: Implementar sistema de ofertas
-};
 
 window.verDetalles = function(pilotoId) {
     const piloto = allPilotos.find(p => p.id === pilotoId);
     if (!piloto) return;
     
     const moralEmoji = piloto.moral === "Alta" ? "😊" : (piloto.moral === "Baja" ? "😔" : "😐");
+    const salario = piloto.salario || 0;
     
     alert(`📋 DETALLES DEL PILOTO\n\n` +
-        `Nombre: ${piloto.nombre} ${piloto.apellido || ''}\n` +
+        `Nombre: ${piloto.nombre} ${piloto.apellido || ""}\n` +
         `Dorsal: #${piloto.numero}\n` +
         `País: ${piloto.pais}\n` +
         `Edad: ${piloto.edad} años\n\n` +
         `Desempeño:\n` +
-        `• Ritmo: ${piloto.ritmo || 0}/10\n` +
-        `• Agresividad: ${piloto.agresividad || 0}/10\n` +
-        `• Moral: ${moralEmoji} ${piloto.moral || 'Normal'}\n\n` +
+        `• Ritmo: ${piloto.ritmo || 0}/100\n` +
+        `• Agresividad: ${piloto.agresividad || 0}/100\n` +
+        `• Moral: ${moralEmoji} ${piloto.moral || "Normal"}\n\n` +
+        `💼 Salario: $${salario.toLocaleString()} por carrera\n\n` +
         `🏁 Carreras disputadas: 0\n` +
         `🥇 Victorias: 0\n` +
         `📊 Puntos: 0`);
