@@ -170,6 +170,9 @@ function renderUI() {
 
     // Poblar selectores de investigación
     poblarSelectores();
+    
+    // Renderizar pilotos rivales para ofertas
+    renderizarPilotosRivales();
 }
 
 function poblarSelectores() {
@@ -209,6 +212,15 @@ function setupListeners() {
     
     // Botón de sponsors
     document.getElementById("btn-sponsors").addEventListener("click", openSponsorModal);
+    
+    // Formulario de ofertas
+    const formOferta = document.getElementById("form-oferta");
+    if (formOferta) {
+        formOferta.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            await enviarOferta();
+        });
+    }
     
     // --> AÑADE ESTA LÍNEA AQUÍ:
     document.getElementById("btn-buy-investigation").addEventListener("click", comprarInvestigacionExtra);
@@ -825,3 +837,142 @@ window.verDetalles = function(pilotoId) {
         `📊 Puntos: 0`);
     // TODO: Mostrar data real de carreras, victorias y puntos
 };
+// ==========================================
+// MERCADO DE PILOTOS Y OFERTAS
+// ==========================================
+function renderizarPilotosRivales() {
+    const contenedor = document.getElementById("pilotos-rivales-container");
+    
+    // Obtener pilotos de otros equipos
+    const pilotosRivales = allPilotos.filter(p => p.equipoId !== currentTeamId);
+    
+    if (pilotosRivales.length === 0) {
+        contenedor.innerHTML = '<p style="color: var(--text-secondary);">No hay rivales disponibles en la liga.</p>';
+        return;
+    }
+    
+    contenedor.innerHTML = "";
+    pilotosRivales.forEach(piloto => {
+        const equipoRival = allEquipos.find(e => e.id === piloto.equipoId);
+        const ritmoWidth = (piloto.ritmo || 0);
+        const agresividadWidth = (piloto.agresividad || 0);
+        const moralEmoji = piloto.moral === "Alta" ? "😊" : (piloto.moral === "Baja" ? "😔" : "😐");
+        const moralColor = piloto.moral === "Alta" ? "#4CAF50" : (piloto.moral === "Baja" ? "#f44336" : "#8888aa");
+        
+        const card = document.createElement("div");
+        card.style.cssText = "padding: 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; transition: all 0.3s ease;";
+        
+        card.innerHTML = `
+            <div style="display: flex; gap: 12px; align-items: start; margin-bottom: 12px;">
+                <div>
+                    ${piloto.foto ? `<img src="${piloto.foto}" style="width: 60px; height: 60px; border-radius: 6px; object-fit: cover; border: 2px solid ${equipoRival?.color || '#ffffff'};">` : '<div style="width: 60px; height: 60px; background: var(--bg-secondary); border-radius: 6px; display: flex; align-items: center; justify-content: center;">👤</div>'}
+                </div>
+                <div style="flex: 1;">
+                    <p style="margin: 0 0 2px 0; font-weight: 600;">#${piloto.numero} ${piloto.nombre} ${piloto.apellido || ''}</p>
+                    <p style="margin: 0; font-size: 0.85rem; color: ${equipoRival?.color || '#ffffff'};">${equipoRival?.nombre || 'Equipo'}</p>
+                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">${piloto.pais} • ${piloto.edad}a</p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8rem;">
+                    <span>Ritmo</span>
+                    <span style="color: #ffffff;">${piloto.ritmo || 0}/100</span>
+                </div>
+                <div style="width: 100%; height: 4px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden;">
+                    <div style="width: ${ritmoWidth}%; height: 100%; background: linear-gradient(90deg, #ffffff, #e8e8e8);"></div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8rem;">
+                    <span>Agresividad</span>
+                    <span style="color: #FF6B6B;">${piloto.agresividad || 0}/100</span>
+                </div>
+                <div style="width: 100%; height: 4px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden;">
+                    <div style="width: ${agresividadWidth}%; height: 100%; background: linear-gradient(90deg, #FF6B6B, #ff1744);"></div>
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 12px; border-left: 2px solid ${moralColor};">
+                <span style="font-size: 1.2rem;">${moralEmoji}</span>
+                <span style="font-size: 0.85rem; color: ${moralColor}; font-weight: 600;">${piloto.moral || 'Normal'}</span>
+            </div>
+            
+            <button onclick="abrirModalOferta('${piloto.id}')" class="btn-solid" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #4CAF50, #45a049); border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+                🔄 Hacer Oferta
+            </button>
+        `;
+        
+        contenedor.appendChild(card);
+    });
+}
+
+window.abrirModalOferta = function(pilotoId) {
+    const piloto = allPilotos.find(p => p.id === pilotoId);
+    const equipo = allEquipos.find(e => e.id === piloto.equipoId);
+    
+    document.getElementById("oferta-piloto-nombre").textContent = `#${piloto.numero} ${piloto.nombre} ${piloto.apellido || ''}`;
+    document.getElementById("oferta-piloto-equipo").textContent = `Equipo actual: ${equipo?.nombre || 'Desconocido'}`;
+    
+    // Guardar el ID del piloto en un atributo del modal
+    document.getElementById("modal-oferta").dataset.pilotoId = pilotoId;
+    document.getElementById("modal-oferta").style.display = "flex";
+    
+    // Limpiar el formulario
+    document.getElementById("form-oferta").reset();
+};
+
+window.cerrarModalOferta = function() {
+    document.getElementById("modal-oferta").style.display = "none";
+};
+
+async function enviarOferta() {
+    const pilotoId = document.getElementById("modal-oferta").dataset.pilotoId;
+    const compensacion = parseInt(document.getElementById("oferta-compensacion").value);
+    const sueldo = parseInt(document.getElementById("oferta-sueldo").value);
+    const mensaje = document.getElementById("oferta-mensaje").value || "Oferta de fichaje";
+    
+    const piloto = allPilotos.find(p => p.id === pilotoId);
+    const equipoOrigen = allEquipos.find(e => e.id === currentTeamId);
+    const equipoDestino = allEquipos.find(e => e.id === piloto.equipoId);
+    
+    // Validar presupuesto
+    const costoTotal = (compensacion * 1000000) + sueldo;
+    if ((equipoOrigen.presupuesto || 0) < costoTotal) {
+        alert("❌ No tienes presupuesto suficiente para esta oferta.");
+        return;
+    }
+    
+    try {
+        // Crear oferta
+        const ofertaId = await addDoc(collection(db, "ofertas"), {
+            equipoOrigenId: currentTeamId,
+            equipoDestinoId: piloto.equipoId,
+            pilotoId: pilotoId,
+            pilotoDestinoId: pilotoId,
+            compensacion: compensacion,
+            sueldo: sueldo,
+            mensaje: mensaje,
+            estado: "Pendiente",
+            fecha: serverTimestamp()
+        });
+        
+        // Notificar al admin
+        await addDoc(collection(db, "notificaciones"), {
+            equipoId: "admin",
+            remitente: equipoOrigen.nombre,
+            texto: `📞 OFERTA DE FICHAJE: ${equipoOrigen.nombre} quiere fichar a #${piloto.numero} ${piloto.nombre} de ${equipoDestino?.nombre}. Compensación: $${compensacion}M, Sueldo: $${sueldo.toLocaleString()}`,
+            tipo: "oferta_piloto",
+            ofertaId: ofertaId.id,
+            fecha: serverTimestamp()
+        });
+        
+        alert("✓ Oferta enviada correctamente. El admin será notificado.");
+        cerrarModalOferta();
+        
+    } catch (error) {
+        console.error("Error enviando oferta:", error);
+        alert("❌ Error al enviar la oferta");
+    }
+}

@@ -45,20 +45,54 @@ document.addEventListener("DOMContentLoaded", () => {
             tabBtns.forEach(b => b.classList.remove("active"));
             panels.forEach(p => p.classList.remove("active"));
             btn.classList.add("active");
-            document.getElementById(btn.getAttribute("data-target")).classList.add("active");
+            const targetId = btn.getAttribute("data-target");
+            document.getElementById(targetId).classList.add("active");
+            
+            // Cargar ofertas si se abre esa pestaña
+            if (targetId === "panel-ofertas-admin") {
+                cargarOfertasAdmin();
+            }
         });
     });
 
     // 3. LISTENERS FORMULARIOS
     document.getElementById("form-mensaje").addEventListener("submit", async (e) => {
         e.preventDefault();
-        await addDoc(collection(db, "notificaciones"), {
-            remitente: document.getElementById("msg-remitente").value,
-            equipoId: document.getElementById("msg-destinatario").value,
-            texto: document.getElementById("msg-texto").value,
-            fecha: serverTimestamp()
-        });
-        alert("Comunicado enviado."); e.target.reset();
+        
+        const tipo = document.getElementById("msg-tipo").value;
+        
+        if (tipo === "oficial") {
+            // Comunicado oficial de Admin/FIA
+            await addDoc(collection(db, "notificaciones"), {
+                remitente: document.getElementById("msg-remitente").value,
+                equipoId: document.getElementById("msg-destinatario").value,
+                texto: document.getElementById("msg-texto").value,
+                fecha: serverTimestamp()
+            });
+        } else {
+            // Comunicado de piloto a equipo
+            const pilotoData = document.getElementById("msg-piloto-remitente").value.split("|");
+            const pilotoId = pilotoData[0];
+            const pilotoNombre = pilotoData[1];
+            const equipoDestinoId = document.getElementById("msg-destinatario").value;
+            
+            // Encontrar equipo del piloto y crear notificación
+            const piloto = pilotosList.find(p => p.id === pilotoId);
+            const teamEquipo = equiposList.find(e => e.id === equipoDestinoId);
+            
+            await addDoc(collection(db, "notificaciones"), {
+                remitente: `Piloto: ${pilotoNombre}`,
+                equipoId: equipoDestinoId,
+                texto: `📨 Mensaje de ${pilotoNombre}: "${document.getElementById("msg-texto").value}"`,
+                fecha: serverTimestamp(),
+                tipo: "comunicado_piloto",
+                pilotoId: pilotoId,
+                equipoOrigenId: piloto.equipoId
+            });
+        }
+        
+        alert("Comunicado enviado."); 
+        e.target.reset();
     });
 
     document.getElementById("form-equipo").addEventListener("submit", async (e) => {
@@ -430,3 +464,181 @@ window.eliminarDoc = async (coleccion, id) => {
 }
 window.abrirModal = (id) => { document.getElementById(id).querySelector('form').reset(); document.getElementById(id).querySelector('input[type="hidden"]').value = ""; document.getElementById(id).style.display = 'flex'; }
 window.cerrarModal = (id) => { document.getElementById(id).style.display = 'none'; }
+
+// ==========================================
+// FUNCIONES DE COMUNICADOS Y OFERTAS
+// ==========================================
+window.cambiarTipoComunicado = () => {
+    const tipo = document.getElementById("msg-tipo").value;
+    document.getElementById("div-remitente-oficial").style.display = tipo === "oficial" ? "block" : "none";
+    document.getElementById("div-remitente-piloto").style.display = tipo === "piloto" ? "block" : "none";
+    
+    const selectDestino = document.getElementById("msg-destinatario");
+    
+    if (tipo === "oficial") {
+        // Mostrar todos los equipos
+        selectDestino.innerHTML = '<option value="todos">A todos los equipos</option>';
+        equiposList.forEach(eq => {
+            selectDestino.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
+        });
+    } else {
+        // Tipo piloto - será actualizado cuando se seleccione un piloto
+        selectDestino.innerHTML = '<option value="">Selecciona primero un piloto</option>';
+    }
+    
+    if (tipo === "piloto") {
+        // Cargar equipos en el select
+        document.getElementById("msg-equipo-piloto").innerHTML = '<option value="">Selecciona un equipo</option>';
+        equiposList.forEach(eq => {
+            document.getElementById("msg-equipo-piloto").innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
+        });
+    }
+};
+
+window.actualizarPilotosPorEquipo = () => {
+    const equipoId = document.getElementById("msg-equipo-piloto").value;
+    const pilotos = pilotosList.filter(p => p.equipoId === equipoId);
+    document.getElementById("msg-piloto-remitente").innerHTML = '<option value="">Selecciona un piloto</option>';
+    pilotos.forEach(p => {
+        document.getElementById("msg-piloto-remitente").innerHTML += `<option value="${p.id}|${p.nombre} ${p.apellido}">${p.nombre} ${p.apellido || ''}</option>`;
+    });
+    
+    // Actualizar el select de destinatario para mostrar solo los otros equipos
+    const selectDestino = document.getElementById("msg-destinatario");
+    selectDestino.innerHTML = '<option value="">Selecciona el equipo destinatario</option>';
+    equiposList.forEach(eq => {
+        if (eq.id !== equipoId) {
+            selectDestino.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
+        }
+    });
+};
+
+// ==========================================
+// CARGAR OFERTAS EN ADMIN
+// ==========================================
+async function cargarOfertasAdmin() {
+    const contenedor = document.getElementById("lista-ofertas-admin");
+    try {
+        const q = query(collection(db, "ofertas"), where("estado", "==", "Pendiente"), orderBy("fecha", "desc"));
+        const snapshot = await getDocs(q);
+        
+        if(snapshot.empty) { 
+            contenedor.innerHTML = "<p class='text-muted'>No hay ofertas pendientes.</p>"; 
+            return; 
+        }
+        
+        contenedor.innerHTML = "";
+        snapshot.forEach(docSnap => {
+            const oferta = docSnap.data();
+            const id = docSnap.id;
+            
+            // Buscar nombres de pilotos y equipos
+            const pilotoOrigen = pilotosList.find(p => p.id === oferta.pilotoId);
+            const equipoOrigen = equiposList.find(e => e.id === oferta.equipoOrigenId);
+            const equipoDestino = equiposList.find(e => e.id === oferta.equipoDestinoId);
+            const pilotoDestino = pilotosList.find(p => p.id === oferta.pilotoDestinoId);
+            
+            const html = `
+                <div style="padding: 15px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.02);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <p style="margin: 0 0 5px 0; color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase;">Oferente</p>
+                            <p style="margin: 0; font-weight: 600;">${equipoOrigen?.nombre || 'Equipo'}</p>
+                            <p style="margin: 0; font-size: 0.9rem; color: #4CAF50;">💵 Compensación: $${oferta.compensacion}M</p>
+                            <p style="margin: 0; font-size: 0.9rem; color: #2196F3;">💰 Sueldo: $${oferta.sueldo.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 0 0 5px 0; color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase;">Piloto Objetivo</p>
+                            <p style="margin: 0; font-weight: 600;">#${pilotoDestino?.numero} ${pilotoDestino?.nombre} ${pilotoDestino?.apellido || ''}</p>
+                            <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">De: ${equipoDestino?.nombre || 'Equipo'}</p>
+                        </div>
+                    </div>
+                    <p style="margin: 0 0 15px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px; font-size: 0.9rem;">"${oferta.mensaje || 'Oferta de transferencia'}"</p>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="aceptarOferta('${id}')" style="flex: 1; padding: 8px; background: #4CAF50; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: 600;">✓ Aceptar</button>
+                        <button onclick="rechazarOferta('${id}')" style="flex: 1; padding: 8px; background: #f44336; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: 600;">✗ Rechazar</button>
+                    </div>
+                </div>
+            `;
+            contenedor.innerHTML += html;
+        });
+    } catch (e) { 
+        console.error("Error cargando ofertas:", e);
+        contenedor.innerHTML = "<p class='text-muted'>Error al cargar ofertas.</p>";
+    }
+}
+
+window.aceptarOferta = async (ofertaId) => {
+    if(confirm("¿Aceptar esta oferta?")) {
+        try {
+            const ofertaDoc = await getDoc(doc(db, "ofertas", ofertaId));
+            const oferta = ofertaDoc.data();
+            
+            // Actualizar piloto: cambiar de equipo
+            await updateDoc(doc(db, "pilotos", oferta.pilotoDestinoId), {
+                equipoId: oferta.equipoOrigenId,
+                salario: oferta.sueldo
+            });
+            
+            // Restar presupuesto del equipo oferente (compensación + sueldo)
+            const equipoOferente = await getDoc(doc(db, "equipos", oferta.equipoOrigenId));
+            const nuevoPresupuesto = (equipoOferente.data().presupuesto || 0) - (oferta.compensacion * 1000000 + oferta.sueldo);
+            await updateDoc(doc(db, "equipos", oferta.equipoOrigenId), {
+                presupuesto: nuevoPresupuesto
+            });
+            
+            // Sumar presupuesto al equipo que pierde al piloto
+            const equipoDestino = await getDoc(doc(db, "equipos", oferta.equipoDestinoId));
+            const presupuestoDestino = (equipoDestino.data().presupuesto || 0) + (oferta.compensacion * 1000000);
+            await updateDoc(doc(db, "equipos", oferta.equipoDestinoId), {
+                presupuesto: presupuestoDestino
+            });
+            
+            // Marcar oferta como aceptada
+            await updateDoc(doc(db, "ofertas", ofertaId), {
+                estado: "Aceptada"
+            });
+            
+            // Notificar a ambos equipos
+            await addDoc(collection(db, "notificaciones"), {
+                equipoId: oferta.equipoOrigenId,
+                remitente: "Admin",
+                texto: `✓ Tu oferta por ${pilotosList.find(p => p.id === oferta.pilotoDestinoId)?.nombre} ha sido ACEPTADA.`,
+                fecha: serverTimestamp()
+            });
+            
+            alert("Oferta aceptada. Transferencia completada.");
+            cargarOfertasAdmin();
+        } catch(e) {
+            console.error("Error aceptando oferta:", e);
+            alert("Error al aceptar la oferta");
+        }
+    }
+};
+
+window.rechazarOferta = async (ofertaId) => {
+    if(confirm("¿Rechazar esta oferta?")) {
+        try {
+            await updateDoc(doc(db, "ofertas", ofertaId), {
+                estado: "Rechazada"
+            });
+            
+            // Notificar al equipo oferente
+            const ofertaDoc = await getDoc(doc(db, "ofertas", ofertaId));
+            const oferta = ofertaDoc.data();
+            
+            await addDoc(collection(db, "notificaciones"), {
+                equipoId: oferta.equipoOrigenId,
+                remitente: "Admin",
+                texto: `✗ Tu oferta por el piloto ha sido RECHAZADA.`,
+                fecha: serverTimestamp()
+            });
+            
+            alert("Oferta rechazada.");
+            cargarOfertasAdmin();
+        } catch(e) {
+            console.error("Error rechazando oferta:", e);
+            alert("Error al rechazar la oferta");
+        }
+    }
+};

@@ -33,12 +33,13 @@
     <div class="admin-layout">
         <aside class="admin-sidebar">
             <button class="admin-tab-btn active" data-target="panel-mensajes">1. Comunicados</button>
-            <button class="admin-tab-btn" data-target="panel-equipos">2. Equipos</button>
-            <button class="admin-tab-btn" data-target="panel-pilotos">3. Pilotos</button>
-            <button class="admin-tab-btn" data-target="panel-carreras">4. Carreras y Resultados</button>
-            <button class="admin-tab-btn" data-target="panel-media">5. Media Center</button>
-            <button class="admin-tab-btn" data-target="panel-sponsors">6. Patrocinadores</button>
-            <button class="admin-tab-btn" data-target="panel-actividad">7. Actividad de Equipos</button>
+            <button class="admin-tab-btn" data-target="panel-ofertas-admin">2. Ofertas de Pilotos</button>
+            <button class="admin-tab-btn" data-target="panel-equipos">3. Equipos</button>
+            <button class="admin-tab-btn" data-target="panel-pilotos">4. Pilotos</button>
+            <button class="admin-tab-btn" data-target="panel-carreras">5. Carreras y Resultados</button>
+            <button class="admin-tab-btn" data-target="panel-media">6. Media Center</button>
+            <button class="admin-tab-btn" data-target="panel-sponsors">7. Patrocinadores</button>
+            <button class="admin-tab-btn" data-target="panel-actividad">8. Actividad de Equipos</button>
         </aside>
 
         <main class="admin-content">
@@ -46,11 +47,31 @@
                 <h2>Enviar Comunicado Oficial</h2>
                 <div class="card">
                     <form id="form-mensaje">
-                        <label>De quién:</label>
-                        <select id="msg-remitente" required>
-                            <option value="Admin">Admin</option>
-                            <option value="FIA">FIA</option>
+                        <label>Tipo de Comunicado:</label>
+                        <select id="msg-tipo" required onchange="cambiarTipoComunicado()">
+                            <option value="oficial">Oficial (Admin/FIA)</option>
+                            <option value="piloto">De un Piloto a un Equipo</option>
                         </select>
+                        
+                        <div id="div-remitente-oficial" style="display: block;">
+                            <label>De quién:</label>
+                            <select id="msg-remitente" required>
+                                <option value="Admin">Admin</option>
+                                <option value="FIA">FIA</option>
+                            </select>
+                        </div>
+                        
+                        <div id="div-remitente-piloto" style="display: none;">
+                            <label>Equipo del Piloto:</label>
+                            <select id="msg-equipo-piloto" required onchange="actualizarPilotosPorEquipo()">
+                                <option value="">Selecciona un equipo</option>
+                            </select>
+                            <label>Piloto:</label>
+                            <select id="msg-piloto-remitente" required>
+                                <option value="">Selecciona un piloto</option>
+                            </select>
+                        </div>
+                        
                         <label>A quién (Destinatario):</label>
                         <select id="msg-destinatario" required><option value="todos">A todos los equipos</option></select>
                         <label>Mensaje:</label>
@@ -58,6 +79,11 @@
                         <button type="submit" class="btn-solid" style="width: 100%; margin-top: 15px;">Enviar Comunicado</button>
                     </form>
                 </div>
+            </section>
+
+            <section id="panel-ofertas-admin" class="admin-panel">
+                <h2>🔄 Ofertas de Pilotos Rivales</h2>
+                <div id="lista-ofertas-admin" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;"></div>
             </section>
 
             <section id="panel-equipos" class="admin-panel">

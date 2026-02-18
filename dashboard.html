@@ -327,6 +327,14 @@
             </div>
 
         </div>
+        <!-- SECCIÓN 4.5: MERCADO DE PILOTOS -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin: 50px 0 25px 0; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0; border: none; padding: 0;">🔄 Mercado de Pilotos</h2>
+        </div>
+        <div class="card" style="margin-bottom: 40px;">
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">Realiza ofertas por pilotos de equipos rivales para fichajes estratégicos.</p>
+            <div id="pilotos-rivales-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;"></div>
+        </div>
 
         <!-- SECCIÓN 5: INVESTIGACIÓN DE RIVALES -->
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin: 50px 0 25px 0; flex-wrap: wrap; gap: 15px;">
@@ -390,25 +398,21 @@
                 <div id="sponsors-choice-section">
                     <p style="color: rgba(255,255,255,0.65); margin: 0 0 24px 0; font-size: 0.9rem; line-height: 1.5;\">Selecciona el modelo que mejor se adapte a tu estrategia de temporada:</p>
                     
-                    <div class="sponsors-option" onclick="selectSponsorOption('fixed')">
-                        <h3>💵 Dinero Garantizado</h3>
-                        <p style="margin: 10px 0 0 0; font-size: 1rem; font-weight: 600; color: #4CAF50;">$45,000,000</p>
-                        <p style="margin: 8px 0 12px 0; color: var(--text-secondary); font-size: 0.9rem;">Recibe todo el dinero al inicio de la temporada.</p>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
-                            <span style="background: rgba(76,175,80,0.15); color: #4CAF50; padding: 5px 11px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(76,175,80,0.3);">✓ Sin riesgo</span>
-                            <span style="background: rgba(76,175,80,0.15); color: #4CAF50; padding: 5px 11px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(76,175,80,0.3);">✓ Predecible</span>
-                            <span style="background: rgba(244,67,54,0.15); color: #f44336; padding: 5px 11px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(244,67,54,0.3);">✗ Sin bonus</span>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="sponsors-option" onclick="selectSponsorOption('fixed')" style="margin: 0; padding: 16px;">
+                            <h3 style="margin: 0 0 6px 0; font-size: 0.95rem;">Garantizado</h3>
+                            <p style="margin: 4px 0 6px 0; font-size: 0.85rem; font-weight: 600; color: #4CAF50;">$45M</p>
+                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                <span style="background: rgba(76,175,80,0.15); color: #4CAF50; padding: 3px 6px; border-radius: 6px; font-size: 0.6rem; font-weight: 600; border: 1px solid rgba(76,175,80,0.3);">Sin riesgo</span>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="sponsors-option" onclick="selectSponsorOption('performance')">
-                        <h3>📈 Dinero + Bonus</h3>
-                        <p style="margin: 10px 0 0 0; font-size: 1rem; font-weight: 600; color: #ffffff;">$40M - $55M</p>
-                        <p style="margin: 8px 0 12px 0; color: var(--text-secondary); font-size: 0.9rem;">Base inicial + bonus por cumplir objetivos de posición.</p>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
-                            <span style="background: rgba(255,152,0,0.15); color: #FF9800; padding: 5px 11px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,152,0,0.3);">✓ Mayor dinero</span>
-                            <span style="background: rgba(255,152,0,0.15); color: #FF9800; padding: 5px 11px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,152,0,0.3);">✓ Bonus dinámico</span>
-                            <span style="background: rgba(244,67,54,0.15); color: #f44336; padding: 5px 11px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(244,67,54,0.3);">✗ Depende de resultados</span>
+                        
+                        <div class="sponsors-option" onclick="selectSponsorOption('performance')" style="margin: 0; padding: 16px;">
+                            <h3 style="margin: 0 0 6px 0; font-size: 0.95rem;">+ Bonus</h3>
+                            <p style="margin: 4px 0 6px 0; font-size: 0.85rem; font-weight: 600; color: #ffffff;">$40M-$55M</p>
+                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                <span style="background: rgba(255,152,0,0.15); color: #FF9800; padding: 3px 6px; border-radius: 6px; font-size: 0.6rem; font-weight: 600; border: 1px solid rgba(255,152,0,0.3);">Mas dinero</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -499,6 +503,35 @@
                         Entendido ✓
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- MODAL: HACER OFERTA POR PILOTO -->
+        <div id="modal-oferta" class="modal-overlay" style="display: none; z-index: 5000;">
+            <div style="background: var(--bg-secondary); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 30px; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.8);">
+                <h2 style="margin-top: 0; color: var(--accent);">🔄 Hacer Oferta por Piloto</h2>
+                
+                <div id="oferta-piloto-info" style="padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 20px; border-left: 3px solid var(--accent);">
+                    <p style="margin: 0 0 5px 0; color: var(--text-secondary); font-size: 0.85rem;">PILOTO OBJETIVO</p>
+                    <p id="oferta-piloto-nombre" style="margin: 0; font-size: 1.1rem; font-weight: 600;"></p>
+                    <p id="oferta-piloto-equipo" style="margin: 5px 0 0 0; color: var(--text-secondary); font-size: 0.9rem;"></p>
+                </div>
+                
+                <form id="form-oferta">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">💵 Compensación al Rival (en millones):</label>
+                    <input type="number" id="oferta-compensacion" placeholder="Ej: 50" min="1" required style="width: 100%; padding: 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: white; margin-bottom: 15px;">
+                    
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">💰 Sueldo del Piloto (por carrera):</label>
+                    <input type="number" id="oferta-sueldo" placeholder="Ej: 500000" min="1" required style="width: 100%; padding: 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: white; margin-bottom: 15px;">
+                    
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">📝 Mensaje (opcional):</label>
+                    <textarea id="oferta-mensaje" placeholder="Personaliza tu oferta..." rows="3" style="width: 100%; padding: 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: white; resize: none; margin-bottom: 20px; font-family: inherit;"></textarea>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button type="submit" class="btn-solid" style="padding: 12px; font-weight: 600; background: #4CAF50; border: none; border-radius: 6px; cursor: pointer;">✓ Enviar Oferta</button>
+                        <button type="button" onclick="cerrarModalOferta()" class="btn-outline" style="padding: 12px; font-weight: 600; border-radius: 6px; cursor: pointer;">✗ Cancelar</button>
+                    </div>
+                </form>
             </div>
         </div>
 
