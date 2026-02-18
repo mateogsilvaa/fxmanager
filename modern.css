@@ -807,7 +807,7 @@ button {
 }
 
 .driver-card-modern {
-    background: linear-gradient(135deg, rgba(34, 34, 42, 0.8) 0%, rgba(23, 23, 25, 0.5) 100%);
+    background: linear-gradient(135deg, rgba(34, 34, 42, 0.95) 0%, rgba(23, 23, 25, 0.6) 100%);
     border: 1.5px solid var(--border-color);
     border-radius: 14px;
     padding: 24px;
@@ -816,6 +816,8 @@ button {
     backdrop-filter: blur(10px);
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .driver-card-modern::before {
@@ -915,6 +917,37 @@ button {
     font-size: 1.3rem;
     font-weight: 900;
     color: var(--accent);
+}
+
+/* Estilos para secciones mejoradas de pilotos */
+.driver-stats-section h4,
+.driver-moral-section p {
+    z-index: 2;
+    position: relative;
+}
+
+.driver-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.driver-actions button {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    min-height: 38px;
+    transition: var(--transition-fast);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.driver-actions button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2);
 }
 
 .driver-attributes {
@@ -2573,16 +2606,22 @@ button {
 }
 
 .driver-card-modern {
-    background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 20px;
-    transition: all 0.3s ease;
+    background: linear-gradient(135deg, rgba(34, 34, 42, 0.95) 0%, rgba(23, 23, 25, 0.6) 100%);
+    border: 1.5px solid var(--border-color);
+    border-radius: 14px;
+    padding: 24px;
+    transition: var(--transition-smooth);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .driver-card-modern:hover {
     border-color: var(--accent);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.02);
     transform: translateY(-2px);
 }
 

@@ -96,37 +96,70 @@ function renderUI() {
     pilotosMiEquipo.forEach(piloto => {
         const card = document.createElement("div");
         card.className = "driver-card-modern";
+        
+        // Génerar barra de desempeño visual
+        const ritmoWidth = (piloto.ritmo || 0) * 10;
+        const agresividadWidth = (piloto.agresividad || 0) * 10;
+        
+        // Código de moral con emoji
+        const moralEmoji = piloto.moral === "Alta" ? "😊" : (piloto.moral === "Baja" ? "😔" : "😐");
+        const moralColor = piloto.moral === "Alta" ? "#4CAF50" : (piloto.moral === "Baja" ? "#f44336" : "#FF9800");
+        
         card.innerHTML = `
-            <div class="driver-header-modern">
-                <div class="driver-photo-modern">
-                    ${piloto.foto ? `<img src="${piloto.foto}">` : ''}
+            <div class="driver-header-modern" style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <div class="driver-photo-modern" style="flex-shrink: 0;">
+                    ${piloto.foto ? `<img src="${piloto.foto}" style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 2px solid ${currentTeamData.color};">` : '<div style="width: 80px; height: 80px; background: var(--bg-tertiary); border-radius: 8px; display: flex; align-items: center; justify-content: center;">👤</div>'}
                 </div>
-                <div>
-                    <p class="driver-name-modern">${piloto.nombre} <span style="color: ${currentTeamData.color};">${piloto.apellido || ''}</span></p>
-                    <p class="driver-number-modern">#${piloto.numero} • ${piloto.pais}</p>
+                <div style="flex: 1;">
+                    <p class="driver-name-modern" style="margin: 0 0 4px 0; font-size: 1.2rem; font-weight: bold;">#${piloto.numero} ${piloto.nombre} <span style="color: ${currentTeamData.color}; font-weight: 600;">${piloto.apellido || ''}</span></p>
+                    <p class="driver-number-modern" style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">${piloto.pais} • ${piloto.edad} años</p>
+                    <div style="margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap;">
+                        <span style="background: rgba(255,107,53,0.15); color: #ff6b35; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Activo ✓</span>
+                    </div>
                 </div>
             </div>
-            <div class="driver-stats-modern">
-                <div class="driver-stat-modern">
-                    <div class="driver-stat-label">Edad</div>
-                    <div class="driver-stat-value">${piloto.edad || '-'}</div>
+            
+            <div class="driver-stats-section" style="margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Desempeño</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Ritmo</span>
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #ff6b35;">${piloto.ritmo || 0}/10</span>
+                        </div>
+                        <div style="width: 100%; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
+                            <div style="width: ${ritmoWidth}%; height: 100%; background: linear-gradient(90deg, #ff6b35, #ff9800); border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Agresividad</span>
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #FF6B6B;">${piloto.agresividad || 0}/10</span>
+                        </div>
+                        <div style="width: 100%; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
+                            <div style="width: ${agresividadWidth}%; height: 100%; background: linear-gradient(90deg, #FF6B6B, #ff1744); border-radius: 3px;"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="driver-stat-modern">
-                    <div class="driver-stat-label">Moral</div>
-                    <div class="driver-stat-value">${piloto.moral || 'N/A'}</div>
+            </div>
+            
+            <div class="driver-moral-section" style="background: rgba(255,107,53,0.08); padding: 10px; border-radius: 6px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; border-left: 3px solid ${moralColor};">
+                <span style="font-size: 1.5rem;">${moralEmoji}</span>
+                <div>
+                    <p style="margin: 0 0 2px 0; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Moral</p>
+                    <p style="margin: 0; font-size: 0.95rem; font-weight: 600; color: ${moralColor};">${piloto.moral || 'Normal'}</p>
                 </div>
-                <div class="driver-stat-modern">
-                    <div class="driver-stat-label">Ritmo</div>
-                    <div class="driver-stat-value">${piloto.ritmo || 0}</div>
-                </div>
-                <div class="driver-stat-modern">
-                    <div class="driver-stat-label">Agresividad</div>
-                    <div class="driver-stat-value">${piloto.agresividad || 0}</div>
-                </div>
+            </div>
+            
+            <div class="driver-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn-outline" style="flex: 1; padding: 8px 12px; font-size: 0.85rem; min-width: 100px;" onclick="negociarSalario('${piloto.id}')">💰 Renegociar</button>
+                <button class="btn-outline" style="flex: 1; padding: 8px 12px; font-size: 0.85rem; min-width: 100px;" onclick="hacerOferta('${piloto.id}')">📤 Ofertar</button>
+                <button class="btn-outline" style="flex: 1; padding: 8px 12px; font-size: 0.85rem; min-width: 100px;" onclick="verDetalles('${piloto.id}')">ℹ️ Detalles</button>
             </div>
         `;
         driversContainer.appendChild(card);
     });
+
 
     // Niveles de mejoras
     const aeroLevel = currentTeamData.aeroLevel || 0;
@@ -714,4 +747,37 @@ window.unlockSponsorContracts = async function(teamId) {
         console.error("Error desbloqueando contratos:", error);
         return false;
     }
+};
+
+// ============== FUNCIONES DE PILOTOS ==============
+
+window.negociarSalario = function(pilotoId) {
+    alert("⚠️ Funcionalidad en desarrollo: Renegociación de salario");
+    // TODO: Implementar modal de renegociación de salario
+};
+
+window.hacerOferta = function(pilotoId) {
+    alert("⚠️ Funcionalidad en desarrollo: Sistema de ofertas a pilotos rivales");
+    // TODO: Implementar sistema de ofertas
+};
+
+window.verDetalles = function(pilotoId) {
+    const piloto = allPilotos.find(p => p.id === pilotoId);
+    if (!piloto) return;
+    
+    const moralEmoji = piloto.moral === "Alta" ? "😊" : (piloto.moral === "Baja" ? "😔" : "😐");
+    
+    alert(`📋 DETALLES DEL PILOTO\n\n` +
+        `Nombre: ${piloto.nombre} ${piloto.apellido || ''}\n` +
+        `Dorsal: #${piloto.numero}\n` +
+        `País: ${piloto.pais}\n` +
+        `Edad: ${piloto.edad} años\n\n` +
+        `Desempeño:\n` +
+        `• Ritmo: ${piloto.ritmo || 0}/10\n` +
+        `• Agresividad: ${piloto.agresividad || 0}/10\n` +
+        `• Moral: ${moralEmoji} ${piloto.moral || 'Normal'}\n\n` +
+        `🏁 Carreras disputadas: 0\n` +
+        `🥇 Victorias: 0\n` +
+        `📊 Puntos: 0`);
+    // TODO: Mostrar data real de carreras, victorias y puntos
 };
