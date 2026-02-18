@@ -854,53 +854,31 @@ function renderizarPilotosRivales() {
     contenedor.innerHTML = "";
     pilotosRivales.forEach(piloto => {
         const equipoRival = allEquipos.find(e => e.id === piloto.equipoId);
-        const ritmoWidth = (piloto.ritmo || 0);
-        const agresividadWidth = (piloto.agresividad || 0);
         const moralEmoji = piloto.moral === "Alta" ? "😊" : (piloto.moral === "Baja" ? "😔" : "😐");
         const moralColor = piloto.moral === "Alta" ? "#4CAF50" : (piloto.moral === "Baja" ? "#f44336" : "#8888aa");
         
         const card = document.createElement("div");
-        card.style.cssText = "padding: 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; transition: all 0.3s ease;";
+        card.style.cssText = "padding: 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; transition: all 0.3s ease;";
         
         card.innerHTML = `
-            <div style="display: flex; gap: 12px; align-items: start; margin-bottom: 12px;">
+            <div style="display: flex; gap: 10px; align-items: start; margin-bottom: 10px;">
                 <div>
-                    ${piloto.foto ? `<img src="${piloto.foto}" style="width: 60px; height: 60px; border-radius: 6px; object-fit: cover; border: 2px solid ${equipoRival?.color || '#ffffff'};">` : '<div style="width: 60px; height: 60px; background: var(--bg-secondary); border-radius: 6px; display: flex; align-items: center; justify-content: center;">👤</div>'}
+                    ${piloto.foto ? `<img src="${piloto.foto}" style="width: 50px; height: 50px; border-radius: 6px; object-fit: cover; border: 2px solid ${equipoRival?.color || '#ffffff'};">` : '<div style="width: 50px; height: 50px; background: var(--bg-secondary); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">👤</div>'}
                 </div>
                 <div style="flex: 1;">
-                    <p style="margin: 0 0 2px 0; font-weight: 600;">#${piloto.numero} ${piloto.nombre} ${piloto.apellido || ''}</p>
-                    <p style="margin: 0; font-size: 0.85rem; color: ${equipoRival?.color || '#ffffff'};">${equipoRival?.nombre || 'Equipo'}</p>
-                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">${piloto.pais} • ${piloto.edad}a</p>
+                    <p style="margin: 0 0 2px 0; font-weight: 600; font-size: 0.95rem;">#${piloto.numero} ${piloto.nombre}</p>
+                    <p style="margin: 0; font-size: 0.8rem; color: ${equipoRival?.color || '#ffffff'};">${equipoRival?.nombre || 'Equipo'}</p>
+                    <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: var(--text-secondary);">${piloto.pais}</p>
                 </div>
             </div>
             
-            <div style="margin-bottom: 12px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8rem;">
-                    <span>Ritmo</span>
-                    <span style="color: #ffffff;">${piloto.ritmo || 0}/100</span>
-                </div>
-                <div style="width: 100%; height: 4px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden;">
-                    <div style="width: ${ritmoWidth}%; height: 100%; background: linear-gradient(90deg, #ffffff, #e8e8e8);"></div>
-                </div>
+            <div style="display: flex; align-items: center; gap: 6px; padding: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 10px; border-left: 2px solid ${moralColor};">
+                <span style="font-size: 1rem;">${moralEmoji}</span>
+                <span style="font-size: 0.75rem; color: ${moralColor}; font-weight: 600;">${piloto.moral || 'Normal'}</span>
             </div>
             
-            <div style="margin-bottom: 12px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8rem;">
-                    <span>Agresividad</span>
-                    <span style="color: #FF6B6B;">${piloto.agresividad || 0}/100</span>
-                </div>
-                <div style="width: 100%; height: 4px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden;">
-                    <div style="width: ${agresividadWidth}%; height: 100%; background: linear-gradient(90deg, #FF6B6B, #ff1744);"></div>
-                </div>
-            </div>
-            
-            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 12px; border-left: 2px solid ${moralColor};">
-                <span style="font-size: 1.2rem;">${moralEmoji}</span>
-                <span style="font-size: 0.85rem; color: ${moralColor}; font-weight: 600;">${piloto.moral || 'Normal'}</span>
-            </div>
-            
-            <button onclick="abrirModalOferta('${piloto.id}')" class="btn-solid" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #4CAF50, #45a049); border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
-                🔄 Hacer Oferta
+            <button onclick="abrirModalOferta('${piloto.id}')" class="btn-solid" style="width: 100%; padding: 8px; background: linear-gradient(135deg, #4CAF50, #45a049); border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; font-size: 0.85rem; transition: all 0.3s ease;">
+                🔄 Fichar
             </button>
         `;
         

@@ -75,11 +75,21 @@ document.addEventListener("DOMContentLoaded", () => {
             const pilotoId = pilotoData[0];
             const pilotoNombre = pilotoData[1];
             const equipoDestinoId = document.getElementById("msg-destinatario").value;
+            const equipoOrigenId = document.getElementById("msg-equipo-piloto").value;
             
-            // Encontrar equipo del piloto y crear notificación
-            const piloto = pilotosList.find(p => p.id === pilotoId);
-            const teamEquipo = equiposList.find(e => e.id === equipoDestinoId);
+            // Guardar comunicado en la colección "comunicados"
+            await addDoc(collection(db, "comunicados"), {
+                tipo: "piloto_equipo",
+                pilotoId: pilotoId,
+                pilotoNombre: pilotoNombre,
+                equipoOrigenId: equipoOrigenId,
+                equipoDestinoId: equipoDestinoId,
+                texto: document.getElementById("msg-texto").value,
+                leido: false,
+                fecha: serverTimestamp()
+            });
             
+            // Enviar notificación al equipo destinatario
             await addDoc(collection(db, "notificaciones"), {
                 remitente: `Piloto: ${pilotoNombre}`,
                 equipoId: equipoDestinoId,
@@ -87,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 fecha: serverTimestamp(),
                 tipo: "comunicado_piloto",
                 pilotoId: pilotoId,
-                equipoOrigenId: piloto.equipoId
+                equipoOrigenId: equipoOrigenId
             });
         }
         
@@ -519,21 +529,25 @@ window.actualizarPilotosPorEquipo = () => {
 async function cargarOfertasAdmin() {
     const contenedor = document.getElementById("lista-ofertas-admin");
     try {
-        const q = query(collection(db, "ofertas"), where("estado", "==", "Pendiente"), orderBy("fecha", "desc"));
+        // Obtener todas las ofertas sin filtrar por estado
+        const q = query(collection(db, "ofertas"), orderBy("fecha", "desc"));
         const snapshot = await getDocs(q);
         
-        if(snapshot.empty) { 
+        // Filtrar solo las pendientes en memoria
+        const ofertasPendientes = snapshot.docs
+            .filter(doc => doc.data().estado === "Pendiente")
+            .map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        if(ofertasPendientes.length === 0) { 
             contenedor.innerHTML = "<p class='text-muted'>No hay ofertas pendientes.</p>"; 
             return; 
         }
         
         contenedor.innerHTML = "";
-        snapshot.forEach(docSnap => {
-            const oferta = docSnap.data();
-            const id = docSnap.id;
+        ofertasPendientes.forEach(oferta => {
+            const id = oferta.id;
             
             // Buscar nombres de pilotos y equipos
-            const pilotoOrigen = pilotosList.find(p => p.id === oferta.pilotoId);
             const equipoOrigen = equiposList.find(e => e.id === oferta.equipoOrigenId);
             const equipoDestino = equiposList.find(e => e.id === oferta.equipoDestinoId);
             const pilotoDestino = pilotosList.find(p => p.id === oferta.pilotoDestinoId);
