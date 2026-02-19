@@ -20,9 +20,11 @@ let equiposList = [];
 let pilotosList = [];
 
 document.addEventListener("DOMContentLoaded", () => {
+    console.log("=== ADMIN.JS CARGADO ===");
     
     // 1. SEGURIDAD ADMIN
     onAuthStateChanged(auth, async (user) => {
+        console.log("Auth state changed. User:", user?.email);
         if (!user) { window.location.href = "home.html"; return; }
         const userSnap = await getDoc(doc(db, "usuarios", user.uid));
         if (!userSnap.exists() || userSnap.data().isAdmin !== true) {
@@ -30,7 +32,9 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = "home.html";
             return;
         }
+        console.log("✅ Usuario admin confirmado");
         await refrescarDatosGlobales();
+        console.log("✅ Datos globales cargados, llamando cargarActividad()");
         cargarActividad(); 
     });
 
