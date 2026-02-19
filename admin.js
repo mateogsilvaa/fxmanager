@@ -321,16 +321,27 @@ async function cargarActividad() {
     const filtroElement = document.getElementById("filtro-equipo-actividad");
     const filtroEquipo = filtroElement ? filtroElement.value : "";
     
-    console.log("Cargando actividad con filtro:", filtroEquipo);
+    console.log("=== CARGANDO ACTIVIDAD ===");
+    console.log("Filtro equipo:", filtroEquipo || "(Sin filtro)");
     
     try {
         // Cargar actividades de equipos (sin orderBy para evitar problemas de índices)
         const actividadSnap = await getDocs(collection(db, "actividad_equipos"));
-        console.log("Documentos de actividad_equipos:", actividadSnap.size);
+        console.log("📊 Documentos en actividad_equipos:", actividadSnap.size);
+        
+        actividadSnap.forEach(doc => {
+            const data = doc.data();
+            console.log(`  - ${data.nombreEquipo} (${data.equipoId}): ${data.tipo} - ${data.detalle}`);
+        });
         
         // Cargar solicitudes admin (sin orderBy para evitar problemas de índices)
         const solicitudesSnap = await getDocs(collection(db, "solicitudes_admin"));
-        console.log("Documentos de solicitudes_admin:", solicitudesSnap.size);
+        console.log("📋 Documentos en solicitudes_admin:", solicitudesSnap.size);
+        
+        solicitudesSnap.forEach(doc => {
+            const data = doc.data();
+            console.log(`  - ${data.nombreEquipo} (${data.equipoId}): ${data.tipo} - ${data.detalle}`);
+        });
         
         // Combinar ambas listas
         const todas = [];
@@ -339,6 +350,7 @@ async function cargarActividad() {
             const actividad = doc.data();
             // Aplicar filtro aquí en memoria
             if (filtroEquipo && actividad.equipoId !== filtroEquipo) {
+                console.log(`  Filtrando: ${actividad.nombreEquipo} (${actividad.equipoId}) != ${filtroEquipo}`);
                 return;
             }
             todas.push({
@@ -376,7 +388,7 @@ async function cargarActividad() {
             return fechaB.getTime() - fechaA.getTime();
         });
         
-        console.log("Total de elementos a mostrar:", todas.length);
+        console.log("✅ Total de elementos después de filtrar:", todas.length);
         
         if(todas.length === 0) { 
             contenedor.innerHTML = "<p class='text-muted'>No hay actividad reciente.</p>"; 
