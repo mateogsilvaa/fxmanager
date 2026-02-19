@@ -279,12 +279,21 @@ async function refrescarDatosGlobales() {
 
     const selectMsg = document.getElementById("msg-destinatario");
     const selectPil = document.getElementById("pil-equipo");
+    const selectFiltroActividad = document.getElementById("filtro-equipo-actividad");
+    
     selectMsg.innerHTML = '<option value="todos">A todos los equipos</option>';
     selectPil.innerHTML = '<option value="">Ninguno (Agente Libre)</option>';
+    selectFiltroActividad.innerHTML = '<option value="">-- Todos los equipos --</option>';
     
     equiposList.forEach(eq => {
         selectMsg.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
         selectPil.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
+        selectFiltroActividad.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
+    });
+    
+    // Agregar listener al selector de filtro de actividad
+    selectFiltroActividad.addEventListener("change", () => {
+        cargarActividad();
     });
 
     pintarTablaEquipos();
@@ -297,13 +306,33 @@ async function refrescarDatosGlobales() {
 // ... (Funciones de Actividad igual que antes) ...
 async function cargarActividad() {
     const contenedor = document.getElementById("lista-actividad");
+    const filtroEquipo = document.getElementById("filtro-equipo-actividad").value;
+    
     try {
         // Cargar actividades de equipos
-        const actividadQuery = query(collection(db, "actividad_equipos"), orderBy("fecha", "desc"));
+        let actividadQuery;
+        if (filtroEquipo) {
+            actividadQuery = query(
+                collection(db, "actividad_equipos"), 
+                where("equipoId", "==", filtroEquipo),
+                orderBy("fecha", "desc")
+            );
+        } else {
+            actividadQuery = query(collection(db, "actividad_equipos"), orderBy("fecha", "desc"));
+        }
         const actividadSnap = await getDocs(actividadQuery);
         
         // Cargar solicitudes admin
-        const solicitudesQuery = query(collection(db, "solicitudes_admin"), orderBy("fecha", "desc"));
+        let solicitudesQuery;
+        if (filtroEquipo) {
+            solicitudesQuery = query(
+                collection(db, "solicitudes_admin"), 
+                where("equipoId", "==", filtroEquipo),
+                orderBy("fecha", "desc")
+            );
+        } else {
+            solicitudesQuery = query(collection(db, "solicitudes_admin"), orderBy("fecha", "desc"));
+        }
         const solicitudesSnap = await getDocs(solicitudesQuery);
         
         // Combinar ambas listas
@@ -359,6 +388,15 @@ async function cargarActividad() {
             } else if (item.tipoActividad === "investigacion") {
                 // Investigaciones
                 contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #00D4FF;">🔍 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
+            } else if (item.tipoActividad === "nego_salario") {
+                // Negociación de salarios
+                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #FF6B9D;">💼 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
+            } else if (item.tipoActividad === "oferta_fichaje") {
+                // Ofertas de fichaje
+                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #00D9FF;">🚀 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
+            } else if (item.tipoActividad === "contrato_sponsor") {
+                // Contratos de patrocinio
+                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #FFD700;">💎 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
             }
         });
     } catch (e) { console.log(e); }

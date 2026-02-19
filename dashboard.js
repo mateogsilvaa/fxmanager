@@ -424,7 +424,7 @@ async function contarInvestigacionesHoy() {
     }
 }
 
-// Persistente: intenta consumir 1 investigación del contador del equipo (resetea a diario)
+// Persistente: intenta consumir 1 investigación del contador del equipo (SIN RESET - permanentemente limitado a 3)
 async function tryConsumeInvestigation() {
     try {
         const teamRef = doc(db, "equipos", currentTeamId);
@@ -432,21 +432,13 @@ async function tryConsumeInvestigation() {
         if (!teamSnap.exists()) return true; // no hay equipo, permitir (fall-back)
 
         const team = teamSnap.data();
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
         let count = team.investigacionesCount || 0;
-        const resetTs = team.investigacionesReset ? (team.investigacionesReset.toDate ? team.investigacionesReset.toDate() : new Date(team.investigacionesReset)) : null;
 
-        // Si no hay marca de reset o es anterior al inicio del día, reiniciamos el contador
-        if (!resetTs || resetTs < todayStart) {
-            count = 0;
-            await updateDoc(teamRef, { investigacionesCount: 0, investigacionesReset: serverTimestamp() });
-        }
-
+        // Verificar si ya alcanzó el límite de 3 investigaciones (permanente)
         if (count >= 3) return false;
 
-        await updateDoc(teamRef, { investigacionesCount: count + 1, investigacionesReset: serverTimestamp() });
+        // Incrementar el contador de forma permanente (sin reset diario)
+        await updateDoc(teamRef, { investigacionesCount: count + 1 });
         // Actualizar caché local si existe
         if (currentTeamData) currentTeamData.investigacionesCount = count + 1;
         return true;
@@ -641,6 +633,15 @@ async function saveFixedContract() {
             sponsor_contract: contract,
             presupuesto: currentTeamData.presupuesto + 45000000
         });
+        
+        // Registrar actividad para admin
+        await addDoc(collection(db, "actividad_equipos"), {
+            equipoId: currentTeamId,
+            nombreEquipo: currentTeamData.nombre,
+            tipo: "contrato_sponsor",
+            detalle: `Firma contrato de patrocinio fijo: $45,000,000 garantizados`,
+            fecha: serverTimestamp()
+        });
 
         currentTeamData.sponsor_contract = contract;
         currentTeamData.presupuesto += 45000000;
@@ -709,6 +710,15 @@ async function savePerformanceContract(contract) {
         await updateDoc(doc(db, "equipos", currentTeamId), {
             sponsor_contract: contract,
             presupuesto: currentTeamData.presupuesto + contract.base
+        });
+        
+        // Registrar actividad para admin
+        await addDoc(collection(db, "actividad_equipos"), {
+            equipoId: currentTeamId,
+            nombreEquipo: currentTeamData.nombre,
+            tipo: "contrato_sponsor",
+            detalle: `Firma contrato de patrocinio con objetivo de posición ${contract.targetPosition}: $${contract.base.toLocaleString()} base + hasta $${contract.bonus.toLocaleString()} bonus`,
+            fecha: serverTimestamp()
         });
 
         currentTeamData.sponsor_contract = contract;
@@ -860,6 +870,15 @@ window.negociarSalario = async function(pilotoId) {
             });
         }
         
+        // Registrar actividad para admin
+        await addDoc(collection(db, "actividad_equipos"), {
+            equipoId: currentTeamId,
+            nombreEquipo: currentTeamData.nombre,
+            tipo: "nego_salario",
+            detalle: `Renegocia salario de ${piloto.nombre}: de $${salarioActual.toLocaleString()} a $${salarioNumerico.toLocaleString()} (Cambio: $${(diferencia > 0 ? '+' : '')}${diferencia.toLocaleString()})`,
+            fecha: serverTimestamp()
+        });
+        
         alert(`✅ Salario actualizado a $${salarioNumerico.toLocaleString()} por carrera`);
         cargarDatos();
     } catch (error) {
@@ -978,6 +997,15 @@ async function enviarOferta() {
             sueldo: sueldo,
             mensaje: mensaje,
             estado: "Pendiente",
+            fecha: serverTimestamp()
+        });
+        
+        // Registrar actividad para admin
+        await addDoc(collection(db, "actividad_equipos"), {
+            equipoId: currentTeamId,
+            nombreEquipo: currentTeamData.nombre,
+            tipo: "oferta_fichaje",
+            detalle: `Envía oferta de fichaje a #${piloto.numero} ${piloto.nombre} (${equipoDestino?.nombre}). Compensación: $${compensacion}M, Sueldo: $${sueldo.toLocaleString()}`,
             fecha: serverTimestamp()
         });
         
