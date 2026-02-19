@@ -401,30 +401,44 @@ async function cargarActividad() {
         
         contenedor.innerHTML = "";
         todas.forEach(item => {
-            if (item.tipo === "solicitud") {
-                // Solicitudes de mejoras
-                const badge = item.estado === "Pendiente" ? "REQUIERE ACCIÓN" : item.estado;
-                const btns = item.estado === "Pendiente" ? `<button style="margin-top:10px; margin-right:5px;" onclick="resolverActividad('${item.id}', '${item.equipoId}', 'Aprobada')">OK</button><button style="margin-top:10px;" onclick="resolverActividad('${item.id}', '${item.equipoId}', 'Denegada')">NO</button>` : "";
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: var(--accent);">📋 ${item.nombreEquipo}</strong>: ${item.detalle} <span style="color: var(--text-secondary); font-size: 0.85rem;">[${badge}]</span> ${btns}</div>`;
-            } else if (item.tipoActividad === "compra_investigacion") {
-                // Compra de investigación (solo admin)
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #FFD700;">💰 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
-            } else if (item.tipoActividad === "mejora") {
-                // Mejoras
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: var(--accent);">⚡ ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
-            } else if (item.tipoActividad === "investigacion") {
-                // Investigaciones
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #00D4FF;">🔍 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
-            } else if (item.tipoActividad === "nego_salario") {
-                // Negociación de salarios
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #FF6B9D;">💼 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
-            } else if (item.tipoActividad === "oferta_fichaje") {
-                // Ofertas de fichaje
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #00D9FF;">🚀 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
-            } else if (item.tipoActividad === "contrato_sponsor") {
-                // Contratos de patrocinio
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #FFD700;">💎 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
-            }
+            // Obtener el color del equipo
+            const equipo = equiposList.find(e => e.id === item.equipoId);
+            const colorEquipo = equipo?.color || "var(--accent)";
+            
+            // Función para generar el HTML del item
+            const getItemHTML = () => {
+                const estiloBase = `
+                    padding: 16px;
+                    margin-bottom: 12px;
+                    background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+                    border-left: 4px solid ${colorEquipo};
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    transition: all 0.3s ease;
+                `;
+                
+                if (item.tipo === "solicitud") {
+                    // Solicitudes de mejoras
+                    const badge = item.estado === "Pendiente" ? "REQUIERE ACCIÓN" : item.estado;
+                    const btns = item.estado === "Pendiente" ? `<div style="margin-top:12px; display: flex; gap: 8px;"><button class="btn-solid" style="flex: 1; padding: 6px 12px; font-size: 0.8rem;" onclick="resolverActividad('${item.id}', '${item.equipoId}', 'Aprobada')">✓ OK</button><button class="btn-outline" style="flex: 1; padding: 6px 12px; font-size: 0.8rem;" onclick="resolverActividad('${item.id}', '${item.equipoId}', 'Denegada')">✕ NO</button></div>` : "";
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">📋 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p><span style="display: inline-block; margin-top: 8px; padding: 4px 10px; background: rgba(255,255,255,0.1); border-radius: 4px; font-size: 0.8rem; color: var(--text-secondary);">[${badge}]</span>${btns}</div>`;
+                } else if (item.tipoActividad === "compra_investigacion") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">💰 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                } else if (item.tipoActividad === "mejora") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">⚡ ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                } else if (item.tipoActividad === "investigacion") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">🔍 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                } else if (item.tipoActividad === "nego_salario") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">💼 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                } else if (item.tipoActividad === "oferta_fichaje") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">🚀 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                } else if (item.tipoActividad === "contrato_sponsor") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">💎 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                }
+                return "";
+            };
+            
+            contenedor.innerHTML += getItemHTML();
         });
     } catch (e) { 
         console.error("Error cargando actividad:", e);
