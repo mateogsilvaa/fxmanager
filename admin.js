@@ -536,6 +536,10 @@ window.cambiarTipoComunicado = () => {
     document.getElementById("div-remitente-oficial").style.display = tipo === "oficial" ? "block" : "none";
     document.getElementById("div-remitente-piloto").style.display = tipo === "piloto" ? "block" : "none";
     
+    // Ajustar required para campos ocultos
+    document.getElementById("msg-equipo-piloto").required = tipo === "piloto";
+    document.getElementById("msg-piloto-remitente").required = tipo === "piloto";
+    
     const selectDestino = document.getElementById("msg-destinatario");
     
     if (tipo === "oficial") {
