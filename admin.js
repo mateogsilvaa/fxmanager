@@ -559,13 +559,11 @@ window.actualizarPilotosPorEquipo = () => {
         document.getElementById("msg-piloto-remitente").innerHTML += `<option value="${p.id}|${p.nombre} ${p.apellido}">${p.nombre} ${p.apellido || ''}</option>`;
     });
     
-    // Actualizar el select de destinatario para mostrar solo los otros equipos
+    // Actualizar el select de destinatario para mostrar todos los equipos, incluyendo el propio
     const selectDestino = document.getElementById("msg-destinatario");
     selectDestino.innerHTML = '<option value="">Selecciona el equipo destinatario</option>';
     equiposList.forEach(eq => {
-        if (eq.id !== equipoId) {
-            selectDestino.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
-        }
+        selectDestino.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
     });
 };
 
