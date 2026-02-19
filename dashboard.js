@@ -319,7 +319,7 @@ async function investigarMejora() {
     // Verificar límite de investigaciones usando contador persistente en el documento del equipo
     const puede = await tryConsumeInvestigation();
     if (!puede) {
-        alert("Has alcanzado el límite de 3 investigaciones hoy.");
+        alert("Has alcanzado el límite de 3 investigaciones.");
         return;
     }
 
@@ -333,16 +333,20 @@ async function investigarMejora() {
     if (!equipo) return;
 
     try {
+        console.log("[investigarMejora] Iniciando investigación de mejora para:", equipo.nombre);
         const ultimaMejora = equipo.ultimaMejora || "Motor";
         
+        console.log("[investigarMejora] Guardando notificación...");
         await addDoc(collection(db, "notificaciones"), {
             equipoId: currentTeamId,
             remitente: "Sistema",
             texto: `⚙️ Última mejora de ${equipo.nombre}: ${ultimaMejora}`,
             fecha: serverTimestamp()
         });
+        console.log("[investigarMejora] Notificación guardada ✓");
 
         // Registrar actividad para admin
+        console.log("[investigarMejora] Guardando actividad...");
         await addDoc(collection(db, "actividad_equipos"), {
             equipoId: currentTeamId,
             nombreEquipo: currentTeamData.nombre,
@@ -350,11 +354,13 @@ async function investigarMejora() {
             detalle: `Investiga mejora: ${equipo.nombre} - Última mejora: ${ultimaMejora}`,
             fecha: serverTimestamp()
         });
+        console.log("[investigarMejora] Actividad guardada ✓");
 
-        alert("Información enviada a tu bandeja de avisos.");
+        alert("✅ Investigación completada. Información enviada a tu bandeja de avisos.");
         document.getElementById("select-team-upgrade").value = "";
     } catch (error) {
-        console.error("Error:", error);
+        console.error("[investigarMejora] ERROR:", error);
+        alert("❌ Error en investigación: " + error.message);
     }
 }
 
@@ -362,7 +368,7 @@ async function investigarComponente() {
     // Verificar límite de investigaciones usando contador persistente en el documento del equipo
     const puede = await tryConsumeInvestigation();
     if (!puede) {
-        alert("Has alcanzado el límite de 3 investigaciones hoy.");
+        alert("Has alcanzado el límite de 3 investigaciones.");
         return;
     }
 
@@ -378,17 +384,21 @@ async function investigarComponente() {
     if (!equipo) return;
 
     try {
+        console.log("[investigarComponente] Iniciando investigación de componente", componente, "para:", equipo.nombre);
         const nivelComponente = componente === "aero" ? (equipo.aeroLevel || 0) : (equipo.motorLevel || 0);
         const nombreComponente = componente === "aero" ? "Aerodinámica" : "Motor";
         
+        console.log("[investigarComponente] Guardando notificación...");
         await addDoc(collection(db, "notificaciones"), {
             equipoId: currentTeamId,
             remitente: "Sistema",
             texto: `🔩 Nivel de ${nombreComponente} en ${equipo.nombre}: ${nivelComponente}/5`,
             fecha: serverTimestamp()
         });
+        console.log("[investigarComponente] Notificación guardada ✓");
 
         // Registrar actividad para admin
+        console.log("[investigarComponente] Guardando actividad...");
         await addDoc(collection(db, "actividad_equipos"), {
             equipoId: currentTeamId,
             nombreEquipo: currentTeamData.nombre,
@@ -396,11 +406,13 @@ async function investigarComponente() {
             detalle: `Investiga nivel de ${nombreComponente}: ${equipo.nombre} - Nivel: ${nivelComponente}/5`,
             fecha: serverTimestamp()
         });
+        console.log("[investigarComponente] Actividad guardada ✓");
 
-        alert("Información enviada a tu bandeja de avisos.");
+        alert("✅ Investigación completada. Información enviada a tu bandeja de avisos.");
         document.getElementById("select-team-component").value = "";
     } catch (error) {
-        console.error("Error:", error);
+        console.error("[investigarComponente] ERROR:", error);
+        alert("❌ Error en investigación: " + error.message);
     }
 }
 
