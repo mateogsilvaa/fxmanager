@@ -66,14 +66,49 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("Enviando comunicado");
             const tipo = document.getElementById("msg-tipo").value;
             const requiereAprobacion = document.getElementById("msg-requiere-aprobacion").checked;
+            const mensaje = document.getElementById("msg-texto").value;
             console.log("Tipo:", tipo, "Requiere aprobación:", requiereAprobacion);
+            
+            // Validación manual
+            if (!tipo) {
+                alert("Por favor selecciona un tipo de comunicado.");
+                return;
+            }
+            if (!mensaje.trim()) {
+                alert("Por favor escribe un mensaje.");
+                return;
+            }
+            
+            if (tipo === "oficial" && !document.getElementById("msg-remitente").value) {
+                alert("Por favor selecciona quién envía el mensaje.");
+                return;
+            }
+            
+            if (tipo === "piloto") {
+                const equipoId = document.getElementById("msg-equipo-piloto").value;
+                const pilotoId = document.getElementById("msg-piloto-remitente").value;
+                const destinatario = document.getElementById("msg-destinatario").value;
+                
+                if (!equipoId) {
+                    alert("Por favor selecciona un equipo.");
+                    return;
+                }
+                if (!pilotoId) {
+                    alert("Por favor selecciona un piloto.");
+                    return;
+                }
+                if (!destinatario) {
+                    alert("Por favor selecciona un equipo destinatario.");
+                    return;
+                }
+            }
             
             if (requiereAprobacion) {
                 console.log("Enviando mensaje con aprobación");
                 // Mensaje que requiere aprobación - enviar a todos los equipos
                 const mensajeRef = await addDoc(collection(db, "mensajes_aprobacion"), {
                     remitente: tipo === "oficial" ? document.getElementById("msg-remitente").value : "Sistema",
-                    texto: document.getElementById("msg-texto").value,
+                    texto: mensaje,
                     fecha: serverTimestamp()
                 });
                 
@@ -82,7 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     await addDoc(collection(db, "notificaciones"), {
                         remitente: "Admin",
                         equipoId: eq.id,
-                        texto: `📋 Mensaje que requiere aprobación: "${document.getElementById("msg-texto").value}"`,
+                        texto: `📋 Mensaje que requiere aprobación: "${mensaje}"`,
                         fecha: serverTimestamp(),
                         tipo: "mensaje_aprobacion",
                         mensajeId: mensajeRef.id
@@ -101,7 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             await addDoc(collection(db, "notificaciones"), {
                                 remitente: document.getElementById("msg-remitente").value,
                                 equipoId: eq.id,
-                                texto: document.getElementById("msg-texto").value,
+                                texto: mensaje,
                                 fecha: serverTimestamp()
                             });
                         }
@@ -111,7 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         await addDoc(collection(db, "notificaciones"), {
                             remitente: document.getElementById("msg-remitente").value,
                             equipoId: destinatario,
-                            texto: document.getElementById("msg-texto").value,
+                            texto: mensaje,
                             fecha: serverTimestamp()
                         });
                     }
@@ -131,7 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         pilotoNombre: pilotoNombre,
                         equipoOrigenId: equipoOrigenId,
                         equipoDestinoId: equipoDestinoId,
-                        texto: document.getElementById("msg-texto").value,
+                        texto: mensaje,
                         leido: false,
                         fecha: serverTimestamp()
                     });
@@ -140,7 +175,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     await addDoc(collection(db, "notificaciones"), {
                         remitente: `Piloto: ${pilotoNombre}`,
                         equipoId: equipoDestinoId,
-                        texto: `📨 Mensaje de ${pilotoNombre}: "${document.getElementById("msg-texto").value}"`,
+                        texto: `📨 Mensaje de ${pilotoNombre}: "${mensaje}"`,
                         fecha: serverTimestamp(),
                         tipo: "comunicado_piloto",
                         pilotoId: pilotoId,
@@ -535,10 +570,6 @@ window.cambiarTipoComunicado = () => {
     const tipo = document.getElementById("msg-tipo").value;
     document.getElementById("div-remitente-oficial").style.display = tipo === "oficial" ? "block" : "none";
     document.getElementById("div-remitente-piloto").style.display = tipo === "piloto" ? "block" : "none";
-    
-    // Ajustar required para campos ocultos
-    document.getElementById("msg-equipo-piloto").required = tipo === "piloto";
-    document.getElementById("msg-piloto-remitente").required = tipo === "piloto";
     
     const selectDestino = document.getElementById("msg-destinatario");
     
