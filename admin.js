@@ -20,9 +20,11 @@ let equiposList = [];
 let pilotosList = [];
 
 document.addEventListener("DOMContentLoaded", () => {
+    console.log("=== ADMIN.JS CARGADO ===");
     
     // 1. SEGURIDAD ADMIN
     onAuthStateChanged(auth, async (user) => {
+        console.log("Auth state changed. User:", user?.email);
         if (!user) { window.location.href = "home.html"; return; }
         const userSnap = await getDoc(doc(db, "usuarios", user.uid));
         if (!userSnap.exists() || userSnap.data().isAdmin !== true) {
@@ -30,7 +32,9 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = "home.html";
             return;
         }
+        console.log("✅ Usuario admin confirmado");
         await refrescarDatosGlobales();
+        console.log("✅ Datos globales cargados, llamando cargarActividad()");
         cargarActividad(); 
     });
 
@@ -279,13 +283,29 @@ async function refrescarDatosGlobales() {
 
     const selectMsg = document.getElementById("msg-destinatario");
     const selectPil = document.getElementById("pil-equipo");
+    const selectFiltroActividad = document.getElementById("filtro-equipo-actividad");
+    
     selectMsg.innerHTML = '<option value="todos">A todos los equipos</option>';
     selectPil.innerHTML = '<option value="">Ninguno (Agente Libre)</option>';
+    
+    if (selectFiltroActividad) {
+        selectFiltroActividad.innerHTML = '<option value="">-- Todos los equipos --</option>';
+    }
     
     equiposList.forEach(eq => {
         selectMsg.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
         selectPil.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
+        if (selectFiltroActividad) {
+            selectFiltroActividad.innerHTML += `<option value="${eq.id}">${eq.nombre}</option>`;
+        }
     });
+    
+    // Agregar listener al selector de filtro de actividad
+    if (selectFiltroActividad) {
+        selectFiltroActividad.addEventListener("change", () => {
+            cargarActividad();
+        });
+    }
 
     pintarTablaEquipos();
     pintarTablaPilotos();
@@ -297,20 +317,46 @@ async function refrescarDatosGlobales() {
 // ... (Funciones de Actividad igual que antes) ...
 async function cargarActividad() {
     const contenedor = document.getElementById("lista-actividad");
+    if (!contenedor) {
+        console.error("Elemento lista-actividad no encontrado en el DOM");
+        return;
+    }
+    
+    const filtroElement = document.getElementById("filtro-equipo-actividad");
+    const filtroEquipo = filtroElement ? filtroElement.value : "";
+    
+    console.log("=== CARGANDO ACTIVIDAD ===");
+    console.log("Filtro equipo:", filtroEquipo || "(Sin filtro)");
+    
     try {
-        // Cargar actividades de equipos
-        const actividadQuery = query(collection(db, "actividad_equipos"), orderBy("fecha", "desc"));
-        const actividadSnap = await getDocs(actividadQuery);
+        // Cargar actividades de equipos (sin orderBy para evitar problemas de índices)
+        const actividadSnap = await getDocs(collection(db, "actividad_equipos"));
+        console.log("📊 Documentos en actividad_equipos:", actividadSnap.size);
         
-        // Cargar solicitudes admin
-        const solicitudesQuery = query(collection(db, "solicitudes_admin"), orderBy("fecha", "desc"));
-        const solicitudesSnap = await getDocs(solicitudesQuery);
+        actividadSnap.forEach(doc => {
+            const data = doc.data();
+            console.log(`  - ${data.nombreEquipo} (${data.equipoId}): ${data.tipo} - ${data.detalle}`);
+        });
+        
+        // Cargar solicitudes admin (sin orderBy para evitar problemas de índices)
+        const solicitudesSnap = await getDocs(collection(db, "solicitudes_admin"));
+        console.log("📋 Documentos en solicitudes_admin:", solicitudesSnap.size);
+        
+        solicitudesSnap.forEach(doc => {
+            const data = doc.data();
+            console.log(`  - ${data.nombreEquipo} (${data.equipoId}): ${data.tipo} - ${data.detalle}`);
+        });
         
         // Combinar ambas listas
         const todas = [];
         
         actividadSnap.forEach(doc => {
             const actividad = doc.data();
+            // Aplicar filtro aquí en memoria
+            if (filtroEquipo && actividad.equipoId !== filtroEquipo) {
+                console.log(`  Filtrando: ${actividad.nombreEquipo} (${actividad.equipoId}) != ${filtroEquipo}`);
+                return;
+            }
             todas.push({
                 id: doc.id,
                 tipo: "actividad",
@@ -324,6 +370,10 @@ async function cargarActividad() {
         
         solicitudesSnap.forEach(doc => {
             const solicitud = doc.data();
+            // Aplicar filtro aquí en memoria
+            if (filtroEquipo && solicitud.equipoId !== filtroEquipo) {
+                return;
+            }
             todas.push({
                 id: doc.id,
                 tipo: "solicitud",
@@ -335,8 +385,14 @@ async function cargarActividad() {
             });
         });
         
-        // Ordenar por fecha descendente
-        todas.sort((a, b) => (b.fecha?.getTime() || 0) - (a.fecha?.getTime() || 0));
+        // Ordenar por fecha descendente en memoria
+        todas.sort((a, b) => {
+            const fechaA = a.fecha?.toDate ? a.fecha.toDate() : (a.fecha instanceof Date ? a.fecha : new Date(a.fecha || 0));
+            const fechaB = b.fecha?.toDate ? b.fecha.toDate() : (b.fecha instanceof Date ? b.fecha : new Date(b.fecha || 0));
+            return fechaB.getTime() - fechaA.getTime();
+        });
+        
+        console.log("✅ Total de elementos después de filtrar:", todas.length);
         
         if(todas.length === 0) { 
             contenedor.innerHTML = "<p class='text-muted'>No hay actividad reciente.</p>"; 
@@ -345,23 +401,49 @@ async function cargarActividad() {
         
         contenedor.innerHTML = "";
         todas.forEach(item => {
-            if (item.tipo === "solicitud") {
-                // Solicitudes de mejoras
-                const badge = item.estado === "Pendiente" ? "REQUIERE ACCIÓN" : item.estado;
-                const btns = item.estado === "Pendiente" ? `<button style="margin-top:10px; margin-right:5px;" onclick="resolverActividad('${item.id}', '${item.equipoId}', 'Aprobada')">OK</button><button style="margin-top:10px;" onclick="resolverActividad('${item.id}', '${item.equipoId}', 'Denegada')">NO</button>` : "";
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: var(--accent);">📋 ${item.nombreEquipo}</strong>: ${item.detalle} <span style="color: var(--text-secondary); font-size: 0.85rem;">[${badge}]</span> ${btns}</div>`;
-            } else if (item.tipoActividad === "compra_investigacion") {
-                // Compra de investigación (solo admin)
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #FFD700;">💰 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
-            } else if (item.tipoActividad === "mejora") {
-                // Mejoras
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: var(--accent);">⚡ ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
-            } else if (item.tipoActividad === "investigacion") {
-                // Investigaciones
-                contenedor.innerHTML += `<div style="padding:12px; border:1px solid #333; margin-bottom:8px; background: rgba(255,255,255,0.02); border-radius:4px;"><strong style="color: #00D4FF;">🔍 ${item.nombreEquipo}</strong>: ${item.detalle}</div>`;
-            }
+            // Obtener el color del equipo
+            const equipo = equiposList.find(e => e.id === item.equipoId);
+            const colorEquipo = equipo?.color || "var(--accent)";
+            
+            // Función para generar el HTML del item
+            const getItemHTML = () => {
+                const estiloBase = `
+                    padding: 16px;
+                    margin-bottom: 12px;
+                    background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+                    border-left: 4px solid ${colorEquipo};
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    transition: all 0.3s ease;
+                `;
+                
+                if (item.tipo === "solicitud") {
+                    // Solicitudes de mejoras
+                    const badge = item.estado === "Pendiente" ? "REQUIERE ACCIÓN" : item.estado;
+                    const btns = item.estado === "Pendiente" ? `<div style="margin-top:12px; display: flex; gap: 8px;"><button class="btn-solid" style="flex: 1; padding: 6px 12px; font-size: 0.8rem;" onclick="resolverActividad('${item.id}', '${item.equipoId}', 'Aprobada')">✓ OK</button><button class="btn-outline" style="flex: 1; padding: 6px 12px; font-size: 0.8rem;" onclick="resolverActividad('${item.id}', '${item.equipoId}', 'Denegada')">✕ NO</button></div>` : "";
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">📋 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p><span style="display: inline-block; margin-top: 8px; padding: 4px 10px; background: rgba(255,255,255,0.1); border-radius: 4px; font-size: 0.8rem; color: var(--text-secondary);">[${badge}]</span>${btns}</div>`;
+                } else if (item.tipoActividad === "compra_investigacion") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">💰 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                } else if (item.tipoActividad === "mejora") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">⚡ ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                } else if (item.tipoActividad === "investigacion") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">🔍 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                } else if (item.tipoActividad === "nego_salario") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">💼 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                } else if (item.tipoActividad === "oferta_fichaje") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">🚀 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                } else if (item.tipoActividad === "contrato_sponsor") {
+                    return `<div style="${estiloBase}"><strong style="color: ${colorEquipo}; font-size: 1.1rem;">💎 ${item.nombreEquipo}</strong><p style="margin: 8px 0 0 0; color: var(--text-secondary); line-height: 1.5;">${item.detalle}</p></div>`;
+                }
+                return "";
+            };
+            
+            contenedor.innerHTML += getItemHTML();
         });
-    } catch (e) { console.log(e); }
+    } catch (e) { 
+        console.error("Error cargando actividad:", e);
+        contenedor.innerHTML = `<p class='text-muted'>Error cargando actividad: ${e.message}</p>`;
+    }
 }
 window.resolverActividad = async (id, eqId, res) => {
     if(confirm("¿Confirmar?")) {

@@ -48,30 +48,31 @@
         </div>
 
         <div class="card" style="margin-bottom: 25px;">
-            <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">2.</span> El Dashboard (Panel de Control)</h2>
-            <p>Solo accesible para el Jefe de Equipo. Es la sala de mandos de la escudería. Aquí se visualiza:</p>
+            <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">2.</span> Mi Equipo (El Dashboard)</h2>
+            <p>Solo accesible para el Jefe de Equipo. Es tu sala de operaciones privada, desde donde controlas todos los aspectos de la escudería. Sus funcionalidades clave son:</p>
             <ul style="color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
-                <li><strong>El Monoplaza:</strong> Imagen del coche actual.</li>
-                <li><strong>Estadísticas Históricas:</strong> Carreras disputadas, Victorias, Puntos, Podios, Poles, DNFs (Abandonos) y Campeonatos del Mundo.</li>
-                <li><strong>Perfil de Pilotos:</strong> Nombre, edad, nacionalidad, y tres atributos ocultos al público: Ritmo, Agresividad y Moral.</li>
-                <li><strong>Economía:</strong> El presupuesto actual del equipo.</li>
-                <li><strong>Zona de mejoras.</strong></li>
-                <li><strong>Zona de investigación.</strong></li>
+                <li><strong style="color: white;">Información General:</strong> Visualiza tu monoplaza, estadísticas históricas (Puntos, Victorias, Mundiales) y controla tu Presupuesto actual.</li>
+                <li><strong style="color: white;">Gestión de Pilotos:</strong> Consulta los atributos ocultos (Ritmo, Agresividad, Moral) de tus pilotos, renegocia sus salarios carrera a carrera o revisa sus detalles completos.</li>
+                <li><strong style="color: white;">Patrocinadores (Sponsors):</strong> Elige tu modelo de financiación. Puedes firmar un Contrato Fijo (inyección de capital segura) o un Contrato por Rendimiento (dinero base más bonus económicos tras cada carrera si cumples tu objetivo de posición).</li>
+                <li><strong style="color: white;">Desarrollo de Monoplaza (Mejoras):</strong> Invierte tu dinero en solicitar mejoras de Aerodinámica/Chasis o Motor. Cada componente tiene hasta 7 niveles con un coste escalonado.</li>
+                <li><strong style="color: white;">Investigación y Espionaje:</strong> Utiliza tus fichas gratuitas para espiar el nivel de las piezas de los rivales, descubrir su última mejora o conocer los atributos exactos de pilotos ajenos. (También puedes comprar investigaciones extra con presupuesto).</li>
+                <li><strong style="color: white;">Mercado de Fichajes:</strong> Busca talento en el paddock y envía ofertas económicas a pilotos de otras escuderías pagando una cláusula/compensación y un nuevo sueldo.</li>
+                <li><strong style="color: white;">Bandeja de Notificaciones:</strong> Tu centro de mensajería donde recibirás los veredictos de la FIA sobre tus mejoras, reportes de investigación y respuestas a tus negociaciones.</li>
             </ul>
         </div>
 
         <div class="card" style="margin-bottom: 25px;">
             <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">3.</span> Economía y Desarrollo</h2>
             <p>El dinero es limitado y debe usarse sabiamente para pagar salarios e investigar o fichar pilotos.</p>
-            <p><strong style="color: white;">Mejoras del Coche:</strong> Puedes invertir parte de tu presupuesto en desarrollar el coche en dos áreas con diferentes niveles. Todos los coches empiezan en el nivel 0 y hay 7 disponibles (Por temporada):</p>
+            <p><strong style="color: white;">Mejoras del Coche:</strong> Puedes invertir parte de tu presupuesto en desarrollar el coche en dos áreas. Todos los coches empiezan en el nivel 0 y hay hasta 7 niveles disponibles con costes que aumentan progresivamente:</p>
             <ul style="color: var(--text-secondary); margin-left: 20px; margin-bottom: 15px;">
                 <li>Chasis y aerodinámica</li>
                 <li>Motor</li>
             </ul>
             <p><strong style="color: white;">Regla de Desarrollo:</strong> Cuando solicitas una mejora, se invierte el dinero inmediatamente (no se recupera). La solicitud llega a la FIA, quien transmite el resultado. Hay 2 escenarios posibles:</p>
             <ul style="list-style-type: none; padding-left: 0; margin-top: 10px;">
-                <li style="margin-bottom: 10px;"><strong style="color: var(--success);">✓ Éxito:</strong> La mejora se instala y el coche es más rápido (o no, puede ser una mejora como las de Aston Martin).</li>
-                <li><strong style="color: var(--danger);">✕ Denegada:</strong> La FIA declara la mejora ilegal o fallida.</li>
+                <li style="margin-bottom: 10px;"><strong style="color: var(--success);">✓ Éxito:</strong> La mejora se instala y el coche avanza al siguiente nivel.</li>
+                <li><strong style="color: var(--danger);">✕ Denegada:</strong> La FIA declara la mejora ilegal o fallida en el túnel de viento.</li>
             </ul>
         </div>
 
@@ -88,7 +89,7 @@
         <div class="card" style="margin-bottom: 25px;">
             <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">5.</span> Mercado de Fichajes y Salarios</h2>
             <p>Tu responsabilidad es tener a los mejores pilotos, pero estos cuestan dinero.</p>
-            <p style="margin-bottom: 10px;"><strong style="color: white;">Salarios:</strong> Cada piloto tiene un sueldo que se deduce del presupuesto de la escudería. En el Dashboard puedes modificar/renegociar su sueldo. <span style="color: var(--warning);">(Cuidado: bajar el sueldo drásticamente hundirá su moral)</span>.</p>
+            <p style="margin-bottom: 10px;"><strong style="color: white;">Salarios:</strong> Cada piloto tiene un sueldo que se deduce del presupuesto de la escudería carrera a carrera. En el Dashboard puedes modificar/renegociar su sueldo. <span style="color: var(--warning);">(Cuidado: bajar el sueldo drásticamente hundirá su moral)</span>.</p>
             <p><strong style="color: white;">Fichar Pilotos Rivales:</strong> Puedes enviar una oferta económica a un piloto de otra escudería.</p>
             <ul style="color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
                 <li><strong>Proceso:</strong> La oferta llega primero a la FIA. La FIA actúa de intermediario y notifica al equipo actual del piloto sobre tus intenciones.</li>
@@ -116,13 +117,62 @@
             </ul>
         </div>
 
+        <div class="card" style="margin-bottom: 25px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 15px;"><span style="color: var(--accent);">8.</span> Recompensas Financieras de Fin de Temporada</h2>
+            <p>Al concluir el campeonato, los equipos reciben una inyección económica por parte de la FIA basada en su posición final en el <strong>Campeonato de Constructores</strong>. ¡Estos fondos serán vitales para arrancar la siguiente temporada con fuerza!</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-top: 20px;">
+                <div style="background: rgba(255, 215, 0, 0.1); border: 1px solid #FFD700; padding: 15px 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: #FFD700; font-size: 1.2rem; font-weight: bold; margin-bottom: 5px;">1º Puesto</div>
+                    <div style="color: white; font-weight: bold;">$25 Millones</div>
+                </div>
+                <div style="background: rgba(192, 192, 192, 0.1); border: 1px solid #C0C0C0; padding: 15px 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: #C0C0C0; font-size: 1.2rem; font-weight: bold; margin-bottom: 5px;">2º Puesto</div>
+                    <div style="color: white; font-weight: bold;">$23 Millones</div>
+                </div>
+                <div style="background: rgba(205, 127, 50, 0.1); border: 1px solid #CD7F32; padding: 15px 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: #CD7F32; font-size: 1.2rem; font-weight: bold; margin-bottom: 5px;">3º Puesto</div>
+                    <div style="color: white; font-weight: bold;">$22 Millones</div>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 15px 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: var(--text-secondary); font-size: 1.1rem; font-weight: bold; margin-bottom: 5px;">4º Puesto</div>
+                    <div style="color: white; font-weight: bold;">$20 Millones</div>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 15px 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: var(--text-secondary); font-size: 1.1rem; font-weight: bold; margin-bottom: 5px;">5º Puesto</div>
+                    <div style="color: white; font-weight: bold;">$19 Millones</div>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 15px 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: var(--text-secondary); font-size: 1.1rem; font-weight: bold; margin-bottom: 5px;">6º Puesto</div>
+                    <div style="color: white; font-weight: bold;">$18 Millones</div>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 15px 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: var(--text-secondary); font-size: 1.1rem; font-weight: bold; margin-bottom: 5px;">7º Puesto</div>
+                    <div style="color: white; font-weight: bold;">$16 Millones</div>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 15px 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: var(--text-secondary); font-size: 1.1rem; font-weight: bold; margin-bottom: 5px;">8º Puesto</div>
+                    <div style="color: white; font-weight: bold;">$15 Millones</div>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 15px 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: var(--text-secondary); font-size: 1.1rem; font-weight: bold; margin-bottom: 5px;">9º Puesto</div>
+                    <div style="color: white; font-weight: bold;">$13 Millones</div>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 15px 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: var(--text-secondary); font-size: 1.1rem; font-weight: bold; margin-bottom: 5px;">10º Puesto</div>
+                    <div style="color: white; font-weight: bold;">$10 Millones</div>
+                </div>
+            </div>
+        </div>
+
         <div style="background: linear-gradient(135deg, rgba(208,208,208,0.1), transparent); border: 1px solid var(--accent); border-radius: 12px; padding: 30px; margin-top: 40px;">
             <h2 style="font-size: 1.5rem; margin-bottom: 20px; color: white; text-align: center;">🔄 Resumen del Bucle de Juego</h2>
             <ol style="color: var(--text-secondary); margin-left: 20px; line-height: 2; font-size: 1.05rem;">
                 <li>Revisa tu presupuesto y decide si inviertes en <strong>Mejoras</strong> o guardas dinero para <strong>Salarios/Fichajes</strong>.</li>
-                <li>Gestiona la <strong>moral</strong> de tus pilotos.</li>
-                <li>Si estás ciego respecto a los rivales, gasta una de tus <strong>Investigaciones</strong> de la temporada.</li>
-                <li>Espera el veredicto de la FIA en tu bandeja de <strong>Avisos</strong> sobre tus mejoras.</li>
+                <li>Firma un <strong>Patrocinador</strong> e intenta cumplir sus objetivos.</li>
+                <li>Gestiona la <strong>moral</strong> de tus pilotos negociando sus sueldos sabiamente.</li>
+                <li>Si estás ciego respecto a los rivales, gasta una de tus <strong>Investigaciones</strong> de la temporada o compra extras.</li>
+                <li>Espera el veredicto de la FIA en tu bandeja de <strong>Avisos</strong> sobre tus mejoras o fichajes.</li>
                 <li>La FIA simula la <strong>carrera</strong> y sube los resultados.</li>
                 <li>Revisa la <strong>Clasificación</strong> y la página de <strong>Media</strong> para ver las noticias post-carrera. ¡Repite hasta ser Campeón del Mundo!</li>
             </ol>

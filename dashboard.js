@@ -25,6 +25,12 @@ let currentTeamData = null;
 let allPilotos = [];
 let allEquipos = [];
 
+// Costes de mejoras dinámicos (Nivel 0->1 hasta Nivel 6->7)
+const COSTOS_AERO = [3000000, 5000000, 8000000, 12000000, 17000000, 20000000, 25000000];
+const COSTOS_MOTOR = [5000000, 8000000, 12000000, 17000000, 20000000, 25000000, 30000000];
+const MAX_LEVEL = 7;
+const TOTAL_CARRERAS = 10; // Para el contrato por rendimiento
+
 document.addEventListener("DOMContentLoaded", () => {
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
@@ -97,11 +103,8 @@ function renderUI() {
         const card = document.createElement("div");
         card.className = "driver-card-modern";
         
-        // Génerar barra de desempeño visual
         const ritmoWidth = (piloto.ritmo || 0);
         const agresividadWidth = (piloto.agresividad || 0);
-        
-        // Código de moral con emoji
         const moralEmoji = piloto.moral === "Alta" ? "😊" : (piloto.moral === "Baja" ? "😔" : "😐");
         const moralColor = piloto.moral === "Alta" ? "#4CAF50" : (piloto.moral === "Baja" ? "#f44336" : "#8888aa");
         
@@ -159,21 +162,54 @@ function renderUI() {
         driversContainer.appendChild(card);
     });
 
-
-    // Niveles de mejoras
+    // Niveles de mejoras (Adaptado a nivel máximo 7)
+    // Niveles de mejoras (Adaptado a nivel máximo 7)
     const aeroLevel = currentTeamData.aeroLevel || 0;
     const motorLevel = currentTeamData.motorLevel || 0;
     document.getElementById("aero-level").textContent = aeroLevel;
     document.getElementById("motor-level").textContent = motorLevel;
-    document.getElementById("aero-progress").style.width = (aeroLevel * 20) + "%";
-    document.getElementById("motor-progress").style.width = (motorLevel * 20) + "%";
+    document.getElementById("aero-progress").style.width = (aeroLevel * (100 / MAX_LEVEL)) + "%";
+    document.getElementById("motor-progress").style.width = (motorLevel * (100 / MAX_LEVEL)) + "%";
+
+    // --- NUEVO: ACTUALIZAR TEXTOS DE LOS BOTONES AUTOMÁTICAMENTE ---
+    
+    const btnAero = document.getElementById("btn-aero");
+    if (btnAero) {
+        if (aeroLevel >= MAX_LEVEL) {
+            btnAero.textContent = "AL MÁXIMO";
+            btnAero.disabled = true;
+            btnAero.style.opacity = "0.5";
+        } else {
+            btnAero.textContent = `Mejorar Aero ($${COSTOS_AERO[aeroLevel] / 1000000}M)`;
+            btnAero.disabled = false;
+            btnAero.style.opacity = "1";
+        }
+    }
+
+    const btnMotor = document.getElementById("btn-motor");
+    if (btnMotor) {
+        if (motorLevel >= MAX_LEVEL) {
+            btnMotor.textContent = "AL MÁXIMO";
+            btnMotor.disabled = true;
+            btnMotor.style.opacity = "0.5";
+        } else {
+            btnMotor.textContent = `Mejorar Motor ($${COSTOS_MOTOR[motorLevel] / 1000000}M)`;
+            btnMotor.disabled = false;
+            btnMotor.style.opacity = "1";
+        }
+    }
+
+    const btnBuyInv = document.getElementById("btn-buy-investigation");
+    if (btnBuyInv) {
+        btnBuyInv.textContent = "Comprar Extra ($3M)";
+    }
+    // -------------------------------------------------------------
 
     // Poblar selectores de investigación
     poblarSelectores();
 }
 
 function poblarSelectores() {
-    // Pilotos rivales
     const pilotosRivales = allPilotos.filter(p => p.equipoId !== currentTeamId);
     const selectPilot = document.getElementById("select-pilot-research");
     selectPilot.innerHTML = '<option value="">-- Seleccionar piloto --</option>';
@@ -181,7 +217,6 @@ function poblarSelectores() {
         selectPilot.innerHTML += `<option value="${p.id}">${p.nombre} ${p.apellido || ''} (#${p.numero})</option>`;
     });
 
-    // Equipos rivales para mejoras
     const equiposRivales = allEquipos.filter(e => e.id !== currentTeamId);
     const selectTeamUpgrade = document.getElementById("select-team-upgrade");
     selectTeamUpgrade.innerHTML = '<option value="">-- Seleccionar equipo --</option>';
@@ -189,7 +224,6 @@ function poblarSelectores() {
         selectTeamUpgrade.innerHTML += `<option value="${e.id}">${e.nombre}</option>`;
     });
 
-    // Equipos rivales para componentes
     const selectTeamComponent = document.getElementById("select-team-component");
     selectTeamComponent.innerHTML = '<option value="">-- Seleccionar equipo --</option>';
     equiposRivales.forEach(e => {
@@ -197,35 +231,81 @@ function poblarSelectores() {
     });
 }
 
+// Limpiar event listeners anteriores (clonando botones si fuera necesario para evitar múltiples binds, o sobreescribiendo)
 function setupListeners() {
-    // Botones de mejoras
-    document.getElementById("btn-aero").addEventListener("click", () => solicitarMejora("aerodinámica", 5000000));
-    document.getElementById("btn-motor").addEventListener("click", () => solicitarMejora("motor", 7500000));
+    // Botones de mejoras dinámicos
+    const btnAero = document.getElementById("btn-aero");
+    const btnMotor = document.getElementById("btn-motor");
+    
+    // Remueve listeners antiguos clonando el nodo
+    const newBtnAero = btnAero.cloneNode(true);
+    const newBtnMotor = btnMotor.cloneNode(true);
+    btnAero.parentNode.replaceChild(newBtnAero, btnAero);
+    btnMotor.parentNode.replaceChild(newBtnMotor, btnMotor);
 
-    // Botones de investigación
-    document.getElementById("btn-research-pilot").addEventListener("click", investigarPiloto);
-    document.getElementById("btn-research-upgrade").addEventListener("click", investigarMejora);
-    document.getElementById("btn-research-component").addEventListener("click", investigarComponente);
+    newBtnAero.addEventListener("click", () => {
+        const currentLevel = currentTeamData.aeroLevel || 0;
+        if (currentLevel >= MAX_LEVEL) {
+            alert("El Chasis/Aerodinámica ya está al nivel máximo permitido.");
+            return;
+        }
+        solicitarMejora("Chasis y Aerodinámica", COSTOS_AERO[currentLevel]);
+    });
+
+    newBtnMotor.addEventListener("click", () => {
+        const currentLevel = currentTeamData.motorLevel || 0;
+        if (currentLevel >= MAX_LEVEL) {
+            alert("El Motor ya está al nivel máximo permitido.");
+            return;
+        }
+        solicitarMejora("Motor", COSTOS_MOTOR[currentLevel]);
+    });
+
+    // Botones de investigación (Asegurar que no se dupliquen listeners igual que arriba si se llama varias veces)
+    const btnRPilot = document.getElementById("btn-research-pilot");
+    const newBtnRPilot = btnRPilot.cloneNode(true);
+    btnRPilot.parentNode.replaceChild(newBtnRPilot, btnRPilot);
+    newBtnRPilot.addEventListener("click", investigarPiloto);
+
+    const btnRUp = document.getElementById("btn-research-upgrade");
+    const newBtnRUp = btnRUp.cloneNode(true);
+    btnRUp.parentNode.replaceChild(newBtnRUp, btnRUp);
+    newBtnRUp.addEventListener("click", investigarMejora);
+
+    const btnRComp = document.getElementById("btn-research-component");
+    const newBtnRComp = btnRComp.cloneNode(true);
+    btnRComp.parentNode.replaceChild(newBtnRComp, btnRComp);
+    newBtnRComp.addEventListener("click", investigarComponente);
     
     // Botón de sponsors
-    document.getElementById("btn-sponsors").addEventListener("click", openSponsorModal);
+    const btnSponsor = document.getElementById("btn-sponsors");
+    const newBtnSponsor = btnSponsor.cloneNode(true);
+    btnSponsor.parentNode.replaceChild(newBtnSponsor, btnSponsor);
+    newBtnSponsor.addEventListener("click", openSponsorModal);
     
     // Formulario de ofertas
     const formOferta = document.getElementById("form-oferta");
     if (formOferta) {
-        formOferta.addEventListener("submit", async (e) => {
+        const newFormOferta = formOferta.cloneNode(true);
+        formOferta.parentNode.replaceChild(newFormOferta, formOferta);
+        newFormOferta.addEventListener("submit", async (e) => {
             e.preventDefault();
             await enviarOferta();
         });
     }
     
-    // --> AÑADE ESTA LÍNEA AQUÍ:
-    document.getElementById("btn-buy-investigation").addEventListener("click", comprarInvestigacionExtra);
+    // Botón de comprar investigación extra
+    const btnBuyInv = document.getElementById("btn-buy-investigation");
+    if(btnBuyInv) {
+        const newBtnBuyInv = btnBuyInv.cloneNode(true);
+        btnBuyInv.parentNode.replaceChild(newBtnBuyInv, btnBuyInv);
+        newBtnBuyInv.addEventListener("click", comprarInvestigacionExtra);
+    }
 }
 
 async function solicitarMejora(tipo, costo) {
     if (currentTeamData.presupuesto < costo) {
-        alert("Presupuesto insuficiente");
+        alert(`Presupuesto insuficiente. Se requieren $${costo.toLocaleString()} para mejorar al siguiente nivel.`);
         return;
     }
 
@@ -233,12 +313,10 @@ async function solicitarMejora(tipo, costo) {
     if (!confirmar) return;
 
     try {
-        // Restar presupuesto
         await updateDoc(doc(db, "equipos", currentTeamId), {
             presupuesto: currentTeamData.presupuesto - costo
         });
 
-        // Crear solicitud al admin
         await addDoc(collection(db, "solicitudes_admin"), {
             equipoId: currentTeamId,
             nombreEquipo: currentTeamData.nombre,
@@ -248,7 +326,6 @@ async function solicitarMejora(tipo, costo) {
             fecha: serverTimestamp()
         });
 
-        // Registrar actividad para admin
         await addDoc(collection(db, "actividad_equipos"), {
             equipoId: currentTeamId,
             nombreEquipo: currentTeamData.nombre,
@@ -265,7 +342,6 @@ async function solicitarMejora(tipo, costo) {
 }
 
 async function investigarPiloto() {
-    // Verificar límite de investigaciones usando contador persistente en el documento del equipo
     const puede = await tryConsumeInvestigation();
     if (!puede) {
         alert("Has alcanzado el límite de 3 investigaciones.");
@@ -273,10 +349,7 @@ async function investigarPiloto() {
     }
 
     const pilotoId = document.getElementById("select-pilot-research").value;
-    if (!pilotoId) {
-        alert("Selecciona un piloto");
-        return;
-    }
+    if (!pilotoId) return alert("Selecciona un piloto");
 
     const piloto = allPilotos.find(p => p.id === pilotoId);
     if (!piloto) return;
@@ -291,7 +364,6 @@ async function investigarPiloto() {
             fecha: serverTimestamp()
         });
 
-        // Registrar actividad para admin
         await addDoc(collection(db, "actividad_equipos"), {
             equipoId: currentTeamId,
             nombreEquipo: currentTeamData.nombre,
@@ -300,7 +372,6 @@ async function investigarPiloto() {
             fecha: serverTimestamp()
         });
 
-        // Enviar notificación directa
         await addDoc(collection(db, "notificaciones"), {
             equipoId: currentTeamId,
             remitente: "Sistema",
@@ -316,25 +387,17 @@ async function investigarPiloto() {
 }
 
 async function investigarMejora() {
-    // Verificar límite de investigaciones usando contador persistente en el documento del equipo
     const puede = await tryConsumeInvestigation();
-    if (!puede) {
-        alert("Has alcanzado el límite de 3 investigaciones hoy.");
-        return;
-    }
+    if (!puede) return alert("Has alcanzado el límite de 3 investigaciones.");
 
     const equipoId = document.getElementById("select-team-upgrade").value;
-    if (!equipoId) {
-        alert("Selecciona un equipo");
-        return;
-    }
+    if (!equipoId) return alert("Selecciona un equipo");
 
     const equipo = allEquipos.find(e => e.id === equipoId);
     if (!equipo) return;
 
     try {
         const ultimaMejora = equipo.ultimaMejora || "Motor";
-        
         await addDoc(collection(db, "notificaciones"), {
             equipoId: currentTeamId,
             remitente: "Sistema",
@@ -342,7 +405,6 @@ async function investigarMejora() {
             fecha: serverTimestamp()
         });
 
-        // Registrar actividad para admin
         await addDoc(collection(db, "actividad_equipos"), {
             equipoId: currentTeamId,
             nombreEquipo: currentTeamData.nombre,
@@ -351,28 +413,21 @@ async function investigarMejora() {
             fecha: serverTimestamp()
         });
 
-        alert("Información enviada a tu bandeja de avisos.");
+        alert("✅ Investigación completada. Información enviada a tu bandeja de avisos.");
         document.getElementById("select-team-upgrade").value = "";
     } catch (error) {
-        console.error("Error:", error);
+        console.error("ERROR:", error);
+        alert("❌ Error en investigación: " + error.message);
     }
 }
 
 async function investigarComponente() {
-    // Verificar límite de investigaciones usando contador persistente en el documento del equipo
     const puede = await tryConsumeInvestigation();
-    if (!puede) {
-        alert("Has alcanzado el límite de 3 investigaciones hoy.");
-        return;
-    }
+    if (!puede) return alert("Has alcanzado el límite de 3 investigaciones.");
 
     const equipoId = document.getElementById("select-team-component").value;
     const componente = document.getElementById("select-component-type").value;
-
-    if (!equipoId) {
-        alert("Selecciona un equipo");
-        return;
-    }
+    if (!equipoId) return alert("Selecciona un equipo");
 
     const equipo = allEquipos.find(e => e.id === equipoId);
     if (!equipo) return;
@@ -384,70 +439,38 @@ async function investigarComponente() {
         await addDoc(collection(db, "notificaciones"), {
             equipoId: currentTeamId,
             remitente: "Sistema",
-            texto: `🔩 Nivel de ${nombreComponente} en ${equipo.nombre}: ${nivelComponente}/5`,
+            texto: `🔩 Nivel de ${nombreComponente} en ${equipo.nombre}: ${nivelComponente}/${MAX_LEVEL}`,
             fecha: serverTimestamp()
         });
 
-        // Registrar actividad para admin
         await addDoc(collection(db, "actividad_equipos"), {
             equipoId: currentTeamId,
             nombreEquipo: currentTeamData.nombre,
             tipo: "investigacion",
-            detalle: `Investiga nivel de ${nombreComponente}: ${equipo.nombre} - Nivel: ${nivelComponente}/5`,
+            detalle: `Investiga nivel de ${nombreComponente}: ${equipo.nombre} - Nivel: ${nivelComponente}/${MAX_LEVEL}`,
             fecha: serverTimestamp()
         });
 
-        alert("Información enviada a tu bandeja de avisos.");
+        alert("✅ Investigación completada. Información enviada a tu bandeja de avisos.");
         document.getElementById("select-team-component").value = "";
     } catch (error) {
-        console.error("Error:", error);
+        console.error("ERROR:", error);
+        alert("❌ Error en investigación: " + error.message);
     }
 }
 
-async function contarInvestigacionesHoy() {
-    try {
-        const ahora = new Date();
-        const hace24h = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
-
-        const q = query(
-            collection(db, "solicitudes_admin"),
-            where("equipoId", "==", currentTeamId),
-            where("tipo", "==", "Investigación"),
-            where("fecha", ">=", hace24h)
-        );
-
-        const snap = await getDocs(q);
-        return snap.size;
-    } catch (error) {
-        console.error("Error contando investigaciones:", error);
-        return 0;
-    }
-}
-
-// Persistente: intenta consumir 1 investigación del contador del equipo (resetea a diario)
 async function tryConsumeInvestigation() {
     try {
         const teamRef = doc(db, "equipos", currentTeamId);
         const teamSnap = await getDoc(teamRef);
-        if (!teamSnap.exists()) return true; // no hay equipo, permitir (fall-back)
+        if (!teamSnap.exists()) return true;
 
         const team = teamSnap.data();
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
         let count = team.investigacionesCount || 0;
-        const resetTs = team.investigacionesReset ? (team.investigacionesReset.toDate ? team.investigacionesReset.toDate() : new Date(team.investigacionesReset)) : null;
-
-        // Si no hay marca de reset o es anterior al inicio del día, reiniciamos el contador
-        if (!resetTs || resetTs < todayStart) {
-            count = 0;
-            await updateDoc(teamRef, { investigacionesCount: 0, investigacionesReset: serverTimestamp() });
-        }
 
         if (count >= 3) return false;
 
-        await updateDoc(teamRef, { investigacionesCount: count + 1, investigacionesReset: serverTimestamp() });
-        // Actualizar caché local si existe
+        await updateDoc(teamRef, { investigacionesCount: count + 1 });
         if (currentTeamData) currentTeamData.investigacionesCount = count + 1;
         return true;
     } catch (error) {
@@ -457,22 +480,20 @@ async function tryConsumeInvestigation() {
 }
 
 async function comprarInvestigacionExtra() {
-    const costo = 1000000; // Precio de la investigación extra (1 Millón)
+    const costo = 3000000; // PRECIO ACTUALIZADO A 3 MILLONES
     
-    // 1. Comprobar si hay dinero
     if (currentTeamData.presupuesto < costo) {
-        alert("Presupuesto insuficiente para comprar una investigación extra.");
+        alert("Presupuesto insuficiente para comprar una investigación extra (Costo: $3,000,000).");
         return;
     }
 
-    // 2. Comprobar si ya tiene el contador a tope (no tendría sentido que compre si aún no ha gastado las gratis)
     const teamRef = doc(db, "equipos", currentTeamId);
     const teamSnap = await getDoc(teamRef);
     const team = teamSnap.data();
     let currentCount = team.investigacionesCount || 0;
 
     if (currentCount === 0) {
-        alert("Aún tienes todas tus investigaciones gratis disponibles hoy. ¡Úsalas primero!");
+        alert("Aún tienes todas tus investigaciones gratis disponibles. ¡Úsalas primero!");
         return;
     }
 
@@ -480,10 +501,8 @@ async function comprarInvestigacionExtra() {
     if (!confirmar) return;
 
     try {
-        // 3. Restamos 1 al contador (sin dejar que baje de 0) para habilitar un hueco libre
         let newCount = currentCount > 0 ? currentCount - 1 : 0;
 
-        // 4. Actualizamos la base de datos (dinero y contador)
         await updateDoc(teamRef, {
             presupuesto: currentTeamData.presupuesto - costo,
             investigacionesCount: newCount
@@ -491,7 +510,6 @@ async function comprarInvestigacionExtra() {
 
         alert("¡Has comprado una investigación extra con éxito! Ya puedes usarla.");
         
-        // Registrar actividad para admin (SOLO para admin, no visible en equipos)
         await addDoc(collection(db, "actividad_equipos"), {
             equipoId: currentTeamId,
             nombreEquipo: currentTeamData.nombre,
@@ -500,7 +518,6 @@ async function comprarInvestigacionExtra() {
             fecha: serverTimestamp()
         });
         
-        // 5. Recargamos los datos para que el presupuesto se actualice visualmente en la pantalla
         await cargarDatos(); 
         
     } catch (error) {
@@ -559,17 +576,12 @@ async function openSponsorModal() {
         const contract = team.sponsor_contract;
         const isUnlocked = team.sponsor_contract_unlocked || false;
 
-        // Si no hay contrato o está desbloqueado, mostrar opciones
         if (!contract || isUnlocked) {
             mostrarSeccionOpcion();
-            // Limpiar flag de desbloqueo si está activo
             if (isUnlocked && contract) {
-                await updateDoc(teamRef, {
-                    sponsor_contract_unlocked: false
-                });
+                await updateDoc(teamRef, { sponsor_contract_unlocked: false });
             }
         } else {
-            // Mostrar contrato existente bloqueado
             mostrarSeccionContrato(contract);
         }
     } catch (error) {
@@ -597,10 +609,7 @@ function mostrarSeccionContrato(contract) {
     document.getElementById("sponsors-contract-section").style.display = "block";
 
     const contractDisplay = document.getElementById("sponsors-contract-section");
-    const tipoTexto = contract.type === "fixed" ? "Dinero Garantizado" : "Dinero + Bonus";
-    const totalTexto = contract.type === "fixed" 
-        ? `$${contract.guaranteed.toLocaleString()}` 
-        : `$${contract.base.toLocaleString()} - $${contract.max.toLocaleString()}`;
+    const tipoTexto = contract.type === "fixed" ? "Dinero Garantizado" : "Dinero + Bonus por Carrera";
 
     contractDisplay.innerHTML = `
         <h3 style="margin-top: 0; color: var(--accent);">✅ Contrato Activo</h3>
@@ -608,23 +617,21 @@ function mostrarSeccionContrato(contract) {
             <p style="margin: 0 0 10px 0;"><strong>Tipo:</strong> ${tipoTexto}</p>
             ${contract.type === "performance" ? `
                 <p style="margin: 0 0 10px 0;"><strong>Base Garantizada:</strong> $${contract.base.toLocaleString()}</p>
-                <p style="margin: 0 0 10px 0;"><strong>Bonus Máximo:</strong> $${contract.bonus.toLocaleString()}</p>
                 <p style="margin: 0 0 10px 0;"><strong>Objetivo de Posición:</strong> Posición ${contract.targetPosition}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Bonus por Carrera (Max):</strong> $${(contract.perRaceBonus || 0).toLocaleString()} <span style="font-size: 0.8em; color: var(--text-secondary);">(${contract.racesProcessed || 0}/${TOTAL_CARRERAS} carreras)</span></p>
                 <p style="margin: 0 0 10px 0;"><strong>Total Máximo:</strong> $${contract.max.toLocaleString()}</p>
             ` : `
                 <p style="margin: 0 0 10px 0;"><strong>Total Garantizado:</strong> $${contract.guaranteed.toLocaleString()}</p>
             `}
         </div>
-        <p style="color: var(--text-secondary); font-size: 0.9rem;">El bonus se calcula al final de la temporada según tu desempeño.</p>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">El bonus se evalúa tras cada Gran Premio.</p>
     `;
 }
 
 window.selectSponsorOption = function(type) {
     if (type === "fixed") {
-        // Contrato fijo de $45M
         saveFixedContract();
     } else if (type === "performance") {
-        // Mostrar selector de posición
         mostrarSeccionExpectativas();
     }
 };
@@ -641,12 +648,18 @@ async function saveFixedContract() {
             sponsor_contract: contract,
             presupuesto: currentTeamData.presupuesto + 45000000
         });
+        
+        await addDoc(collection(db, "actividad_equipos"), {
+            equipoId: currentTeamId,
+            nombreEquipo: currentTeamData.nombre,
+            tipo: "contrato_sponsor",
+            detalle: `Firma contrato de patrocinio fijo: $45,000,000 garantizados`,
+            fecha: serverTimestamp()
+        });
 
         currentTeamData.sponsor_contract = contract;
         currentTeamData.presupuesto += 45000000;
         mostrarSeccionContrato(contract);
-        
-        // Actualizar UI
         document.getElementById("team-budget").textContent = `$${currentTeamData.presupuesto.toLocaleString()}`;
     } catch (error) {
         console.error("Error al guardar contrato fijo:", error);
@@ -654,18 +667,9 @@ async function saveFixedContract() {
     }
 }
 
-// Tabla de presupuestos por posición objetivo
 const sponsorBudgetTable = {
-    1: 55000000,
-    2: 53000000,
-    3: 51000000,
-    4: 50000000,
-    5: 48000000,
-    6: 46000000,
-    7: 44000000,
-    8: 42000000,
-    9: 40000000,
-    10: 40000000
+    1: 55000000, 2: 53000000, 3: 51000000, 4: 50000000, 5: 48000000,
+    6: 46000000, 7: 44000000, 8: 42000000, 9: 40000000, 10: 40000000
 };
 
 window.updatePositionDisplay = function(value) {
@@ -677,7 +681,6 @@ window.updatePositionDisplay = function(value) {
     const initialPayment = Math.round(maxTotal * 0.5);
     const maxBonus = maxTotal - initialPayment;
 
-    // Actualizar display
     const positionText = targetPosition === 1 ? "1º" : (targetPosition === 2 ? "2º" : (targetPosition === 3 ? "3º" : targetPosition + "º"));
     document.getElementById("expected-position").textContent = positionText;
     document.getElementById("estimated-base").textContent = `$${initialPayment.toLocaleString()}`;
@@ -691,13 +694,16 @@ window.confirmSponsorExpectations = function() {
     const maxTotal = sponsorBudgetTable[targetPosition];
     const initialPayment = Math.round(maxTotal * 0.5);
     const maxBonus = maxTotal - initialPayment;
+    const perRaceBonus = Math.floor(maxBonus / TOTAL_CARRERAS); // BONUS POR CARRERA AÑADIDO
 
     const contract = {
         type: "performance",
         base: initialPayment,
         bonus: maxBonus,
+        perRaceBonus: perRaceBonus,
         max: maxTotal,
         targetPosition: targetPosition,
+        racesProcessed: 0,
         savedAt: serverTimestamp()
     };
 
@@ -710,12 +716,18 @@ async function savePerformanceContract(contract) {
             sponsor_contract: contract,
             presupuesto: currentTeamData.presupuesto + contract.base
         });
+        
+        await addDoc(collection(db, "actividad_equipos"), {
+            equipoId: currentTeamId,
+            nombreEquipo: currentTeamData.nombre,
+            tipo: "contrato_sponsor",
+            detalle: `Firma contrato con objetivo ${contract.targetPosition}: $${contract.base.toLocaleString()} base + $${contract.perRaceBonus.toLocaleString()} bonus/carrera`,
+            fecha: serverTimestamp()
+        });
 
         currentTeamData.sponsor_contract = contract;
         currentTeamData.presupuesto += contract.base;
         mostrarSeccionContrato(contract);
-
-        // Actualizar UI
         document.getElementById("team-budget").textContent = `$${currentTeamData.presupuesto.toLocaleString()}`;
     } catch (error) {
         console.error("Error al guardar contrato performance:", error);
@@ -731,7 +743,6 @@ window.closeSponsorModal = function() {
     document.getElementById("sponsors-modal").style.display = "none";
 };
 
-// Cerrar modal al hacer click fuera
 document.addEventListener("click", function(event) {
     const modal = document.getElementById("sponsors-modal");
     if (event.target === modal) {
@@ -739,31 +750,19 @@ document.addEventListener("click", function(event) {
     }
 });
 
-// Función para calcular el porcentaje de bonus según la diferencia de posiciones
-function calculateBonusPercentage(finalPosition, targetPosition) {
-    const difference = finalPosition - targetPosition;
+// NUEVA FUNCIÓN DE CÁLCULO DE BONUS POR CARRERA
+function calculateRaceBonusPercentage(racePosition, targetPosition) {
+    const difference = racePosition - targetPosition;
     
-    if (difference <= 0) {
-        // Mejor o en la posición objetivo
-        return 100;
-    } else if (difference === 1) {
-        // -1 puesto
-        return 100;
-    } else if (difference === 2) {
-        // -2 puestos
-        return 75;
-    } else if (difference >= 3 && difference < 5) {
-        // -3 a -4 puestos
-        return 55;
-    } else if (difference >= 5) {
-        // -5 o más puestos
-        return 40;
-    }
-    return 40; // Fallback
+    if (difference <= 0) return 100;
+    if (difference === 1) return 100;
+    if (difference === 2) return 75;
+    if (difference >= 3 && difference < 5) return 55;
+    return 40; // Fallback y para 5 o más
 }
 
-// Función para procesar al final de temporada (llamada por admin)
-window.processSeasonSponsorBonus = async function(teamId, finalTeamPosition) {
+// NUEVA FUNCIÓN PARA PROCESAR EL BONUS CARRERA A CARRERA (Para el Admin o Simulador)
+window.processRaceSponsorBonus = async function(teamId, racePosition, raceNumber) {
     try {
         const teamRef = doc(db, "equipos", teamId);
         const teamSnap = await getDoc(teamRef);
@@ -773,34 +772,32 @@ window.processSeasonSponsorBonus = async function(teamId, finalTeamPosition) {
         const team = teamSnap.data();
         const contract = team.sponsor_contract;
         
-        if (!contract || contract.type !== "performance") {
-            return false; // Solo procesa performance contracts
-        }
+        if (!contract || contract.type !== "performance") return false;
+        if (contract.racesProcessed >= TOTAL_CARRERAS) return false;
         
-        const bonusPercentage = calculateBonusPercentage(finalTeamPosition, contract.targetPosition);
-        const bonusAmount = Math.floor((contract.bonus * bonusPercentage) / 100);
-        const totalAmount = contract.base + bonusAmount;
+        const bonusPercentage = calculateRaceBonusPercentage(racePosition, contract.targetPosition);
+        const raceBonusAmount = Math.floor((contract.perRaceBonus * bonusPercentage) / 100);
         
-        // Guardar resultado del bonus
         await updateDoc(teamRef, {
-            sponsor_bonus_processed: {
-                targetPosition: contract.targetPosition,
-                finalPosition: finalTeamPosition,
-                bonusPercentage: bonusPercentage,
-                bonusAmount: bonusAmount,
-                totalAmount: totalAmount,
-                processedAt: serverTimestamp()
-            }
+            presupuesto: team.presupuesto + raceBonusAmount,
+            "sponsor_contract.racesProcessed": contract.racesProcessed + 1
         });
         
-        return { bonusPercentage, bonusAmount, totalAmount };
+        await addDoc(collection(db, "actividad_equipos"), {
+            equipoId: teamId,
+            nombreEquipo: team.nombre,
+            tipo: "ingreso_carrera",
+            detalle: `Bonus Carrera ${raceNumber}: Finalizó ${racePosition}º (Objetivo: ${contract.targetPosition}º). Ingreso: $${raceBonusAmount.toLocaleString()} (${bonusPercentage}%)`,
+            fecha: serverTimestamp()
+        });
+        
+        return { bonusPercentage, raceBonusAmount, currentBudget: team.presupuesto + raceBonusAmount };
     } catch (error) {
-        console.error("Error procesando bonus:", error);
+        console.error("Error procesando bonus de carrera:", error);
         return false;
     }
 };
 
-// Función para desbloquear contratos (llamada por admin)
 window.unlockSponsorContracts = async function(teamId) {
     try {
         const teamRef = doc(db, "equipos", teamId);
@@ -832,33 +829,33 @@ window.negociarSalario = async function(pilotoId) {
         salarioActual.toString()
     );
     
-    if (nuevoSalario === null) return; // Usuario canceló
+    if (nuevoSalario === null) return; 
     
     const salarioNumerico = parseInt(nuevoSalario);
-    if (isNaN(salarioNumerico) || salarioNumerico < 0) {
-        alert("❌ Ingresa un número válido");
-        return;
-    }
+    if (isNaN(salarioNumerico) || salarioNumerico < 0) return alert("❌ Ingresa un número válido");
     
     const diferencia = salarioNumerico - salarioActual;
     
     if (diferencia > 0 && currentTeamData.presupuesto < diferencia) {
-        alert("❌ Presupuesto insuficiente para esta renegociación");
-        return;
+        return alert("❌ Presupuesto insuficiente para esta renegociación");
     }
     
     try {
-        // Actualizar salario del piloto
-        await updateDoc(doc(db, "pilotos", pilotoId), {
-            salario: salarioNumerico
-        });
+        await updateDoc(doc(db, "pilotos", pilotoId), { salario: salarioNumerico });
         
-        // Si hay diferencia positiva, restar del presupuesto
         if (diferencia > 0) {
             await updateDoc(doc(db, "equipos", currentTeamId), {
                 presupuesto: currentTeamData.presupuesto - diferencia
             });
         }
+        
+        await addDoc(collection(db, "actividad_equipos"), {
+            equipoId: currentTeamId,
+            nombreEquipo: currentTeamData.nombre,
+            tipo: "nego_salario",
+            detalle: `Renegocia salario de ${piloto.nombre}: de $${salarioActual.toLocaleString()} a $${salarioNumerico.toLocaleString()} (Cambio: $${(diferencia > 0 ? '+' : '')}${diferencia.toLocaleString()})`,
+            fecha: serverTimestamp()
+        });
         
         alert(`✅ Salario actualizado a $${salarioNumerico.toLocaleString()} por carrera`);
         cargarDatos();
@@ -867,7 +864,6 @@ window.negociarSalario = async function(pilotoId) {
         alert("❌ Error al actualizar el salario");
     }
 };
-
 
 window.verDetalles = function(pilotoId) {
     const piloto = allPilotos.find(p => p.id === pilotoId);
@@ -889,21 +885,15 @@ window.verDetalles = function(pilotoId) {
         `🏁 Carreras disputadas: 0\n` +
         `🥇 Victorias: 0\n` +
         `📊 Puntos: 0`);
-    // TODO: Mostrar data real de carreras, victorias y puntos
 };
+
 // ==========================================
 // MERCADO DE PILOTOS Y OFERTAS
 // ==========================================
 window.abrirModalSeleccionarPiloto = function() {
-    // Obtener pilotos rivales
     const pilotosRivales = allPilotos.filter(p => p.equipoId !== currentTeamId);
+    if (pilotosRivales.length === 0) return alert("No hay pilotos rivales disponibles");
     
-    if (pilotosRivales.length === 0) {
-        alert("No hay pilotos rivales disponibles");
-        return;
-    }
-    
-    // Llenar el select
     const selectPiloto = document.getElementById("oferta-piloto-select");
     selectPiloto.innerHTML = '<option value="">-- Selecciona un piloto --</option>';
     
@@ -913,15 +903,11 @@ window.abrirModalSeleccionarPiloto = function() {
         selectPiloto.innerHTML += `<option value="${piloto.id}">${texto}</option>`;
     });
     
-    // Abrir modal
     document.getElementById("modal-oferta").style.display = "flex";
-    
-    // Limpiar el formulario
     document.getElementById("form-oferta").reset();
     document.getElementById("oferta-piloto-info").style.display = "none";
 };
 
-// Listener para cambio de piloto en el select
 document.addEventListener("DOMContentLoaded", () => {
     const selectPiloto = document.getElementById("oferta-piloto-select");
     if (selectPiloto) {
@@ -946,11 +932,7 @@ window.cerrarModalOferta = function() {
 
 async function enviarOferta() {
     const pilotoId = document.getElementById("oferta-piloto-select").value;
-    
-    if (!pilotoId) {
-        alert("❌ Selecciona un piloto primero");
-        return;
-    }
+    if (!pilotoId) return alert("❌ Selecciona un piloto primero");
     
     const compensacion = parseInt(document.getElementById("oferta-compensacion").value);
     const sueldo = parseInt(document.getElementById("oferta-sueldo").value);
@@ -960,15 +942,12 @@ async function enviarOferta() {
     const equipoOrigen = allEquipos.find(e => e.id === currentTeamId);
     const equipoDestino = allEquipos.find(e => e.id === piloto.equipoId);
     
-    // Validar presupuesto
     const costoTotal = (compensacion * 1000000) + sueldo;
     if ((equipoOrigen.presupuesto || 0) < costoTotal) {
-        alert("❌ No tienes presupuesto suficiente para esta oferta.");
-        return;
+        return alert("❌ No tienes presupuesto suficiente para esta oferta.");
     }
     
     try {
-        // Crear oferta
         const ofertaId = await addDoc(collection(db, "ofertas"), {
             equipoOrigenId: currentTeamId,
             equipoDestinoId: piloto.equipoId,
@@ -981,7 +960,14 @@ async function enviarOferta() {
             fecha: serverTimestamp()
         });
         
-        // Notificar al admin
+        await addDoc(collection(db, "actividad_equipos"), {
+            equipoId: currentTeamId,
+            nombreEquipo: currentTeamData.nombre,
+            tipo: "oferta_fichaje",
+            detalle: `Envía oferta de fichaje a #${piloto.numero} ${piloto.nombre} (${equipoDestino?.nombre}). Compensación: $${compensacion}M, Sueldo: $${sueldo.toLocaleString()}`,
+            fecha: serverTimestamp()
+        });
+        
         await addDoc(collection(db, "notificaciones"), {
             equipoId: "admin",
             remitente: equipoOrigen.nombre,
@@ -1000,20 +986,15 @@ async function enviarOferta() {
     }
 }
 
-// Funciones para mensajes de aprobación
 async function aprobarMensaje(notifId, mensajeId) {
     try {
-        // Guardar respuesta
         await addDoc(collection(db, "respuestas_mensajes"), {
             mensajeId: mensajeId,
             equipoId: currentTeamId,
             estado: "aprobado",
             fecha: serverTimestamp()
         });
-        
-        // Eliminar notificación
         await deleteDoc(doc(db, "notificaciones", notifId));
-        
         alert("Mensaje aprobado.");
     } catch (error) {
         console.error("Error aprobando mensaje:", error);
@@ -1023,17 +1004,13 @@ async function aprobarMensaje(notifId, mensajeId) {
 
 async function denegarMensaje(notifId, mensajeId) {
     try {
-        // Guardar respuesta
         await addDoc(collection(db, "respuestas_mensajes"), {
             mensajeId: mensajeId,
             equipoId: currentTeamId,
             estado: "denegado",
             fecha: serverTimestamp()
         });
-        
-        // Eliminar notificación
         await deleteDoc(doc(db, "notificaciones", notifId));
-        
         alert("Mensaje denegado.");
     } catch (error) {
         console.error("Error denegando mensaje:", error);
@@ -1041,6 +1018,5 @@ async function denegarMensaje(notifId, mensajeId) {
     }
 }
 
-// Hacer funciones globales
 window.aprobarMensaje = aprobarMensaje;
 window.denegarMensaje = denegarMensaje;
