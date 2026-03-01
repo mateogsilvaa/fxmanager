@@ -543,21 +543,22 @@ window.editarCarrera = (data) => {
     if(data.pole) poleSelect.value = data.pole;
     if(data.vr) vrSelect.value = data.vr;
 
-    // Generar 20 selects para cada pestaña
+  // Generar 20 selects para cada pestaña
     const generarSelects = (containerId, prefijo, datosGuardados, tiemposGuardados, vueltasGuardados) => {
         const container = document.getElementById(containerId);
         container.innerHTML = "";
         for (let i = 1; i <= 20; i++) {
             container.innerHTML += `
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                    <label style="font-size:0.8rem;">P${i}</label>
+                <div style="display:flex; flex-direction:column; gap:4px; margin-bottom: 8px;">
+                    <label style="font-size:0.8rem; color: var(--accent); font-weight: bold;">Posición ${i}º</label>
                     <select id="${prefijo}-${i}" style="padding:8px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-primary); color:white;">
                         ${opcionesPilotos}
                     </select>
-                    <input type="text" id="${prefijo}-${i}-tiempo" placeholder="tiempo" style="padding:4px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-primary); color:white;" />
-                    <input type="number" id="${prefijo}-${i}-vueltas" placeholder="vueltas" min="0" style="padding:4px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-primary); color:white;" />
+                    <div style="display: flex; gap: 5px;">
+                        <input type="text" inputmode="text" id="${prefijo}-${i}-tiempo" placeholder="Ej: 1:20.450" style="flex: 2; padding:6px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-primary); color:white; font-family: monospace;" />
+                        <input type="number" id="${prefijo}-${i}-vueltas" placeholder="Vueltas" min="0" style="flex: 1; padding:6px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-primary); color:white;" />
+                    </div>
                 </div>`;
-            // Rellenar si hay datos (se hará después en el bucle superior)
         }
     };
 
