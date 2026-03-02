@@ -89,9 +89,12 @@
             </section>
 
             <section id="panel-equipos" class="admin-panel">
-                <div style="display:flex; justify-content:space-between; margin-bottom: 20px;">
-                    <h2>Gestión de Equipos</h2>
-                    <button class="btn-outline" onclick="abrirModal('modal-equipo')">+ Crear Equipo</button>
+                <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">Gestión de Equipos</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-outline" style="border-color: var(--warning); color: var(--warning);" onclick="cobrarSueldosPilotos()">💰 Cobrar Sueldos</button>
+                        <button type="button" class="btn-outline" onclick="abrirModal('modal-equipo')">+ Crear Equipo</button>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table class="admin-table">
