@@ -1076,3 +1076,101 @@ async function cargarRespuestas() {
         listaRespuestas.innerHTML = "<p>Error al cargar las respuestas.</p>";
     }
 }
+
+// ==========================================
+// FUNCIONES DEL MERCADO DE AGENTES S2 (ADMIN)
+// ==========================================
+
+window.generarMercadoDiario = async function() {
+    if (!confirm("¿Generar un nuevo mercado? Esto borrará cualquier agente que esté actualmente sin vender.")) return;
+    
+    // 1. Limpiar mercado actual
+    const mercadoSnap = await getDocs(collection(db, "mercado_agentes"));
+    for (const docSnap of mercadoSnap.docs) {
+        await deleteDoc(doc(db, "mercado_agentes", docSnap.id));
+    }
+
+    // 2. Nombres falsos aleatorios para darle inmersión
+    const nombresPilotos = ["M. Dubois", "A. Silva", "K. Tanaka", "J. Rossi", "L. Weber"];
+    const nombresJuniors = ["T. Rookie", "S. Veloce", "N. Promesa", "E. Fast", "O. Talent"];
+    const nombresIngenieros = ["Dr. Aero", "H. Motor", "G. Setup", "V. Chasis", "B. Pista"];
+
+    const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    // 3. Crear 2 Pilotos, 2 Juniors y 2 Ingenieros
+    const agentesNuevos = [
+        { tipo: "piloto", nombre: getRandom(nombresPilotos) + " (Piloto Libre)", stats: "Ritmo: 75 | Agresividad: 80", precioBase: 2000000 },
+        { tipo: "piloto", nombre: getRandom(nombresPilotos) + " (Piloto Libre)", stats: "Ritmo: 82 | Agresividad: 60", precioBase: 3000000 },
+        { tipo: "junior", nombre: getRandom(nombresJuniors) + " (Junior F2)", stats: "Potencial Alto | Sueldo Anual", precioBase: 1000000 },
+        { tipo: "junior", nombre: getRandom(nombresJuniors) + " (Junior F3)", stats: "Diamante en bruto", precioBase: 500000 },
+        { tipo: "ingeniero", nombre: getRandom(nombresIngenieros) + " (Ing. Pista)", stats: "Mejora ritmo + Moral", precioBase: 1500000 },
+        { tipo: "ingeniero", nombre: getRandom(nombresIngenieros) + " (Ing. Mesa)", stats: "Mejora curva de fallos", precioBase: 2500000 }
+    ];
+
+    try {
+        for (const agente of agentesNuevos) {
+            await addDoc(collection(db, "mercado_agentes"), {
+                ...agente,
+                pujaActual: 0,
+                mejorPostorId: null,
+                mejorPostorNombre: null,
+                fechaCreacion: serverTimestamp()
+            });
+        }
+        
+        // Notificar a todos los equipos que el mercado abrió
+        for (const eq of equiposList) {
+            await addDoc(collection(db, "notificaciones"), {
+                equipoId: eq.id,
+                remitente: "FIA",
+                texto: `🛒 ¡El Mercado de Agentes ha abierto! Tienes 24h para pujar por pilotos e ingenieros libres.`,
+                fecha: serverTimestamp()
+            });
+        }
+        
+        alert("✅ Mercado generado. Los equipos ya pueden pujar.");
+    } catch (e) {
+        console.error(e);
+        alert("Error generando mercado.");
+    }
+};
+
+window.cerrarMercadoDiario = async function() {
+    if (!confirm("¿Cerrar el mercado? Se asignarán los derechos a los ganadores y se vaciará la lista.")) return;
+
+    try {
+        const mercadoSnap = await getDocs(collection(db, "mercado_agentes"));
+        
+        for (const docSnap of mercadoSnap.docs) {
+            const agente = docSnap.data();
+            
+            // Si alguien ganó la puja
+            if (agente.mejorPostorId) {
+                // Notificar al ganador
+                await addDoc(collection(db, "notificaciones"), {
+                    equipoId: agente.mejorPostorId,
+                    remitente: "Mercado FIA",
+                    texto: `🏆 ¡Has ganado la subasta por ${agente.nombre} (Por $${agente.pujaActual.toLocaleString()})! Tienes los derechos para negociar su contrato.`,
+                    fecha: serverTimestamp()
+                });
+                
+                // Registrar en actividad
+                await addDoc(collection(db, "actividad_equipos"), {
+                    equipoId: agente.mejorPostorId,
+                    nombreEquipo: agente.mejorPostorNombre,
+                    tipo: "mercado",
+                    detalle: `Ganó la subasta por ${agente.nombre} pagando $${agente.pujaActual.toLocaleString()}`,
+                    fecha: serverTimestamp()
+                });
+            }
+            
+            // Borrar el agente del mercado
+            await deleteDoc(doc(db, "mercado_agentes", docSnap.id));
+        }
+
+        alert("🛑 Mercado cerrado correctamente. Ganadores notificados.");
+    } catch (e) {
+        console.error(e);
+        alert("Error cerrando mercado.");
+    }
+};
