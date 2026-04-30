@@ -1,0 +1,8 @@
+# Archivos de Firebase (se generarán en el futuro)
+.firebase/
+firebase-debug.log
+.firebaserc
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db

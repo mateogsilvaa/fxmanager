@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="modern.css">
+    <link rel="stylesheet" href="mobile-responsive.css">
+    <link rel="stylesheet" href="hamburger.css">
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .hero-section {
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        .countdown-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-top: 40px;
+            padding: 30px;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            animation: slideDown 1s ease-out 0.3s both;
+        }
+        .countdown-boxes {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 15px;
+            text-align: center;
+            justify-content: center;
+            align-items: center;
+        }
+        @media (max-width: 600px) {
+            .countdown-boxes { gap: 10px; }
+            .countdown-section { padding: 20px; }
+        }
+        .countdown-box {
+            background-color: var(--bg-tertiary);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            min-width: 90px;
+            width: 100%;
+            max-width: 110px;
+            aspect-ratio: 1 / 1;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+            transition: all 0.3s ease;
+            animation: fadeIn 0.8s ease-out;
+        }
+        .countdown-box:hover {
+            transform: translateY(-5px);
+            border-color: #e0e0e0;
+            box-shadow: 0 8px 12px rgba(255, 255, 255, 0.2);
+        }
+        .countdown-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #e4e4e4;
+        }
+        .countdown-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar thin-navbar">
+        <div class="nav-brand"><strong>⚡ FXMANAGER</strong></div>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menú"><span></span><span></span><span></span></button>
+        <ul class="nav-links" id="nav-links">
+            <li><a href="index.html" class="active">Inicio</a></li>
+            <li><a href="equipos.html">Equipos</a></li>
+            <li><a href="calendario.html">Calendario</a></li>
+            <li><a href="clasificacion.html">Clasificación</a></li>
+            <li><a href="media.html">Media</a></li>
+            <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Equipo</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <!-- HERO SECTION -->
+        <div class="hero-section" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(208,208,208,0.05) 100%);">
+            <div class="hero-content">
+                <h1 class="hero-title" style="font-size: 3.5rem; color: #ffffff;">🏁 FX MANAGER</h1>
+                <p class="hero-sub" style="font-size: 1.3rem; max-width: 700px; margin: 15px auto;">Tu visión, tu estrategia, tu equipo. Compite en la elite del automovilismo mundial.</p>
+                
+                <div class="hero-actions" style="gap: 15px; margin-top: 30px;">
+                    <a href="equipos.html" class="btn-solid hero-btn" style="padding: 14px 40px; font-size: 1.1rem; background: #ffffff;">🚀 ver Equipos</a>
+                    <a href="clasificacion.html" class="btn-outline hero-btn" style="padding: 14px 40px; font-size: 1.1rem;">📊 Ver Campeonato</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- COUNTDOWN SECTION -->
+        <div class="countdown-section" style="margin: 50px auto; max-width: 900px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 style="margin: 0 0 10px 0; color: var(--accent);">⏱️ Próxima Carrera</h2>
+                <p style="color: var(--text-secondary); margin: 0;">Tiempo hasta el próximo Gran Premio</p>
+            </div>
+
+            <div class="countdown-boxes" id="countdown-container">
+                <div class="countdown-box" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(24, 24, 27, 0.05));">
+                    <div class="countdown-value" id="days">0</div>
+                    <div class="countdown-label">Días</div>
+                </div>
+
+                <div class="countdown-box" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(24, 24, 27, 0.05));">
+                    <div class="countdown-value" id="hours">0</div>
+                    <div class="countdown-label">Horas</div>
+                </div>
+
+                <div class="countdown-box" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(24, 24, 27, 0.05));">
+                    <div class="countdown-value" id="minutes">0</div>
+                    <div class="countdown-label">Minutos</div>
+                </div>
+
+                <div class="countdown-box" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(24, 24, 27, 0.05));">
+                    <div class="countdown-value" id="seconds">0</div>
+                    <div class="countdown-label">Segundos</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FEATURES SECTION -->
+       
+        <!-- CTA FINAL -->
+        <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(208,208,208,0.05) 100%); padding: 60px 20px; text-align: center; border-top: 1px solid var(--border-color);">
+            <h2 style="margin-top: 0; font-size: 2rem;">¿Listo para competir?</h2>
+            <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 30px;">Únete a la liga contra otros managers y demuestra por qué eres el mejor.</p>
+            <a href="login.html" class="btn-solid" style="padding: 14px 50px; font-size: 1.1rem; background: #ffffff; display: inline-block;">Inicia sesión ahora</a>
+        </div>
+    </main>
+
+    <div id="nav-auth" style="display: none;"></div>
+    <script type="module" src="home.js"></script>
+    <script>
+        // Countdown timer
+        function updateCountdown() {
+            // Próxima carrera: 15 de febrero de 2026
+            const nextRace = new Date('2026-03-01T20:00:00').getTime();
+            const now = new Date().getTime();
+            const distance = nextRace - now;
+
+            if (distance < 0) {
+                document.getElementById('days').textContent = '0';
+                document.getElementById('hours').textContent = '0';
+                document.getElementById('minutes').textContent = '0';
+                document.getElementById('seconds').textContent = '0';
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById('days').textContent = days;
+            document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+            document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+            document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+
+        // removed old select-based nav
+    </script>
+    <script src="nav.js" defer></script>
+</body>
+</html>

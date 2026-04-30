@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipos</title>
+    <link rel="stylesheet" href="modern.css">
+    <link rel="stylesheet" href="mobile-responsive.css">
+    <link rel="stylesheet" href="hamburger.css">
+</head>
+<body>
+    
+    <nav class="navbar thin-navbar">
+        <div class="nav-brand"><strong>⚡ FXMANAGER</strong></div>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menú"><span></span><span></span><span></span></button>
+        <ul class="nav-links" id="nav-links">
+            <li><a href="index.html">Inicio</a></li>
+            <li><a href="equipos.html" class="active">Equipos</a></li>
+            <li><a href="calendario.html">Calendario</a></li>
+            <li><a href="clasificacion.html">Clasificación</a></li>
+            <li><a href="media.html">Media</a></li>
+            <li id="nav-dashboard" style="display: none;"><a href="dashboard.html">Mi Equipo</a></li>
+        </ul>
+    </nav>
+
+    <main class="container" style="padding: 40px 20px;">
+        <header style="text-align: center; margin-bottom: 50px;">
+            <h1 style="margin-bottom: 10px;">ESCUDERÍAS</h1>
+            <p style="font-size: 1.1rem; color: var(--text-secondary);">Elige tu equipo y conviértete en su jefe de escudería. Maneja el presupuesto, mejora el monoplaza y lleva a tus pilotos a la victoria.</p>
+        </header>
+
+        <div id="grid-equipos" class="team-grid-modern">
+            <p style="text-align:center; color: var(--text-secondary); width: 100%; padding: 40px;">Cargando equipos...</p>
+        </div>
+    </main>
+
+    <footer style="text-align: center; padding: 30px 20px; border-top: 1px solid var(--border-color); color: var(--text-secondary); margin-top: 40px;">
+        <p>&copy; FX Manager. Todos los derechos reservados.</p>
+    </footer>
+
+    <script type="module" src="equipos.js"></script>
+    <script>
+        function logout() {
+            localStorage.clear();
+            window.location.reload();
+        }
+    </script>
+    <script src="nav.js" defer></script>
+</body>
+</html>

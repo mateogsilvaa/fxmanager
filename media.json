@@ -1,0 +1,14 @@
+
+{
+    "photos": [
+        {
+            "src": "assets/img/S1LINEUP.png",
+            "alt": "Foto de la alineación de la temporada 1"
+        }
+    ],
+    "videos": [
+        {
+            "src": "https://www.youtube.com/embed/video1"
+        }
+    ]
+}

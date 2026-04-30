@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Equipo</title>
+    <link rel="stylesheet" href="modern.css">
+    <link rel="stylesheet" href="mobile-responsive.css">
+    <link rel="stylesheet" href="hamburger.css">
+    <style>
+        /* Modales genéricos (Sponsors y Motores) */
+        .sponsors-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(6px);
+            z-index: 5000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            animation: fadeInModal 0.3s ease;
+        }
+        @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
+        .sponsors-modal.active { display: flex; }
+        
+        .sponsors-modal-content {
+            background: linear-gradient(135deg, rgba(26, 26, 33, 0.98) 0%, rgba(16, 16, 19, 0.98) 100%);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            padding: 40px;
+            max-width: 550px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            animation: slideUpModal 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .sponsors-modal-content::-webkit-scrollbar { width: 8px; }
+        .sponsors-modal-content::-webkit-scrollbar-track { background: rgba(255, 107, 53, 0.05); border-radius: 10px; }
+        .sponsors-modal-content::-webkit-scrollbar-thumb { background: rgba(255, 107, 53, 0.2); border-radius: 10px; }
+        @keyframes slideUpModal { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .sponsors-modal-content h2 { margin: 0 0 32px 0; font-size: 1.9rem; font-weight: 700; color: #ffffff; text-align: center; }
+        
+        .sponsors-option {
+            background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1.5px solid rgba(255,255,255,0.12);
+            padding: 20px; margin: 10px 0; border-radius: 14px;
+            cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden;
+        }
+        .sponsors-option:hover {
+            border-color: rgba(255,255,255,0.2);
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            transform: translateY(-3px); box-shadow: 0 10px 30px rgba(255,255,255,0.12);
+        }
+        
+        .slider-container { margin: 28px 0; background: rgba(33,150,243,0.1); padding: 26px; border-radius: 14px; border: 1.5px solid rgba(33,150,243,0.3); }
+        .slider { width: 100%; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #4CAF50 0%, #FFC107 50%, #FF5722 100%); outline: none; -webkit-appearance: none; margin: 18px 0; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #ffffff; cursor: pointer; border: 2px solid rgba(255,255,255,0.3); }
+        
+        .modal-button-group { display: flex; gap: 14px; margin-top: 28px; }
+        .modal-button-group button { flex: 1; padding: 14px 20px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: all 0.3s ease; }
+        .btn-confirm { background: #ffffff; color: #000000; }
+        .btn-cancel { background: transparent; border: 1.5px solid rgba(255, 255, 255, 0.25); color: rgba(255, 255, 255, 0.8); }
+        
+        .motor-stats { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px; }
+        .motor-stat-item { text-align: center; background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar thin-navbar">
+        <div class="nav-brand"><strong>⚡ FXMANAGER</strong></div>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menú"><span></span><span></span><span></span></button>
+        <ul class="nav-links" id="nav-links">
+            <li><a href="index.html">Inicio</a></li>
+            <li><a href="equipos.html">Equipos</a></li>
+            <li><a href="calendario.html">Calendario</a></li>
+            <li><a href="clasificacion.html">Clasificación</a></li>
+            <li><a href="media.html">Media</a></li>
+            <li><a href="mercado.html">Mercado</a></li>
+            <li><a href="dashboard.html" class="active">Mi Equipo</a></li>
+        </ul>
+    </nav>
+
+    <main class="container" style="padding: 40px 20px;">
+
+        <div class="card" style="margin-bottom: 40px;">
+            <div class="team-header-dash">
+                <div id="team-car-display" class="car-display" style="display:flex; align-items:center; justify-content:center;">
+                    <span style="color: var(--text-secondary);">Cargando coche...</span>
+                </div>
+                <div>
+                    <h1 id="team-name" class="team-name" style="margin: 0 0 12px 0; font-size: 1.6rem;">Cargando...</h1>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span style="color: var(--text-secondary); font-size: 0.85rem;">PRESUPUESTO</span>
+                            <h3 id="team-budget" style="margin: 6px 0 0 0;">$0</h3>
+                        </div>
+                        <div class="stat-box" style="border: 1px solid var(--accent); background: rgba(255, 107, 53, 0.1);">
+                            <span style="color: var(--accent); font-size: 0.85rem; font-weight: bold;">TOKENS I+D</span>
+                            <h3 id="team-tokens" style="margin: 6px 0 0 0; color: #ffffff;">0</h3>
+                        </div>
+                        <div class="stat-box">
+                            <span style="color: var(--text-secondary); font-size: 0.85rem;">PUNTOS</span>
+                            <h3 id="team-points" style="margin: 6px 0 0 0;">0</h3>
+                        </div>
+                        <div class="stat-box">
+                            <span style="color: var(--text-secondary); font-size: 0.85rem;">MOTOR ACTUAL</span>
+                            <h3 id="team-engine-name" style="margin: 6px 0 0 0; color: #FF9800;">Ninguno</h3>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn-solid" id="btn-sponsors" style="flex: 1;">💰 Patrocinadores</button>
+                        <button class="btn-outline" id="btn-motors" style="flex: 1; border-color: #FF9800; color: #FF9800;">⚙️ Suministrador Motor</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 style="margin: 50px 0 25px 0; border-bottom: 2px solid var(--accent); padding-bottom: 10px;">👥 Personal del Equipo</h2>
+        
+        <h3 style="color: var(--text-secondary);">Pilotos Titulares</h3>
+        <div id="drivers-container" class="drivers-dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 30px;">
+            <p style="text-align:center; color: var(--text-secondary); grid-column: 1/-1;">Cargando pilotos...</p>
+        </div>
+
+        <h3 style="color: var(--text-secondary);">Cuerpo Técnico</h3>
+        <div id="engineers-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 40px;">
+            <div class="card" style="background: rgba(255, 152, 0, 0.05); border: 1px solid rgba(255, 152, 0, 0.2);">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="font-size: 3rem;">👨‍🔧</div>
+                    <div>
+                        <h4 style="margin: 0; color: #FF9800;">Ingeniero Jefe</h4>
+                        <p id="engineer-name" style="margin: 5px 0 0 0; font-size: 1.1rem; font-weight: bold;">Sin asignar</p>
+                        <p id="engineer-stats" style="margin: 5px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Acude al mercado para fichar personal.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 style="margin: 50px 0 25px 0; border-bottom: 2px solid var(--accent); padding-bottom: 10px;">📬 Bandeja de Avisos</h2>
+        <div class="card" style="margin-bottom: 40px;">
+            <div id="notifications-box" style="min-height: 200px; max-height: 400px; overflow-y: auto;">
+                <p style="text-align:center; color: var(--text-secondary);">Sin notificaciones</p>
+            </div>
+        </div>
+
+        <h2 style="margin: 50px 0 25px 0; border-bottom: 2px solid var(--accent); padding-bottom: 10px;">🔧 I+D y Mejoras</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 40px;">
+            <div class="card">
+                <h3 style="margin-top: 0; color: var(--accent);">Chasis y Aerodinámica</h3>
+                <div style="margin: 20px 0;">
+                    <p style="margin: 0 0 10px 0; color: var(--text-secondary);">Nivel actual: <strong id="aero-level">0</strong>/7</p>
+                    <div style="background-color: var(--bg-tertiary); border-radius: 6px; height: 20px; overflow: hidden; margin-bottom: 15px;">
+                        <div id="aero-progress" style="background: linear-gradient(90deg, #ff2e3f, #ff5a70); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                    </div>
+                    <button class="btn-solid" id="btn-aero" style="width: 100%;">Desarrollar Mejora</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3 style="margin-top: 0; color: var(--accent);">Unidad de Potencia (Motor)</h3>
+                <div style="margin: 20px 0;">
+                    <p style="margin: 0 0 10px 0; color: var(--text-secondary);">Nivel actual: <strong id="motor-level">0</strong>/7</p>
+                    <div style="background-color: var(--bg-tertiary); border-radius: 6px; height: 20px; overflow: hidden; margin-bottom: 15px;">
+                        <div id="motor-progress" style="background: linear-gradient(90deg, #00aaff, #00ddff); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                    </div>
+                    <button class="btn-solid" id="btn-motor" style="width: 100%;">Desarrollar Mejora</button>
+                </div>
+            </div>
+        </div>
+
+        <h2 style="margin: 50px 0 25px 0; border-bottom: 2px solid var(--accent); padding-bottom: 10px;">🏁 Estrategia de Carrera</h2>
+        <div class="card" style="margin-bottom: 40px;">
+            <form id="form-estrategia" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <label style="display: block; font-weight: bold; margin-bottom: 10px; color: var(--accent);">Paradas (Neumáticos)</label>
+                    <select id="strat-paradas" style="width: 100%; padding: 10px; background: var(--bg-secondary); border-radius: 4px; color: white;">
+                        <option value="conservador">Conservador (1 Parada Segura)</option>
+                        <option value="estandar" selected>Estándar</option>
+                        <option value="agresivo">Agresivo (Múltiples paradas)</option>
+                    </select>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <label style="display: block; font-weight: bold; margin-bottom: 10px; color: var(--accent);">Modo de Motor</label>
+                    <select id="strat-motor" style="width: 100%; padding: 10px; background: var(--bg-secondary); border-radius: 4px; color: white;">
+                        <option value="conservador">Conservador (Ahorro DNF)</option>
+                        <option value="estandar" selected>Estándar</option>
+                        <option value="agresivo">Agresivo (Push / Riesgo Rotura)</option>
+                    </select>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <label style="display: block; font-weight: bold; margin-bottom: 10px; color: var(--accent);">Órdenes de Equipo</label>
+                    <select id="strat-ordenes" style="width: 100%; padding: 10px; background: var(--bg-secondary); border-radius: 4px; color: white;">
+                        <option value="piloto1">Prioridad Piloto 1</option>
+                        <option value="libre" selected>Vía Libre</option>
+                        <option value="piloto2">Prioridad Piloto 2</option>
+                    </select>
+                </div>
+                <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; margin-top: 10px;">
+                    <button type="submit" class="btn-solid" style="padding: 12px 25px; font-weight: bold;">💾 Guardar Estrategia</button>
+                </div>
+            </form>
+        </div>
+
+        <h2 style="margin: 50px 0 25px 0; border-bottom: 2px solid var(--accent); padding-bottom: 10px;">🔄 Fichajes a Equipos Rivales</h2>
+        <div class="card" style="margin-bottom: 40px;">
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">Paga la compensación al equipo rival para llevarte a su piloto o ingeniero.</p>
+            <button class="btn-solid" onclick="abrirModalSeleccionarPiloto()" style="padding: 12px 20px; background: #4CAF50; border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer;">
+                + Hacer Oferta de Traspaso
+            </button>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin: 50px 0 25px 0; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0; border: none; padding: 0;">🔎 Investigaciones</h2>
+            <button class="btn-solid" id="btn-buy-investigation" style="background-color: #ffffff; color: #000000; border: none; font-size: 0.85rem;">
+                + Comprar 1 Extra ($1,000,000)
+            </button>
+        </div>
+        <div class="card" style="margin-bottom: 40px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                
+                <div style="padding: 20px; background-color: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="margin-top: 0; color: var(--accent);">1. Personal Rival</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">Descubre stats de pilotos rivales (Ritmo, Agresividad).</p>
+                    <select id="select-research-personnel" style="width:100%; margin-bottom: 15px; padding:8px;"><option value="">-- Seleccionar Piloto --</option></select>
+                    <button class="btn-outline" id="btn-research-personnel" style="width: 100%;">Investigar Personal</button>
+                </div>
+
+                <div style="padding: 20px; background-color: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="margin-top: 0; color: var(--accent);">2. Desarrollo de Piezas</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">Averigua a qué nivel tienen el Aero o Motor.</p>
+                    <select id="select-research-team-parts" style="width:100%; margin-bottom: 10px; padding:8px;"><option value="">-- Equipo --</option></select>
+                    <select id="select-research-part-type" style="width:100%; margin-bottom: 15px; padding:8px;">
+                        <option value="aero">Nivel Aerodinámica</option>
+                        <option value="motor">Nivel Motor</option>
+                    </select>
+                    <button class="btn-outline" id="btn-research-parts" style="width: 100%;">Investigar Pieza</button>
+                </div>
+
+                <div style="padding: 20px; background-color: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="margin-top: 0; color: var(--accent);">3. Acuerdos Privados</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">Descubre qué Suministrador de Motor o Sponsor usan.</p>
+                    <select id="select-research-team-deals" style="width:100%; margin-bottom: 10px; padding:8px;"><option value="">-- Equipo --</option></select>
+                    <select id="select-research-deal-type" style="width:100%; margin-bottom: 15px; padding:8px;">
+                        <option value="motor">Motor Suministrador</option>
+                        <option value="sponsor">Patrocinador Elegido</option>
+                    </select>
+                    <button class="btn-outline" id="btn-research-deals" style="width: 100%;">Investigar Acuerdo</button>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="sponsors-modal" id="sponsors-modal">
+            <div class="sponsors-modal-content">
+                <h2>💰 Patrocinadores</h2>
+                <div id="sponsors-choice-section">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="sponsors-option" onclick="selectSponsorOption('fixed')">
+                            <h3>Garantizado ($45M)</h3><p style="color: #4CAF50;">Sin riesgo</p>
+                        </div>
+                        <div class="sponsors-option" onclick="selectSponsorOption('performance')">
+                            <h3>Bonus ($40M-$55M)</h3><p style="color: #2196F3;">Requiere objetivo</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="sponsors-expectations-section" style="display: none;">
+                    <div class="slider-container">
+                        <label style="color: white;">Objetivo: <strong id="expected-position">1º</strong></label>
+                        <input type="range" min="1" max="10" value="1" class="slider" id="position-slider" oninput="updatePositionDisplay(this.value)">
+                    </div>
+                    <div class="budget-display">
+                        <p>Total: <strong id="estimated-total">$55,000,000</strong></p>
+                        <p style="color:#4CAF50;">Base: <strong id="estimated-base">$27,500,000</strong></p>
+                    </div>
+                    <div class="modal-button-group">
+                        <button class="btn-confirm" onclick="confirmSponsorExpectations()">✓ Confirmar</button>
+                        <button class="btn-cancel" onclick="closeModal('sponsors-modal')">Cancelar</button>
+                    </div>
+                </div>
+                
+                <div id="sponsors-contract-section" style="display: none; text-align:center;">
+                    <h3 style="color:#4CAF50;">✅ Contrato Activo</h3>
+                    <p id="contract-type-display"></p>
+                    <button class="btn-solid" onclick="closeModal('sponsors-modal')" style="width:100%; margin-top:20px;">Cerrar</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="sponsors-modal" id="motors-modal">
+            <div class="sponsors-modal-content">
+                <h2>⚙️ Suministrador de Motor</h2>
+                
+                <div id="motors-choice-section">
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">Elige el motor base para tu monoplaza. Esta decisión bloqueará el motor para toda la temporada.</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                        <div class="sponsors-option" onclick="confirmarMotor('Honda', 94, 89, 83, 7000000)">
+                            <h3 style="color: #FF0000;">Honda ($7,000,000)</h3>
+                            <div class="motor-stats">
+                                <span class="motor-stat-item">Potencia: 94</span>
+                                <span class="motor-stat-item">Eficiencia: 89</span>
+                                <span class="motor-stat-item" style="color: #FF5252;">Fiabilidad: 83</span>
+                            </div>
+                        </div>
+                        <div class="sponsors-option" onclick="confirmarMotor('Mercedes', 90, 93, 92, 6000000)">
+                            <h3 style="color: #00D2BE;">Mercedes ($6,000,000)</h3>
+                            <div class="motor-stats">
+                                <span class="motor-stat-item">Potencia: 90</span>
+                                <span class="motor-stat-item" style="color: #00D2BE;">Eficiencia: 93</span>
+                                <span class="motor-stat-item" style="color: #00D2BE;">Fiabilidad: 92</span>
+                            </div>
+                        </div>
+                        <div class="sponsors-option" onclick="confirmarMotor('Koenigsegg', 93, 86, 85, 5000000)">
+                            <h3 style="color: #FFC107;">Koenigsegg ($5,000,000)</h3>
+                            <div class="motor-stats">
+                                <span class="motor-stat-item" style="color: #FFC107;">Potencia: 93</span>
+                                <span class="motor-stat-item">Eficiencia: 86</span>
+                                <span class="motor-stat-item">Fiabilidad: 85</span>
+                            </div>
+                        </div>
+                        <div class="sponsors-option" onclick="confirmarMotor('Ford', 88, 90, 89, 4000000)">
+                            <h3 style="color: #2196F3;">Ford ($4,000,000)</h3>
+                            <div class="motor-stats">
+                                <span class="motor-stat-item">Potencia: 88</span>
+                                <span class="motor-stat-item">Eficiencia: 90</span>
+                                <span class="motor-stat-item">Fiabilidad: 89</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn-cancel" onclick="closeModal('motors-modal')" style="width: 100%; margin-top: 20px; padding: 15px;">Cerrar</button>
+                </div>
+
+                <div id="motors-contract-section" style="display: none; text-align: center;">
+                    <h3 style="color:#FF9800; font-size: 1.8rem; margin-bottom: 10px;">✅ Motor Contratado</h3>
+                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <h2 id="active-motor-name" style="color: white; margin-top:0;">Nombre Motor</h2>
+                        <p style="color: var(--text-secondary);">El contrato está cerrado para esta temporada.</p>
+                    </div>
+                    <button class="btn-solid" onclick="closeModal('motors-modal')" style="width: 100%;">Entendido</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-oferta" class="modal-overlay" style="display: none; z-index: 5000;">
+            <div style="background: var(--bg-secondary); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 30px; max-width: 450px;">
+                <h2>🔄 Oferta de Traspaso</h2>
+                <form id="form-oferta">
+                    <label>Piloto / Empleado Rival:</label>
+                    <select id="oferta-piloto-select" required style="width: 100%; padding: 10px; margin-bottom: 15px;"></select>
+                    <label>Compensación al Equipo ($M):</label>
+                    <input type="number" id="oferta-compensacion" required style="width: 100%; padding: 10px; margin-bottom: 15px;">
+                    <label>Sueldo por carrera ($):</label>
+                    <input type="number" id="oferta-sueldo" required style="width: 100%; padding: 10px; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn-solid">Enviar Oferta</button>
+                        <button type="button" class="btn-outline" onclick="closeModal('modal-oferta')">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="nav.js" defer></script>
+    <script type="module" src="dashboard.js"></script>
+    <script>
+        window.closeModal = function(id) { document.getElementById(id).style.display = "none"; };
+    </script>
+</body>
+</html>
