@@ -48,13 +48,13 @@ main.innerHTML = `
         <div class="fila">${bandera(p.nac, { ancho: 24 })}<div><div>${esc(p.nombre)}</div><b style="font-size:16px">${esc(p.apellido)}</b></div></div>
         <div class="muted" style="font-size:.85rem;margin-top:6px">${esc(PAISES[p.nac] || '')} · ${s?.pts ?? 0} pts · ${s?.victorias ?? 0} victorias</div></a>`;
     }).join('')}</div>
-    <div class="tarjeta"><div class="tarjeta-titulo"><h3>Puntos por fin de semana</h3></div>${porRonda()}</div>
+    <div class="tarjeta"><div class="tarjeta-titulo"><h3>Puntos por jornada</h3></div>${porRonda()}</div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Palmarés e historia</h3></div>${historia()}</div>
   </div>
   <aside class="pila">
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Récords del equipo</h3></div><ul class="lista">
       <li class="fila-entre"><span class="muted">Mejor resultado</span><b>${mejorCarrera ? `${mejorCarrera.pos}º · ${esc(d.apellido(mejorCarrera.pid))}` : '—'}</b></li>
-      <li class="fila-entre"><span class="muted">Mejor fin de semana</span><b>${st?.mejorFinde ?? 0} pts</b></li>
+      <li class="fila-entre"><span class="muted">Mejor jornada</span><b>${st?.mejorFinde ?? 0} pts</b></li>
       <li class="fila-entre"><span class="muted">Mayor remontada</span><b>${mejorRemontada?.g > 0 ? `+${mejorRemontada.g} · ${esc(d.apellido(mejorRemontada.pid))}` : '—'}</b></li>
       <li class="fila-entre"><span class="muted">Carreras con los dos en puntos</span><b>${st?.ambosEnPuntos ?? 0}</b></li>
       <li class="fila-entre"><span class="muted">Adelantamientos</span><b>${st?.adel ?? 0}</b></li>

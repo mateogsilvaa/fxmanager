@@ -8,6 +8,7 @@ import {
     SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, tandasSimulador,
 } from '../engine/constants.js';
 import { tandasDisponibles } from '../engine/juego.js';
+import { candidatosGalactico, tacticosDisponibles, puedePedirGalactico, MERCADO } from '../core/mercado-ui.js';
 
 const u = await montar({ activo: 'escuderia' });
 const main = document.getElementById('main');
@@ -67,6 +68,7 @@ const irA = pestanas($('#tabs').parentElement, { alCambiar: (id) => { tabActual 
 const iguales = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 E.pp = Object.fromEntries(await Promise.all(misPilotos.map(async p => [p.id, await store().get(`pilotos_priv/${p.id}`).catch(() => null)])));
 if (ev) E.estrategias = await store().list('estrategias', [['uid', '==', u.uid], ['eventoId', '==', ev.id]]).catch(() => []);
+const docOfertas = await store().get(`mercado_ofertas/T${d.temporada}`).catch(() => null);
 let privRaw = null;
 escuchar(`equipos_priv/${eqId}`, (p) => {
     if (iguales(p, privRaw)) return;
@@ -95,7 +97,7 @@ escuchar(`decisiones/${hoy()}_${eqId}`, (dec) => {
     if (E.priv) repintar('hoy');
 });
 
-const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', tactico_ofrecer: 'Escaparate' };
+const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico' };
 function avisarAccion(a) {
     if (a.estado === 'error') toast(`${NOMBRES_ACCION[a.tipo] || a.tipo}: ${a.resultado?.error}`, 'error');
     else toast(`${NOMBRES_ACCION[a.tipo] || a.tipo}: hecho`);
@@ -134,7 +136,7 @@ function pintarHoy() {
         { ok: checkinHecho || checkinPend, txt: 'Recoger la recompensa diaria' },
         { ok: !!(dec?.eleccion || dec?.aplicada), txt: 'Responder la decisión del día' },
         ev && { ok: tandasLibres === 0, txt: `Probar reglajes en el simulador (${tandasLibres} libres)`, ir: 'carrera' },
-        ev && { ok: E.estrategias.length > 0, txt: 'Preparar la estrategia del fin de semana', ir: 'carrera' },
+        ev && { ok: E.estrategias.length > 0, txt: 'Preparar la estrategia de la jornada', ir: 'carrera' },
         { ok: idActivos >= SLOTS_ID, txt: `Tener el coche en desarrollo (${idActivos}/${SLOTS_ID})`, ir: 'coche' },
         !sponsorOk && { ok: false, txt: 'Firmar un patrocinador', ir: 'equipo' },
     ].filter(Boolean);
@@ -205,7 +207,7 @@ async function marcarLeidas() {
 // ======================================================================
 function pintarCarrera() {
     const el = $('#p-carrera');
-    if (!ev) { el.innerHTML = `<div class="tarjeta">${vacio('No hay ningún fin de semana abierto para tu equipo.')}</div>`; return; }
+    if (!ev) { el.innerHTML = `<div class="tarjeta">${vacio('No hay ninguna jornada abierta para tu equipo.')}</div>`; return; }
     const tipos = SESIONES.filter(t => ev.sesiones[t]);
     const guardada = (t) => E.estrategias.find(x => x.tipo === t);
     const heredada = (t) => { for (let i = tipos.indexOf(t); i >= 0; i--) { const g = guardada(tipos[i]); if (g) return g; } return null; };
@@ -251,7 +253,7 @@ function pintarCarrera() {
               <div><b>${esc(SESION_INFO[tp].corto)}</b> ${guardada(tp) ? '<span class="ok peq">✓</span>' : ''}<div class="muted peq">${fecha(s.publishAt)}${lluvia >= 20 ? ` · lluvia ${lluvia}%` : ''}</div></div>
               <div>${controles}</div></div>`;
         }).join('')}
-        ${abiertas.length ? `<div class="fila-botones"><button class="btn" id="guardar-estr">Guardar reglaje y estrategia</button></div>` : '<p class="muted peq">Todas las sesiones de este fin de semana están cerradas.</p>'}
+        ${abiertas.length ? `<div class="fila-botones"><button class="btn" id="guardar-estr">Guardar reglaje y estrategia</button></div>` : '<p class="muted peq">Todas las sesiones de esta jornada están cerradas.</p>'}
         <p class="muted peq" style="margin:10px 0 0">Ataque: más rápido pero más errores y desgaste. Agresiva: adelanta más, con más toques. Al límite: gana décimas en qualy, pero puede anular la vuelta.</p>
       </div>
     </div>`;
@@ -350,7 +352,7 @@ function proyectoHtml(p) {
 }
 
 // ======================================================================
-// EQUIPO: pilotos, escaparate, patrocinio y finanzas
+// EQUIPO: pilotos, mercado, patrocinio y finanzas
 // ======================================================================
 function pintarEquipo() {
     const el = $('#p-equipo');
@@ -358,7 +360,6 @@ function pintarEquipo() {
     const st = d.tabla(liga).pilotos;
     const sp = priv.sponsor && priv.sponsor.temporada === d.temporada ? priv.sponsor : null;
     const attr = (n, v) => `<div style="margin:6px 0"><div class="fila-entre peq"><span class="muted">${n}</span><b>${v ?? '?'}</b></div>${barra(v || 0)}</div>`;
-    const escaparate = d.equipo(eqId)?.escaparate || '';
     el.innerHTML = `
     <div class="rejilla rejilla-2" style="margin-bottom:12px">${misPilotos.map(p => {
         const pp = E.pp[p.id] || {};
@@ -374,16 +375,12 @@ function pintarEquipo() {
       <div class="pila">
         <div class="tarjeta">
           <div class="tarjeta-titulo"><h2>Patrocinador</h2></div>
-          ${sp ? `<div class="fila-entre"><div><b>${esc(sp.marca)}</b><div class="muted peq">${esc(sp.desc)}</div></div><div class="dato" style="text-align:right"><b>${dinero(sp.base)}</b><span>por fin de semana</span></div></div>`
+          ${sp ? `<div class="fila-entre"><div><b>${esc(sp.marca)}</b><div class="muted peq">${esc(sp.desc)}</div></div><div class="dato" style="text-align:right"><b>${dinero(sp.base)}</b><span>por jornada</span></div></div>`
             : pendientes('sponsor_firmar').length ? '<p class="muted">Firmando…</p>'
             : priv.ofertasSponsor?.length ? `<p class="muted peq">Elige uno para toda la temporada.</p><div class="opciones-grid">${priv.ofertasSponsor.map(o => `<button class="opcion" data-sp="${esc(o.id)}"><b>${esc(o.marca)}</b><small>${esc(o.tipo)} · ${dinero(o.base)}${o.bonus ? ` + ${dinero(o.bonus)}` : ''}</small><div class="muted peq" style="margin-top:4px">${esc(o.desc)}</div></button>`).join('')}</div>`
             : '<p class="muted">Las ofertas llegan con el próximo ciclo.</p>'}
         </div>
-        <div class="tarjeta">
-          <div class="tarjeta-titulo"><h2>Escaparate</h2></div>
-          <p class="muted peq">Los pilotos los contrata la liga. Si ofreces a uno, tendrá prioridad para ser el Táctico que cambia de país a final de temporada.</p>
-          <div class="seg" id="escaparate">${[{ id: '', t: 'Nadie' }, ...misPilotos.map(p => ({ id: p.id, t: p.apellido }))].map(o => `<button type="button" data-v="${esc(o.id)}" class="${escaparate === o.id ? 'activa' : ''}">${esc(o.t)}</button>`).join('')}</div>
-        </div>
+        ${mercadoHtml()}
       </div>
       <div class="tarjeta">
         <div class="tarjeta-titulo"><h2>Movimientos</h2><span class="muted peq">${dinero(priv.presupuesto)}</span></div>
@@ -395,10 +392,52 @@ function pintarEquipo() {
         if (!await confirmar(`¿Firmar con <b>${esc(o.marca)}</b> para toda la temporada?`)) return;
         await lanzar('sponsor_firmar', { ofertaId: o.id }, 'Contrato enviado');
     }));
-    $$('#escaparate button', el).forEach(b => b.addEventListener('click', async () => {
-        $$('#escaparate button', el).forEach(x => x.classList.toggle('activa', x === b));
-        await lanzar('tactico_ofrecer', { pilotoId: b.dataset.v || null }, 'Escaparate actualizado');
-    }));
+    activarMercado(el);
+}
+
+// Mercado: pedir un Galáctico de otra liga (solo las 5 mejores escuderías de cada liga)
+function mercadoHtml() {
+    const mia = docOfertas?.ofertas?.[eqId];
+    const recibidas = Object.entries(docOfertas?.ofertas || {}).filter(([, o]) => d.piloto(o.pid)?.equipoId === eqId);
+    const { puede, pos } = puedePedirGalactico(d, eqId);
+    const abierto = ['pretemporada', 'nacional', 'mundial'].includes(d.cfg.fase);
+    const candidatos = LIGAS_NACIONALES.filter(l => l !== liga).flatMap(l => candidatosGalactico(d, l));
+    const tacticos = tacticosDisponibles(d, eqId);
+    let cuerpo;
+    if (!abierto) cuerpo = '<p class="muted">El plazo de ofertas termina al acabar el Mundial.</p>';
+    else if (mia) cuerpo = `<p>Has ofrecido <b>${dinero(mia.importe)}</b> y a ${esc(d.nombre(mia.tactico))} por <b>${esc(d.nombre(mia.pid))}</b>.</p>
+        <p class="muted peq">Solo se ejecuta si al final ${esc(d.apellido(mia.pid))} sigue en el top 5 elegible, tu escudería termina entre las 5 primeras y tu Táctico no es despedido.</p>
+        <div class="fila-botones"><button class="btn btn-peligro btn-peq" id="cancelar-oferta">Retirar oferta</button></div>`;
+    else if (!puede) cuerpo = `<p class="muted">Solo las ${MERCADO.topComprador} mejores escuderías de cada liga pueden pedir un Galáctico. Ahora vais ${pos ? `${pos}º` : 'sin clasificar'}.</p>`;
+    else if (!candidatos.length || !tacticos.length) cuerpo = `<p class="muted">${!tacticos.length ? 'Ninguno de tus pilotos puede salir como Táctico ahora mismo (tiene que estar fuera del top 5 y su compañero ser local).' : 'Todavía no hay candidatos: faltan carreras.'}</p>`;
+    else cuerpo = `<form id="f-galactico" style="display:grid;gap:12px">
+        <label>Galáctico que quieres<select name="pid">${LIGAS_NACIONALES.filter(l => l !== liga).map(l => {
+            const cs = candidatos.filter(c => c.liga === l);
+            return cs.length ? `<optgroup label="${esc(LIGAS[l].nombre)}">${cs.map(c => `<option value="${esc(c.pid)}">${esc(d.nombre(c.pid))} · ${c.pos}º · ${esc(d.nombreEquipo(c.eq))}</option>`).join('')}</optgroup>` : '';
+        }).join('')}</select></label>
+        <label>Tu Táctico (se va a cambio)<select name="tactico">${tacticos.map(id => `<option value="${esc(id)}">${esc(d.nombre(id))}</option>`).join('')}</select></label>
+        <label>Dinero que ofreces (€)<input type="number" name="importe" min="${MERCADO.importeMinimo}" step="250000" value="${MERCADO.importeIA}"></label>
+        <div class="fila-botones"><button class="btn">Enviar oferta</button></div></form>`;
+    return `<div class="tarjeta">
+      <div class="tarjeta-titulo"><h2>Pedir un Galáctico</h2></div>
+      <p class="muted peq">Al final de temporada cada liga cede a un piloto de su top 5 (el Galáctico) a otra liga. Quien se lo lleva entrega a cambio a uno de sus pilotos (el Táctico) y dinero. Gana la oferta más alta.</p>
+      ${cuerpo}
+      ${recibidas.length ? `<div class="aviso-caja" style="margin-top:14px">${recibidas.map(([eq, o]) => `${esc(d.nombreEquipo(eq))} ofrece ${dinero(o.importe)} y a ${esc(d.nombre(o.tactico))} por ${esc(d.nombre(o.pid))}.`).join('<br>')}</div>` : ''}
+    </div>`;
+}
+function activarMercado(el) {
+    $('#cancelar-oferta', el)?.addEventListener('click', async () => {
+        if (!await confirmar('¿Retirar tu oferta?')) return;
+        await lanzar('galactico_oferta', { cancelar: true }, 'Oferta retirada');
+    });
+    $('#f-galactico', el)?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = e.target;
+        const importe = +f.importe.value;
+        if (importe < MERCADO.importeMinimo) return toast(`La oferta mínima es ${dinero(MERCADO.importeMinimo)}`, 'error');
+        if (!await confirmar(`¿Ofrecer <b>${dinero(importe)}</b> y a ${esc(d.nombre(f.tactico.value))} por <b>${esc(d.nombre(f.pid.value))}</b>? El dinero solo se cobra si la operación se hace al final de temporada.`)) return;
+        await lanzar('galactico_oferta', { pid: f.pid.value, tactico: f.tactico.value, importe }, 'Oferta enviada');
+    });
 }
 
 // ======================================================================

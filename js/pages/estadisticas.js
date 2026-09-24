@@ -1,10 +1,10 @@
 import { montar, barraDirecto } from '../core/layout.js';
-import { cargarDatos } from '../core/datos.js';
+import { cargarDatos, cargarHistorico } from '../core/datos.js';
 import { store } from '../core/app.js';
 import { esc, banderaLiga, vacio, $, $$, bandera } from '../core/ui.js';
 import { tarjetasRecords, activarRecords, celdaPiloto, celdaEquipo, pos } from '../core/componentes.js';
 import { LIGAS, LIGAS_NACIONALES } from '../engine/constants.js';
-import { CATEGORIAS_PILOTO, CATEGORIAS_EQUIPO, ranking } from '../engine/stats.js';
+import { CATEGORIAS_PILOTO, CATEGORIAS_EQUIPO, ranking, construirTemporada } from '../engine/stats.js';
 
 await montar({ activo: 'estadisticas' });
 const main = document.getElementById('main');
@@ -12,29 +12,34 @@ const d = await cargarDatos();
 barraDirecto(d);
 
 main.innerHTML = `
-<div class="cabecera-pagina"><div><div class="etiqueta">Temporada ${d.temporada}</div><h1>Estadísticas</h1><p class="sub">Temporada ${d.temporada}. Pulsa cualquier récord para ver el ranking completo.</p></div></div>
+<div class="cabecera-pagina"><div><div class="etiqueta">Desde la temporada 1</div><h1>Estadísticas</h1><p class="sub">Récords históricos acumulados. Pulsa cualquiera para ver el ranking completo.</p></div></div>
 <div class="barra-opciones">
-  <div class="sub-pestanas" style="margin:0"><button data-modo="temporada" class="activa">Temporada</button><button data-modo="palmares">Palmarés</button></div>
+  <div class="sub-pestanas" style="margin:0"><button data-modo="historico" class="activa">Histórico</button><button data-modo="temporada">Temporada ${d.temporada}</button><button data-modo="palmares">Palmarés</button></div>
   <select id="filtro"><option value="TODAS">Todas las ligas</option><optgroup label="Ligas nacionales">${LIGAS_NACIONALES.map(l => `<option value="${l}">${esc(LIGAS[l].nombre)}</option>`).join('')}</optgroup><optgroup label="Final"><option value="INT">Intercontinental</option></optgroup></select>
 </div>
 <div id="cuerpo"></div>`;
 
-const pintar = (l) => {
-    $$('[data-modo]').forEach(b => b.classList.toggle('activa', b.dataset.modo === (l === 'PALMARES' ? 'palmares' : 'temporada')));
-    $('#filtro').hidden = l === 'PALMARES';
+const historico = await cargarHistorico(d);
+let modo = 'historico';
+const pintar = () => {
+    const l = $('#filtro').value;
+    $$('[data-modo]').forEach(b => b.classList.toggle('activa', b.dataset.modo === modo));
+    $('#filtro').hidden = modo === 'palmares';
     const cuerpo = $('#cuerpo');
-    if (l === 'PALMARES') return palmares(cuerpo);
-    const t = l === 'TODAS' ? d.tablaTodas() : d.tabla(l);
+    if (modo === 'palmares') return palmares(cuerpo);
+    const base = modo === 'historico' ? historico : d.sesiones;
+    const sesionesSel = base.filter(s => l === 'TODAS' ? s.liga !== 'INT' : s.liga === l);
+    const t = construirTemporada(sesionesSel);
     const pil = Object.values(t.pilotos), eqs = Object.values(t.equipos);
     if (!pil.length) { cuerpo.innerHTML = vacio('Aún no hay datos para estas estadísticas.'); return; }
-    const titulo = l === 'TODAS' ? 'Todas las ligas nacionales' : LIGAS[l].nombre;
+    const titulo = `${l === 'TODAS' ? 'Todas las ligas nacionales' : LIGAS[l].nombre} · ${modo === 'historico' ? 'histórico' : `temporada ${d.temporada}`}`;
     const lider = ranking(CATEGORIAS_PILOTO[0], pil)[0];
     const eficaz = ranking(CATEGORIAS_PILOTO.find(c => c.id === 'eficacia'), pil)[0];
     cuerpo.innerHTML = `
     <div class="rejilla rejilla-4" style="margin-bottom:16px">
       ${destacado('Más puntos', lider && d.nombre(lider.x.pid), lider?.v)}
       ${destacado('Más eficaz', eficaz && d.nombre(eficaz.x.pid), eficaz ? eficaz.v + '/100' : '')}
-      ${destacado('Sesiones disputadas', '', (l === 'TODAS' ? d.sesiones.filter(s => s.liga !== 'INT') : d.sesionesLiga(l)).length)}
+      ${destacado('Sesiones disputadas', '', sesionesSel.length)}
       ${destacado('Adelantamientos', '', pil.reduce((s, p) => s + (p.adel || 0), 0))}
     </div>
     <h2>Pilotos · lo mejor</h2><div class="rejilla rejilla-auto" id="rp1">${tarjetasRecords(d, CATEGORIAS_PILOTO.filter(c => c.bueno), pil)}</div>
@@ -47,9 +52,9 @@ const pintar = (l) => {
     activarRecords($('#re1'), d, CATEGORIAS_EQUIPO, eqs, { tipo: 'equipo', titulo });
     activarRecords($('#re2'), d, CATEGORIAS_EQUIPO, eqs, { tipo: 'equipo', titulo });
 };
-$('#filtro').addEventListener('change', (e) => pintar(e.target.value));
-$$('[data-modo]').forEach(b => b.addEventListener('click', () => pintar(b.dataset.modo === 'palmares' ? 'PALMARES' : $('#filtro').value)));
-pintar('TODAS');
+$('#filtro').addEventListener('change', () => pintar());
+$$('[data-modo]').forEach(b => b.addEventListener('click', () => { modo = b.dataset.modo; pintar(); }));
+pintar();
 
 function destacado(t, nombre, v) {
     return `<div class="tarjeta"><div class="etiqueta">${esc(t)}</div><div class="cuenta">${esc(v ?? '—')}</div><div class="muted">${esc(nombre || '')}</div></div>`;

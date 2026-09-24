@@ -24,28 +24,26 @@ function pintarCabecera(activo, ligaActiva) {
     const u = usuario();
     const cab = document.getElementById('cabecera') || document.body.insertBefore(document.createElement('header'), document.body.firstChild);
     cab.id = 'cabecera';
-    const ligas = [...LIGAS_NACIONALES, 'INT'].map(l => `<a href="liga.html?l=${l}" class="${ligaActiva === l ? 'activo' : ''}" title="${esc(LIGAS[l].nombre)}">${banderaLiga(l, { ancho: 20, titulo: false })}</a>`).join('');
-    const a = (href, txt, clave) => `<a href="${href}" class="${activo === clave ? 'activo' : ''}">${txt}</a>`;
+    const a = (href, txt, clave, extra = '') => `<a href="${href}" class="${activo === clave ? 'activo' : ''}" ${extra}>${txt}</a>`;
     cab.innerHTML = `
     ${DEMO ? `<div class="aviso-demo">Modo demostración · nada se guarda · <a href="index.html?demo=0">salir</a></div>` : ''}
     <div class="barra-directo" id="barra-directo" hidden></div>
     <nav class="nav">
-      <a class="marca" href="index.html"><span class="marca-x">X1</span><span>Hyper Race <small>FX Manager</small></span></a>
+      <a class="marca" href="index.html"><span class="marca-x">X1</span><span>Hyper Race</span></a>
       <div class="nav-enlaces">
-        ${a('index.html', 'Inicio', 'inicio')}
-        <div class="nav-ligas">${ligas}</div>
-        ${a('estadisticas.html', 'Estadísticas', 'estadisticas')}
-        ${a('paddock.html', 'Paddock', 'paddock')}
+        ${a(`liga.html?l=${ligaActiva || 'ESP'}`, 'Ligas', '', ligaActiva ? 'data-liga-activa' : '')}
         ${a('mercado.html', 'Mercado', 'mercado')}
-        ${a('reglamento.html', 'Reglamento', 'reglamento')}
+        ${a('estadisticas.html', 'Estadísticas', 'estadisticas')}
+        ${a('reglamento.html', 'Cómo funciona', 'reglamento')}
         <span class="nav-sep"></span>
-        ${u ? `${a('escuderia.html', 'Mi escudería<span class="punto" data-punto hidden></span>', 'escuderia')}
-          ${esAdmin() ? a('control.html', 'Control', 'control') : ''}
-          <button id="btn-salir" title="Cerrar sesión">${esc(u.perfil?.nombre || u.email)} · Salir</button>`
+        ${u ? `${esAdmin() ? a('control.html', 'Control', 'control') : ''}
+          <button id="btn-salir" title="Cerrar sesión">Salir</button>
+          <a href="escuderia.html" class="btn btn-nav">Mi escudería<span class="punto" data-punto hidden></span></a>`
         : `<a href="entrar.html" class="btn btn-nav">Entrar</a>`}
       </div>
       <div class="nav-cuenta">${u ? '' : '<a href="entrar.html" class="btn btn-peq">Entrar</a>'}</div>
     </nav>`;
+    cab.querySelector('[data-liga-activa]')?.classList.add('activo');
     $('#btn-salir', cab)?.addEventListener('click', () => salir());
 
     // Barra inferior en móvil
@@ -63,7 +61,7 @@ function pintarCabecera(activo, ligaActiva) {
         const hoja = document.createElement('div');
         hoja.className = 'hoja-mas';
         hoja.innerHTML = `<div>
-          <a href="paddock.html">Paddock</a><a href="mercado.html">Mercado</a><a href="reglamento.html">Reglamento</a>
+          <a href="mercado.html">Mercado</a><a href="paddock.html">Paddock</a><a href="reglamento.html">Cómo funciona</a>
           ${u && esAdmin() ? '<a href="control.html">Control</a>' : ''}
           ${u ? `<button data-salir>Cerrar sesión (${esc(u.perfil?.nombre || u.email)})</button>` : '<a href="entrar.html">Entrar o registrarse</a>'}
         </div>`;

@@ -87,7 +87,7 @@ export const CARTAS = [
         ],
     },
     {
-        id: 'evento_fans', texto: 'El club de fans organiza una quedada en la fábrica este fin de semana.',
+        id: 'evento_fans', texto: 'El club de fans organiza una quedada en la fábrica esta jornada.',
         opciones: [
             { id: 'ambos', texto: 'Van los dos pilotos (−100 k€)', efectos: { presupuesto: -100_000, fans: 700, moral: { ambos: 2 } } },
             { id: 'uno', texto: 'Solo {p1}', efectos: { fans: 300, moral: { p2: -1 } } },
@@ -177,7 +177,7 @@ export const CARTAS = [
         ],
     },
     {
-        id: 'descanso_piloto', texto: '{p2} está agotado tras el último fin de semana. El médico recomienda descanso.',
+        id: 'descanso_piloto', texto: '{p2} está agotado tras la última jornada. El médico recomienda descanso.',
         opciones: [
             { id: 'descanso', texto: 'Dos días de descanso', efectos: { forma: { p2: 0.3 }, moral: { p2: 2 } } },
             { id: 'entrenar', texto: 'Que siga entrenando', efectos: { forma: { p2: -0.4 } }, defecto: true },
@@ -231,9 +231,9 @@ export function ofertasSponsor(secreto, temporada, equipoId, expectativa = 5) {
     const marcas = rng.shuffle(MARCAS).slice(0, 3);
     const ptsObj = Math.max(20, Math.round((11 - expectativa) * 14 + rng.int(-10, 10)));
     return [
-        { id: 'fijo', marca: marcas[0], tipo: 'Seguro', base: 1_300_000 + rng.int(0, 4) * 50_000, bonus: 0, objetivo: null, desc: 'Cantidad fija por fin de semana, sin objetivos.' },
-        { id: 'rendimiento', marca: marcas[1], tipo: 'Rendimiento', base: 800_000, bonus: 900_000, objetivo: { tipo: 'puntos', valor: ptsObj }, desc: `Bonus si el equipo suma ${ptsObj} puntos o más en el fin de semana.` },
-        { id: 'riesgo', marca: marcas[2], tipo: 'Alto riesgo', base: 350_000, bonus: 2_600_000, objetivo: { tipo: 'podio' }, desc: 'Bonus enorme si algún piloto sube al podio en el fin de semana.' },
+        { id: 'fijo', marca: marcas[0], tipo: 'Seguro', base: 1_300_000 + rng.int(0, 4) * 50_000, bonus: 0, objetivo: null, desc: 'Cantidad fija por jornada, sin objetivos.' },
+        { id: 'rendimiento', marca: marcas[1], tipo: 'Rendimiento', base: 800_000, bonus: 900_000, objetivo: { tipo: 'puntos', valor: ptsObj }, desc: `Bonus si el equipo suma ${ptsObj} puntos o más en la jornada.` },
+        { id: 'riesgo', marca: marcas[2], tipo: 'Alto riesgo', base: 350_000, bonus: 2_600_000, objetivo: { tipo: 'podio' }, desc: 'Bonus enorme si algún piloto sube al podio en la jornada.' },
     ];
 }
 

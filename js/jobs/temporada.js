@@ -7,11 +7,11 @@ import { planMercado, generarRookies, estrellasRookie, asignarRoles } from '../e
 import { normalizarCircuito } from '../engine/circuitos.js';
 import {
     crearContexto, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, horarioSesion, noticia, notificar,
-    nombrePiloto, volcar, idResumen, sinId,
+    nombrePiloto, volcar, idResumen, sinId, movimiento,
 } from './comun.js';
 import { reconstruirCatalogo } from './catalogo.js';
 
-export const COLECCIONES_JUEGO = ['equipos', 'equipos_priv', 'pilotos', 'pilotos_priv', 'eventos', 'resultados', 'resumen', 'estrategias', 'acciones', 'notificaciones', 'decisiones', 'pronosticos', 'ranking', 'noticias', 'mercado', 'mercado_priv', 'logs', 'catalogo'];
+export const COLECCIONES_JUEGO = ['equipos', 'equipos_priv', 'pilotos', 'pilotos_priv', 'eventos', 'resultados', 'resumen', 'estrategias', 'acciones', 'notificaciones', 'decisiones', 'pronosticos', 'ranking', 'noticias', 'mercado', 'mercado_priv', 'mercado_ofertas', 'paddock', 'logs', 'catalogo'];
 // Colecciones de la temporada pasada (versión anterior de FX Manager)
 export const COLECCIONES_ANTIGUAS = ['actividad_equipos', 'carreras', 'comunicados', 'ingenieros_equipos', 'mensajes_aprobacion', 'mercado_agentes', 'ofertas', 'publicaciones', 'respuestas_mensajes', 'solicitudes_admin', 'configuracion'];
 
@@ -137,24 +137,60 @@ export async function prepararMercado(ctx) {
     const tablas = await tablasTemporada(store, temporada);
     const pilotosMap = await cargarPilotos(ctx);
     const equipos = await cargarEquipos(ctx);
+    const privs = await cargarPrivs(ctx);
     const pilotos = Object.values(pilotosMap).filter(p => p.equipoId);
     const inmunes = new Set(ctx.cfg.mundial?.participantes || []);
     const rng = crearRng(`${ctx.secreto}|mercado|${temporada}`);
-    const ofrecidos = new Set(Object.values(equipos).map(e => e.escaparate).filter(Boolean));
-    const plan = planMercado({ tablas, pilotos, inmunes, rng, ofrecidos });
-    const usados = new Set(Object.values(pilotosMap).map(p => `${p.nombre} ${p.apellido}`));
-    const rookies = generarRookies({ temporada, vacantes: plan.vacantes, rng, usados });
     const posEquipo = {};
     for (const liga of LIGAS_NACIONALES) tablas[liga].clasEquipos.forEach(e => { posEquipo[e.eq] = e.posicion; });
+    // Escuderías que no han corrido aún (sin puntos) al final
+    Object.entries(equipos).forEach(([id]) => { if (!posEquipo[id]) posEquipo[id] = 10; });
+    const docOfertas = await store.get(`mercado_ofertas/T${temporada}`);
+    const ofertas = Object.entries(docOfertas?.ofertas || {}).map(([eq, o]) => ({ eq, ...o }))
+        .filter(o => o.pid && o.tactico && (privs[o.eq]?.presupuesto || 0) >= o.importe);
+    const plan = planMercado({ tablas, pilotos, inmunes, rng, ofertas, posEquipo });
+    const usados = new Set(Object.values(pilotosMap).map(p => `${p.nombre} ${p.apellido}`));
+    const rookies = generarRookies({ temporada, vacantes: plan.vacantes, rng, usados });
     const draftOrden = plan.vacantes.slice().sort((a, b) => (posEquipo[b.eq] || 99) - (posEquipo[a.eq] || 99));
     const deadline = ctx.ahora + (ctx.cfg.horasDraft || 48) * 3600_000;
     const nombre = (pid) => nombrePiloto(pilotosMap[pid]);
+    const M = (v) => `${(v / 1e6).toFixed(1).replace('.', ',')} M€`;
+
+    // Dinero de los traspasos: la compradora paga a la vendedora
+    for (const op of plan.operaciones) {
+        if (privs[op.eq]) { movimiento(privs[op.eq], `Traspaso: llega ${nombre(op.pid)} (Galáctico)`, -op.importe, ctx.ahora); ctx.sucios.privs.add(op.eq); }
+        if (privs[op.eqVendedor]) { movimiento(privs[op.eqVendedor], `Traspaso: sale ${nombre(op.pid)} (Galáctico)`, op.importe, ctx.ahora); ctx.sucios.privs.add(op.eqVendedor); }
+        notificar(ctx, op.eqVendedor, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: `${nombre(op.pid)} se va a ${equipos[op.eq]?.nombre}`, texto: `Es el Galáctico de tu liga. A cambio recibes a ${nombre(op.tactico)} y ${M(op.importe)}.` });
+        notificar(ctx, op.eq, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: `Fichas a ${nombre(op.pid)}`, texto: `Llega como Galáctico desde ${LIGAS[op.de].nombre}. A cambio sale ${nombre(op.tactico)} y pagas ${M(op.importe)}.` });
+    }
+    // Premios de fin de temporada por posición en cada liga
+    for (const liga of LIGAS_NACIONALES) {
+        tablas[liga].clasEquipos.forEach((e, i) => {
+            const premio = ECO.premiosLiga[i] || 0;
+            if (!premio || !privs[e.eq]) return;
+            movimiento(privs[e.eq], `Premio de liga: ${i + 1}º de ${LIGAS[liga].nombre}`, premio, ctx.ahora);
+            ctx.sucios.privs.add(e.eq);
+        });
+    }
+    // Premios del Mundial
+    const int = tablas.INT;
+    int.clasEquipos.slice(0, ECO.premiosMundialEscuderias.length).forEach((e, i) => {
+        if (!privs[e.eq]) return;
+        movimiento(privs[e.eq], `Mundial de escuderías: ${i + 1}º`, ECO.premiosMundialEscuderias[i], ctx.ahora);
+        ctx.sucios.privs.add(e.eq);
+    });
+    const campeon = int.clasPilotos[0];
+    if (campeon && privs[campeon.eq]) {
+        movimiento(privs[campeon.eq], `Campeón del mundo: ${nombre(campeon.pid)}`, ECO.bonusCampeonMundial, ctx.ahora);
+        ctx.sucios.privs.add(campeon.eq);
+    }
+
+    const conNombre = (x) => ({ ...x, nombre: nombre(x.pid) });
     await store.set(`mercado/T${temporada}`, {
         temporada, estado: 'draft', deadline, creado: ctx.ahora,
         plan: {
-            despidos: plan.despidos.map(d => ({ ...d, nombre: nombre(d.pid) })),
-            salvados: plan.salvados.map(d => ({ ...d, nombre: nombre(d.pid) })),
-            traspasos: plan.traspasos.map(t => ({ ...t, nombre: nombre(t.pid) })),
+            despidos: plan.despidos.map(conNombre), salvados: plan.salvados.map(conNombre), traspasos: plan.traspasos.map(conNombre),
+            operaciones: plan.operaciones.map(o => ({ ...o, nombre: nombre(o.pid), nombreTactico: nombre(o.tactico) })),
         },
         vacantes: draftOrden,
         rookies: rookies.map(r => ({ id: r.id, nombre: r.nombre, apellido: r.apellido, nac: r.nac, liga: r.liga, edad: r.edad, estrellas: estrellasRookie(r.attrs, rng) })),
@@ -164,15 +200,19 @@ export async function prepararMercado(ctx) {
     await store.merge('config/juego', { fase: 'mercado' });
     ctx.cfg.fase = 'mercado';
 
+    for (const o of plan.operaciones) {
+        noticia(ctx, {
+            titulo: `${nombre(o.pid)} ficha por ${equipos[o.eq]?.nombre}`,
+            texto: `El Galáctico de ${LIGAS[o.de].nombre} (${o.pos || '?'}º) se va a ${LIGAS[o.a].nombre}. ${equipos[o.eqVendedor]?.nombre} recibe a cambio a ${nombre(o.tactico)} y ${M(o.importe)}.${o.humano ? '' : ' Operación decidida por la liga.'}`,
+            liga: o.de, tipo: 'mercado',
+        });
+    }
     for (const d of plan.despidos) {
-        noticia(ctx, { titulo: `${nombre(d.pid)} se queda sin asiento`, texto: d.motivo === 'directo' ? `Su rendimiento frente a su compañero le deja fuera de ${equipos[d.eq]?.nombre}.` : `Estaba en la zona de peligro y su compañero rindió muy por encima: ${equipos[d.eq]?.nombre} busca un rookie.`, liga: d.liga, tipo: 'mercado' });
-        notificar(ctx, d.eq, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: `Vacante en tu equipo`, texto: `${nombre(d.pid)} deja el equipo. Elige tus rookies favoritos en el draft antes de que cierre.` });
+        noticia(ctx, { titulo: `${nombre(d.pid)} se queda sin asiento`, texto: d.motivo === 'directo' ? `Terminó ${d.pos}º con su compañero ${d.posComp}º: es de los que peor rindieron con el mismo coche.` : `Estaba en la zona de peligro y su compañero acabó ${d.posComp}º.`, liga: d.liga, tipo: 'mercado' });
+        notificar(ctx, d.eq, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: 'Vacante en tu equipo', texto: `${nombre(d.pid)} deja el equipo. Elige tus rookies favoritos en el draft antes de que cierre.` });
     }
-    for (const t of plan.traspasos) {
-        noticia(ctx, { titulo: t.tipo === 'galactico' ? `Bombazo: ${nombre(t.pid)} ficha por ${equipos[t.eqDestino]?.nombre}` : `${nombre(t.pid)}, traspasado a ${LIGAS[t.a].nombre}`, texto: `${t.tipo === 'galactico' ? 'El Galáctico de la temporada' : 'El Táctico de la temporada'}: de ${equipos[t.eqOrigen]?.nombre} (${LIGAS[t.de].nombre}) a ${equipos[t.eqDestino]?.nombre} (${LIGAS[t.a].nombre}).`, liga: t.a, tipo: 'mercado' });
-    }
-    for (const s of plan.salvados) noticia(ctx, { titulo: `${nombre(s.pid)} salva su asiento`, texto: 'Estaba en la zona de peligro, pero la Regla del Compañero le mantiene: el coche no daba para más.', liga: s.liga, tipo: 'mercado' });
-    noticia(ctx, { titulo: 'Se abre el mercado de fin de temporada', texto: `Despidos, traspasos internacionales y draft de rookies. El draft cierra el ${new Date(deadline).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}.`, tipo: 'fase' });
+    for (const s of plan.salvados) noticia(ctx, { titulo: `${nombre(s.pid)} salva su asiento`, texto: `Acabó ${s.pos}º, pero su compañero terminó ${s.posComp}º: se asume que el coche no daba para más.`, liga: s.liga, tipo: 'mercado' });
+    noticia(ctx, { titulo: 'Se abre el mercado de fin de temporada', texto: `Traspasos, despidos y draft de rookies. El draft cierra el ${new Date(deadline).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}.`, tipo: 'fase' });
     await volcar(ctx);
 }
 
@@ -236,7 +276,6 @@ export async function cerrarMercado(ctx) {
             if (!r.cumpleCuota) ctx.nota(`${equipos[eq]?.nombre} no tiene piloto local para el asiento de Piloto 1`);
         }
     }
-    for (const id of Object.keys(equipos)) if (equipos[id].escaparate) { equipos[id].escaparate = null; ctx.sucios.equipos.add(id); }
     await store.merge(`mercado/T${temporada}`, { estado: 'cerrado', elegidos, cerrado: ctx.ahora });
     await store.merge('config/juego', { fase: 'cerrada' });
     ctx.cfg.fase = 'cerrada';

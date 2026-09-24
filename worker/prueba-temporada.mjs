@@ -6,7 +6,7 @@ import { importarParrilla, crearEvento, guardarEventos, inicializarJuego, nuevaT
 import { ejecutarTick } from '../js/jobs/tick.js';
 import { CIRCUITOS_POR_ID } from '../js/engine/circuitos.js';
 import { LIGAS_NACIONALES, SESIONES, diaMadrid } from '../js/engine/constants.js';
-import { proyeccionMundial } from '../js/engine/stats.js';
+import { proyeccionMundial, calcularRiesgo } from '../js/engine/stats.js';
 
 const DEMO = process.argv.includes('--demo');
 const H = 3600_000, D = 24 * H;
@@ -28,14 +28,15 @@ const CIRC = {
     AUS: ['bathurst', 'phillip-island', 'sandown', 'the-bend', 'albert-park'],
     INT: ['suzuka', 'fuji', 'suzuka'],
 };
-const OFF = { FP: 0, Q1: H, R1: D, Q2: D + H, R2: 2 * D, R3: 2 * D + H };
+// Jornada de 2 días: día 1 libres, Q1 y C1; día 2 Q2, C2 y C3. Una jornada cada 4 días.
+const OFF = { FP: 0, Q1: H, R1: 2 * H, Q2: D, R2: D + H, R3: D + 2 * H };
 const eventos = [];
 LIGAS_NACIONALES.forEach((liga, li) => CIRC[liga].forEach((c, k) => {
-    const base = T0 + k * 7 * D + li * 10 * 60_000;
+    const base = T0 + k * 4 * D + li * 10 * 60_000;
     eventos.push(crearEvento({ temporada: 1, liga, ronda: k + 1, circuito: CIRCUITOS_POR_ID[c], horarios: Object.fromEntries(SESIONES.map(t => [t, base + OFF[t]])) }));
 }));
 CIRC.INT.forEach((c, k) => {
-    const base = T0 + (5 + k) * 7 * D;
+    const base = T0 + (5 + k) * 4 * D;
     eventos.push(crearEvento({ temporada: 1, liga: 'INT', ronda: k + 1, circuito: CIRCUITOS_POR_ID[c], horarios: Object.fromEntries(SESIONES.map(t => [t, base + OFF[t]])) }));
 });
 await guardarEventos(store, eventos);
@@ -52,9 +53,10 @@ await store.set('usuarios/u_admin', { nombre: 'Admin', isAdmin: true, equipoId: 
 let n = 0;
 const accion = (h, tipo, params, t) => store.set(`acciones/a${n++}`, { uid: h.uid, equipoId: h.eq, tipo, params, creado: t, estado: 'pendiente' });
 
-const FIN = T0 + 8 * 7 * D + 4 * D;
+const FIN = T0 + 8 * 4 * D + 4 * D;
 let t = T0 - 3 * D;
 let demoGuardado = false;
+let ofertaValida = null;
 while (t < FIN) {
     const hora = new Date(t).getUTCHours(), min = new Date(t).getUTCMinutes();
     // Rutina diaria de Ana (muy activa); Leo solo hace check-in
@@ -75,9 +77,44 @@ while (t < FIN) {
             }
         }
     }
+    // A mitad de liga, Leo (Kessler Werks, Alemania) hace una oferta por el líder de España
+    if (t === T0 + 10 * D + 6 * H) {
+        const tb = await tablasTemporada(store, 1);
+        const objetivo = tb.ESP.clasPilotos[0].pid;
+        const mios = (await store.list('pilotos')).filter(p => p.equipoId === 'kessler-de');
+        const tactico = mios.find(p => p.rol === 'P2') || mios[1];
+        await accion(humanos[1], 'galactico_oferta', { pid: objetivo, tactico: tactico.id, importe: 3_500_000 }, t);
+        console.log('Oferta de Leo por', objetivo, 'dando a', tactico.id);
+    }
+    // Al empezar el Mundial, la mejor escudería alemana (gestionada por Leo) pide un Galáctico español elegible
+    if (!ofertaValida && (await store.get('config/juego')).fase === 'mundial') {
+        const tb = await tablasTemporada(store, 1);
+        const pil = await store.list('pilotos');
+        const comp = (p) => pil.find(o => o.equipoId === p.equipoId && o.id !== p.id);
+        const posGer = Object.fromEntries(tb.GER.clasPilotos.map((x, i) => [x.pid, i + 1]));
+        const enRiesgo = new Set(calcularRiesgo(tb.GER, pil.filter(p => p.liga === 'GER' && p.equipoId), { inmunes: new Set() }).filter(x => x.zona !== 'seguro').map(x => x.pid));
+        const riesgoEsp = new Set(calcularRiesgo(tb.ESP, pil.filter(p => p.liga === 'ESP' && p.equipoId), { inmunes: new Set() }).filter(x => x.zona !== 'seguro').map(x => x.pid));
+        const galac = tb.ESP.clasPilotos.slice(0, 5).map(x => pil.find(p => p.id === x.pid)).find(p => comp(p)?.nac === 'es' && !riesgoEsp.has(comp(p).id));
+        let eqTop = null, tact = null;
+        for (const e of tb.GER.clasEquipos.slice(0, 5)) {
+            tact = pil.filter(p => p.equipoId === e.eq && (posGer[p.id] || 99) > 5 && comp(p)?.nac === 'de' && !enRiesgo.has(p.id) && !enRiesgo.has(comp(p).id)).sort((x, y) => posGer[x.id] - posGer[y.id])[0];
+            if (tact) { eqTop = e.eq; break; }
+        }
+        if (eqTop) {
+            await store.merge(`equipos/kessler-de`, { ownerId: null });
+            await store.merge(`equipos/${eqTop}`, { ownerId: 'u_leo', ownerNombre: 'Leo' });
+            humanos[1].eq = eqTop;
+            await store.merge(`equipos_priv/${eqTop}`, { presupuesto: 10_000_000 });
+        }
+        if (galac && tact) {
+            await accion(humanos[1], 'galactico_oferta', { pid: galac.id, tactico: tact.id, importe: 4_000_000 }, t);
+            ofertaValida = galac.id;
+            console.log('Oferta válida de', eqTop, 'por', galac.id, 'con', tact.id);
+        } else { ofertaValida = 'ninguna'; console.log('No hay combinación elegible para la oferta de prueba'); }
+    }
     const r = await ejecutarTick(store, { ahora: t, log: () => {} });
     if (r.errores?.length) ok(false, `Errores en tick ${new Date(t).toISOString()}: ${r.errores.join(' | ')}`);
-    if (DEMO && !demoGuardado && t >= T0 + 2 * 7 * D + 2 * D + H + 30 * 60_000) {
+    if (DEMO && !demoGuardado && t >= T0 + 2 * 4 * D + D + 2 * H + 30 * 60_000) {
         const dia = diaMadrid(t);
         await store.set(`paddock/${dia}_u_ana`, { uid: 'u_ana', nombre: 'Ana', equipoId: 'valcor-es', liga: 'ESP', texto: 'Tres carreras sin podio no son casualidad. El coche va, nos falta afinar el reglaje del domingo.', fecha: t - 2 * H, dia });
         await store.set(`paddock/${dia}_u_leo`, { uid: 'u_leo', nombre: 'Leo', equipoId: 'kessler-de', liga: 'GER', texto: 'A los que nos espían: el motor nuevo llega en Hockenheim. Id preparando excusas.', fecha: t - 5 * H, dia });
@@ -108,6 +145,13 @@ console.log('Corte repesca:', proy.corte);
 const m = await store.get('mercado/T1');
 console.log('Mercado:', m.estado, '| despidos', m.plan.despidos.length, '| traspasos', m.plan.traspasos.length, '| rookies elegidos', m.elegidos?.length);
 ok(m.estado === 'cerrado', 'El mercado debería estar cerrado');
+ok(m.plan.operaciones.length === 5, `Operaciones Galáctico/Táctico: ${m.plan.operaciones.length} (deberían ser 5)`);
+for (const liga of LIGAS_NACIONALES) {
+    const sale = m.plan.traspasos.filter(x => x.de === liga).length, entra = m.plan.traspasos.filter(x => x.a === liga).length;
+    ok(sale === 2 && entra === 2, `${liga}: salen ${sale} y entran ${entra} por traspaso (deberían ser 2 y 2)`);
+}
+if (ofertaValida && ofertaValida !== 'ninguna') ok(m.plan.operaciones.some(o => o.humano && o.pid === ofertaValida), 'La oferta válida del mánager no se ejecutó');
+m.plan.operaciones.forEach(o => console.log(`  ${o.de}→${o.a}: ${o.nombre} (${o.pos || '?'}º) por ${o.nombreTactico} + ${(o.importe / 1e6).toFixed(1)} M€ ${o.humano ? '[oferta de mánager]' : '[liga]'}`));
 ok(m.plan.despidos.length >= 10 && m.plan.despidos.length <= 20, `Despidos fuera de rango: ${m.plan.despidos.length}`);
 const pilotos = await store.list('pilotos');
 for (const liga of LIGAS_NACIONALES) {

@@ -57,6 +57,13 @@ export const ECO = {
     costeInvestigacion: { coche: 400_000, piloto: 250_000, estrategia: 600_000 },
     horasInvestigacion: { coche: 2, piloto: 1, estrategia: 1 },
     probDeteccionEspia: 0.2,
+    // Mundial
+    bonusClasificadoMundial: 1_500_000,   // por cada piloto que la escudería lleva al Mundial
+    multPremioMundial: 3,                 // los puntos del Mundial valen el triple en premios
+    premiosMundialEscuderias: [5_000_000, 3_000_000, 2_000_000],
+    bonusCampeonMundial: 3_000_000,       // para la escudería del campeón del mundo
+    // Fin de temporada: premio por posición en el campeonato de escuderías de cada liga
+    premiosLiga: [6_000_000, 5_000_000, 4_500_000, 4_000_000, 3_500_000, 3_000_000, 2_500_000, 2_000_000, 1_500_000, 1_000_000],
 };
 
 export const AREAS = {

@@ -170,3 +170,20 @@ export async function cargarPaddock(limite = 40) {
     try { return await store().list('paddock', [], { orden: ['fecha', 'desc'], limit: limite }); }
     catch (e) { console.warn('paddock', e); return []; }
 }
+
+// Todas las sesiones de todas las temporadas (las pasadas no cambian: se cachean en localStorage)
+export async function cargarHistorico(d) {
+    const todas = d.sesiones.slice();
+    for (let t = 1; t < d.temporada; t++) {
+        const k = `fxhist:T${t}`;
+        let json = null;
+        if (!DEMO) { try { json = localStorage.getItem(k); } catch { } }
+        if (!json) {
+            const doc = await store().get(`resumen/T${t}`).catch(() => null);
+            json = doc?.json || null;
+            if (json && !DEMO) { try { localStorage.setItem(k, json); } catch { } }
+        }
+        if (json) todas.push(...JSON.parse(json).sesiones.map(descompactar));
+    }
+    return todas;
+}

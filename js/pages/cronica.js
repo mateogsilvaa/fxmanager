@@ -36,7 +36,7 @@ main.innerHTML = `
     <div class="fila" style="margin-top:14px">${SESIONES.filter(t => S[t]).map(t => `<a class="btn btn-sec btn-peq" href="sesion.html?id=${esc(evId)}_${t}">${esc(SESION_INFO[t].corto)}</a>`).join('')}</div>
   </div>
   <aside class="pila">
-    ${c.mvp ? `<div class="tarjeta tarjeta-acento"><div class="etiqueta">Piloto del fin de semana</div><div style="margin-top:8px">${celdaPiloto(d, c.mvp.pid, { equipo: true })}</div><div class="cuenta">${c.mvp.pts} pts</div></div>` : ''}
+    ${c.mvp ? `<div class="tarjeta tarjeta-acento"><div class="etiqueta">Piloto de la jornada</div><div style="margin-top:8px">${celdaPiloto(d, c.mvp.pid, { equipo: true })}</div><div class="cuenta">${c.mvp.pts} pts</div></div>` : ''}
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Podios</h3></div>
       ${['Q1', 'R1', 'Q2', 'R2', 'R3'].filter(t => S[t]).map(t => `<div style="margin-bottom:10px"><div class="etiqueta">${esc(SESION_INFO[t].nombre)}${S[t].lluvia ? ' ' : ''}</div>${S[t].filas.slice(0, 3).map(f => `<div class="fila" style="margin:4px 0">${pos(f.pos)} ${celdaPiloto(d, f.pid)}</div>`).join('')}</div>`).join('')}
     </div>

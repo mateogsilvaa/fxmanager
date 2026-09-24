@@ -4,8 +4,34 @@ import { calcularRiesgo } from './stats.js';
 import { nombreAleatorio, EXTRANJEROS } from './nombres.js';
 import { atributosAleatorios } from './juego.js';
 
-// tablas: {liga: temporada}, pilotos: catálogo [{id, nac, equipoId, liga, rol}], inmunes: Set de pids clasificados al Mundial
-export function planMercado({ tablas, pilotos, inmunes, rng, ofrecidos = new Set() }) {
+export const MERCADO = {
+    topGalactico: 5,          // el Galáctico sale del top 5 de su liga
+    topComprador: 5,          // solo las 5 mejores escuderías de cada liga pueden pedir un Galáctico
+    importeMinimo: 1_000_000, // oferta mínima
+    importeIA: 2_000_000,     // lo que paga la liga cuando no hay oferta de un mánager
+};
+
+// Todas las permutaciones sin puntos fijos de las 5 ligas (quién compra a quién)
+function desarreglos(lista) {
+    const out = [];
+    const perm = (resto, acc) => {
+        if (!resto.length) { out.push(acc); return; }
+        const i = acc.length;
+        for (const x of resto) if (x !== lista[i]) perm(resto.filter(y => y !== x), [...acc, x]);
+    };
+    perm(lista, []);
+    return out;
+}
+
+/**
+ * tablas: {liga: temporada}, pilotos: [{id, nac, equipoId, liga, rol}], inmunes: Set de pids clasificados al Mundial,
+ * ofertas: [{eq, pid, tactico, importe}] (eq = escudería compradora), posEquipo: {eq: posición en su liga}
+ *
+ * Cada liga cede un Galáctico (top 5) a otra liga. La escudería que lo recibe entrega a cambio a su Táctico
+ * (un piloto suyo fuera del top 5) y un importe. Así cada liga pierde exactamente 2 pilotos y recibe 2.
+ */
+export function planMercado({ tablas, pilotos, inmunes, rng, ofertas = [], posEquipo = {} }) {
+    // 1. Despidos (rendimiento contra el compañero)
     const despidos = [], salvados = [], riesgoPorLiga = {};
     for (const liga of LIGAS_NACIONALES) {
         const pl = pilotos.filter(p => p.liga === liga && p.equipoId);
@@ -13,57 +39,93 @@ export function planMercado({ tablas, pilotos, inmunes, rng, ofrecidos = new Set
         const riesgo = calcularRiesgo(tablas[liga], pl, { inmunes });
         riesgoPorLiga[liga] = riesgo;
         for (const r of riesgo) {
-            if (r.zona === 'despido') despidos.push({ pid: r.pid, eq: r.eq, liga, motivo: 'directo', riesgo: r.riesgo });
+            if (r.zona === 'despido') despidos.push({ pid: r.pid, eq: r.eq, liga, motivo: 'directo', riesgo: r.riesgo, pos: r.pos, posComp: r.posComp });
             else if (r.zona === 'peligro') {
-                if (r.caeria) despidos.push({ pid: r.pid, eq: r.eq, liga, motivo: 'peligro', riesgo: r.riesgo });
-                else salvados.push({ pid: r.pid, eq: r.eq, liga, riesgo: r.riesgo });
+                if (r.caeria) despidos.push({ pid: r.pid, eq: r.eq, liga, motivo: 'peligro', riesgo: r.riesgo, pos: r.pos, posComp: r.posComp });
+                else salvados.push({ pid: r.pid, eq: r.eq, liga, riesgo: r.riesgo, pos: r.pos, posComp: r.posComp });
             }
         }
     }
     const despedidos = new Set(despidos.map(d => d.pid));
+    const porId = Object.fromEntries(pilotos.map(p => [p.id, p]));
+    const companero = (p) => pilotos.find(o => o.equipoId === p.equipoId && o.id !== p.id);
+    const posLiga = {};
+    for (const liga of LIGAS_NACIONALES) tablas[liga]?.clasPilotos.forEach((s, i) => { posLiga[s.pid] = i + 1; });
 
-    const elegible = (p, usados) => {
-        if (despedidos.has(p.id) || usados.has(p.id)) return false;
-        const comp = pilotos.find(o => o.equipoId === p.equipoId && o.id !== p.id);
-        if (!comp || despedidos.has(comp.id) || usados.has(comp.id)) return false;
-        return comp.nac === NAC_LOCAL[p.liga]; // el equipo debe conservar un piloto local para el asiento de Piloto 1
+    // Un piloto puede irse si su equipo conserva a un piloto local para el asiento de Piloto 1
+    const puedeSalir = (p) => {
+        if (!p?.equipoId || despedidos.has(p.id)) return false;
+        const c = companero(p);
+        return !!c && !despedidos.has(c.id) && c.nac === NAC_LOCAL[p.liga];
     };
+    const esGalactico = (p) => puedeSalir(p) && (posLiga[p.id] || 99) <= 10;
+    const esTactico = (p) => puedeSalir(p) && (posLiga[p.id] || 99) > MERCADO.topGalactico;
+    const puedeComprar = (eq) => (posEquipo[eq] || 99) <= MERCADO.topComprador;
 
-    const usados = new Set();
-    const traspasos = [];
-    for (const tipo of ['galactico', 'tactico']) {
-        const elegidos = [];
-        for (const liga of LIGAS_NACIONALES) {
-            const t = tablas[liga];
-            if (!t) continue;
-            const clas = t.clasPilotos.map(s => pilotos.find(p => p.id === s.pid)).filter(p => p && p.liga === liga && p.equipoId);
-            const rango = tipo === 'galactico' ? clas.slice(0, 5) : clas.slice(6, 14);
-            let cands = rango.filter(p => elegible(p, usados));
-            // Los mánagers pueden poner a un piloto en el escaparate: tiene prioridad como Táctico
-            if (tipo === 'tactico') {
-                const escaparate = clas.slice(5).filter(p => ofrecidos.has(p.id) && elegible(p, usados));
-                if (escaparate.length) cands = escaparate;
+    // Ofertas válidas de los mánagers, de mayor a menor importe
+    const validas = ofertas.map(o => {
+        const g = porId[o.pid], t = porId[o.tactico];
+        const comprador = pilotos.find(p => p.equipoId === o.eq);
+        if (!g || !t || !comprador) return null;
+        if (t.equipoId !== o.eq || g.liga === t.liga || !esGalactico(g) || !esTactico(t) || !puedeComprar(o.eq)) return null;
+        return { ...o, de: g.liga, a: t.liga, eqVendedor: g.equipoId, humano: true };
+    }).filter(Boolean).sort((a, b) => b.importe - a.importe);
+
+    // 2 y 3. Para cada reparto posible (qué liga compra a cuál) se montan las 5 operaciones:
+    // primero las ofertas de los mánagers y, donde no las haya, una operación decidida por la liga.
+    // Se elige el reparto que cierra más operaciones y, a igualdad, el que más dinero de mánagers mueve.
+    const construir = (destino, rngLocal) => {
+        const usados = new Set(), equiposUsados = new Set();
+        const ops = [];
+        let valor = 0;
+        for (const o of validas) {
+            if (destino[o.de] !== o.a || ops.some(x => x.de === o.de)) continue;
+            if (usados.has(o.pid) || usados.has(o.tactico) || equiposUsados.has(o.eq) || equiposUsados.has(o.eqVendedor)) continue;
+            ops.push({ ...o, pos: posLiga[o.pid] }); valor += o.importe;
+            usados.add(o.pid); usados.add(o.tactico); equiposUsados.add(o.eq); equiposUsados.add(o.eqVendedor);
+        }
+        for (const de of LIGAS_NACIONALES) {
+            if (ops.some(x => x.de === de)) continue;
+            const a = destino[de];
+            const clasDe = (tablas[de]?.clasPilotos || []).map(s => porId[s.pid]).filter(p => p && p.liga === de);
+            const equiposA = Object.entries(posEquipo).filter(([eq]) => pilotos.some(p => p.equipoId === eq && p.liga === a)).sort((x, y) => x[1] - y[1]).map(([eq]) => eq);
+            let hecho = false;
+            for (const corte of [MERCADO.topGalactico, 8, 10]) {
+                const galacticos = clasDe.slice(0, corte).filter(p => puedeSalir(p) && !usados.has(p.id) && !equiposUsados.has(p.equipoId));
+                if (!galacticos.length) continue;
+                const g = rngLocal.weighted(galacticos, x => 11 - Math.min(10, (posLiga[x.id] || 10)));
+                for (const eq of equiposA) {
+                    if (equiposUsados.has(eq)) continue;
+                    const t = pilotos.filter(p => p.equipoId === eq && puedeSalir(p) && (posLiga[p.id] || 99) > MERCADO.topGalactico && !usados.has(p.id))
+                        .sort((x, y) => (posLiga[x.id] || 99) - (posLiga[y.id] || 99))[0];
+                    if (!t) continue;
+                    ops.push({ eq, pid: g.id, tactico: t.id, importe: MERCADO.importeIA, de, a, eqVendedor: g.equipoId, humano: false, pos: posLiga[g.id] });
+                    usados.add(g.id); usados.add(t.id); equiposUsados.add(eq); equiposUsados.add(g.equipoId);
+                    hecho = true; break;
+                }
+                if (hecho) break;
             }
-            if (!cands.length && tipo === 'galactico') cands = clas.slice(5, 8).filter(p => elegible(p, usados));
-            if (!cands.length) continue;
-            const p = tipo === 'galactico'
-                ? rng.weighted(cands, x => 6 - Math.min(5, clas.indexOf(x)))
-                : rng.pick(cands);
-            usados.add(p.id);
-            elegidos.push(p);
         }
-        // Ciclo: cada piloto ocupa el asiento del elegido de la siguiente liga
-        const orden = rng.shuffle(elegidos);
-        if (orden.length >= 2) {
-            orden.forEach((p, i) => {
-                const destino = orden[(i + 1) % orden.length];
-                traspasos.push({ pid: p.id, tipo, de: p.liga, a: destino.liga, eqOrigen: p.equipoId, eqDestino: destino.equipoId });
-            });
-        }
+        return { ops, valor };
+    };
+    let mejor = null;
+    for (const perm of rng.shuffle(desarreglos(LIGAS_NACIONALES))) {
+        const destino = Object.fromEntries(LIGAS_NACIONALES.map((l, i) => [l, perm[i]]));
+        const r = construir(destino, rng);
+        const puntuacion = r.ops.length * 1e12 + r.valor;
+        if (!mejor || puntuacion > mejor.puntuacion) mejor = { ...r, puntuacion };
+        if (r.ops.length === LIGAS_NACIONALES.length && !validas.length) break;
     }
+    // Si alguna liga no puede cerrar su operación se anula el ciclo entero (nunca queda una liga descompensada)
+    const operaciones = mejor && mejor.ops.length === LIGAS_NACIONALES.length ? mejor.ops : [];
 
+    // Formato de traspasos individuales (lo que se aplica al cerrar el mercado)
+    const traspasos = operaciones.flatMap(o => [
+        { pid: o.pid, tipo: 'galactico', de: o.de, a: o.a, eqOrigen: o.eqVendedor, eqDestino: o.eq, importe: o.importe, humano: o.humano, pos: o.pos },
+        { pid: o.tactico, tipo: 'tactico', de: o.a, a: o.de, eqOrigen: o.eq, eqDestino: o.eqVendedor, importe: 0, humano: o.humano, pos: posLiga[o.tactico] },
+    ]);
     const vacantes = despidos.map(d => ({ eq: d.eq, liga: d.liga, deja: d.pid }));
-    return { despidos, salvados, traspasos, vacantes, riesgo: riesgoPorLiga };
+    return { despidos, salvados, traspasos, operaciones, vacantes, riesgo: riesgoPorLiga };
 }
 
 // Bolsa de rookies para el draft

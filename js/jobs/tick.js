@@ -17,6 +17,7 @@ import {
 } from './comun.js';
 import { reconstruirCatalogo } from './catalogo.js';
 import { prepararMercado, cerrarMercado } from './temporada.js';
+import { MERCADO } from '../engine/mercado.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const M = (v) => `${(v / 1e6).toFixed(2).replace('.', ',')} M€`;
@@ -210,7 +211,7 @@ async function efectosPublicacion(ctx, ev, res) {
     for (const [eq, pts] of Object.entries(ptsEq)) {
         const priv = privs[eq];
         if (!priv) continue;
-        const premio = pts * ECO.premioPorPunto;
+        const premio = pts * ECO.premioPorPunto * (ev.liga === 'INT' ? ECO.multPremioMundial : 1);
         if (premio > 0) { movimiento(priv, `Premio ${tipoNombre} (${ev.circuito.nombre})`, premio, ctx.ahora); ctx.sucios.privs.add(eq); }
         const fs = res.filas.filter(f => f.eq === eq);
         notificar(ctx, eq, {
@@ -268,7 +269,7 @@ async function cerrarEvento(ctx, ev) {
         priv.riesgoFiab = 1;
         ctx.sucios.privs.add(eq);
         notificar(ctx, eq, {
-            remitente: 'Dirección financiera', tipo: 'finanzas', titulo: `Balance del fin de semana · ${ev.circuito.nombre}`,
+            remitente: 'Dirección financiera', tipo: 'finanzas', titulo: `Balance de la jornada · ${ev.circuito.nombre}`,
             texto: `Puntos: ${puntos}. Patrocinio: ${M(pago.total)}${priv.sponsor?.objetivo ? (pago.cumplido ? ' (objetivo cumplido )' : ' (objetivo no cumplido)') : ''}. ` +
                 (ev.liga !== 'INT' ? `Salarios: −${M(sueldos)}. ` : '') + `Presupuesto actual: ${M(priv.presupuesto)}.`,
         });
@@ -278,7 +279,7 @@ async function cerrarEvento(ctx, ev) {
     const ganador = r3?.filas?.[0];
     noticia(ctx, {
         titulo: `Crónica: ${LIGAS[ev.liga]?.nombre} · Ronda ${ev.ronda} (${ev.circuito.nombre})`,
-        texto: ganador ? `${nombrePiloto(pilotos[ganador.pid])} gana la última carrera del fin de semana. Ya está disponible la crónica completa.` : '',
+        texto: ganador ? `${nombrePiloto(pilotos[ganador.pid])} gana la última carrera de la jornada. Ya está disponible la crónica completa.` : '',
         liga: ev.liga, tipo: 'cronica',
     });
     void equipos;
@@ -386,7 +387,7 @@ const ACCIONES = {
         const participa = ev.liga === ctx.equipos[a.equipoId].liga || (ev.liga === 'INT' && (await participaEnMundial(ctx, a.equipoId)));
         if (!participa) throw new Error('Tu equipo no corre ese evento.');
         const ultimoCierre = Math.max(...sesionesOrdenadas(ev).map(s => s.lockAt));
-        if (ultimoCierre <= ctx.ahora) throw new Error('Ese fin de semana ya ha terminado.');
+        if (ultimoCierre <= ctx.ahora) throw new Error('Esa jornada ya ha terminado.');
         const dia = diaMadrid(a.creado || ctx.ahora);
         const t = tandasDisponibles(priv, dia);
         if (t.quedan <= 0) throw new Error('No te quedan tandas de simulador hoy. Vuelve mañana.');
@@ -434,21 +435,37 @@ const ACCIONES = {
         ctx.catalogoSucio = true;
         notificar(ctx, a.equipoId, {
             remitente: 'Dirección de la liga', tipo: 'bienvenida', titulo: `Bienvenido a ${ctx.equipos[a.equipoId].nombre}`,
-            texto: 'Firma un patrocinador, recoge tu recompensa diaria cada día y usa el simulador antes de cada fin de semana. ¡Suerte!',
+            texto: 'Firma un patrocinador, recoge tu recompensa diaria cada día y usa el simulador antes de cada jornada. ¡Suerte!',
         });
         return { ok: true };
     },
 
-    async tactico_ofrecer(ctx, a) {
-        const pid = a.params?.pilotoId || null;
+    // Oferta por un Galáctico de otra liga: {pid, tactico, importe} o {cancelar: true}
+    async galactico_oferta(ctx, a) {
+        if (!['pretemporada', 'nacional', 'mundial'].includes(ctx.cfg.fase)) throw new Error('El plazo de ofertas está cerrado.');
+        const ref = `mercado_ofertas/T${ctx.temporada}`;
+        const doc = (await ctx.store.get(ref)) || { ofertas: {} };
+        const ofertas = { ...(doc.ofertas || {}) };
+        if (a.params?.cancelar) {
+            delete ofertas[a.equipoId];
+            await ctx.store.set(ref, { ofertas });
+            return { ok: true, cancelada: true };
+        }
         const pil = await cargarPilotos(ctx);
-        if (pid && pil[pid]?.equipoId !== a.equipoId) throw new Error('Ese piloto no es de tu equipo.');
-        if (ctx.cfg.fase === 'mercado' || ctx.cfg.fase === 'cerrada') throw new Error('El mercado ya está decidido.');
-        ctx.equipos[a.equipoId].escaparate = pid;
-        ctx.sucios.equipos.add(a.equipoId);
-        ctx.catalogoSucio = true;
-        if (pid) noticia(ctx, { titulo: `${ctx.equipos[a.equipoId].nombre} pone a ${nombrePiloto(pil[pid])} en el escaparate`, texto: 'Podría ser el Táctico de su liga en el mercado de fin de temporada.', liga: ctx.equipos[a.equipoId].liga, tipo: 'mercado' });
-        return { ok: true, pilotoId: pid };
+        const g = pil[a.params?.pid], t = pil[a.params?.tactico];
+        const eq = ctx.equipos[a.equipoId];
+        const importe = Math.round(+a.params?.importe || 0);
+        if (!g || !g.equipoId) throw new Error('Piloto no encontrado.');
+        if (g.liga === eq.liga) throw new Error('El Galáctico tiene que ser de otra liga.');
+        if (!t || t.equipoId !== a.equipoId) throw new Error('El Táctico tiene que ser uno de tus pilotos.');
+        if (importe < MERCADO.importeMinimo) throw new Error(`La oferta mínima es de ${M(MERCADO.importeMinimo)}.`);
+        const priv = privDe(ctx, a.equipoId);
+        if ((priv.presupuesto || 0) < importe) throw new Error('No tienes ese dinero.');
+        ofertas[a.equipoId] = { pid: g.id, tactico: t.id, importe, fecha: ctx.ahora };
+        await ctx.store.set(ref, { ofertas });
+        notificar(ctx, g.equipoId, { remitente: 'Mercado', tipo: 'mercado', titulo: `${eq.nombre} pregunta por ${nombrePiloto(g)}`, texto: `Ha ofrecido ${M(importe)} y a ${nombrePiloto(t)}. Si ${g.apellido} acaba en el top 5 y es el Galáctico de tu liga, recibirías eso a cambio.` });
+        noticia(ctx, { titulo: `${eq.nombre} quiere a ${nombrePiloto(g)}`, texto: `Oferta de ${M(importe)} más ${nombrePiloto(t)} para el mercado de fin de temporada.`, liga: g.liga, tipo: 'rumor' });
+        return { ok: true };
     },
 
     async draft(ctx, a) {
@@ -692,6 +709,15 @@ async function transicionesFase(ctx) {
         const participantes = proy.clasificados.map(c => c.pid);
         const pilotos = await cargarPilotos(ctx);
         const mundial = { ...(ctx.cfg.mundial || {}), participantes, clasificados: proy.clasificados, fijado: ctx.ahora };
+        const privs = await cargarPrivs(ctx);
+        await cargarEquipos(ctx);
+        for (const pid of participantes) {
+            const eq = pilotos[pid]?.equipoId;
+            if (!eq || !privs[eq]) continue;
+            movimiento(privs[eq], `Bonus Mundial: ${nombrePiloto(pilotos[pid])} clasificado`, ECO.bonusClasificadoMundial, ctx.ahora);
+            ctx.sucios.privs.add(eq);
+            notificar(ctx, eq, { remitente: 'Dirección de la liga', tipo: 'mundial', titulo: `${nombrePiloto(pilotos[pid])} va al Mundial`, texto: `Cobras ${M(ECO.bonusClasificadoMundial)} y su asiento queda asegurado para la próxima temporada. En el Mundial cada punto vale el triple en premios.` });
+        }
         await ctx.store.merge('config/juego', { fase: 'mundial', mundial });
         ctx.cfg.fase = 'mundial';
         ctx.cfg.mundial = mundial;

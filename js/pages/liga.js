@@ -1,5 +1,5 @@
 import { montar, barraDirecto, selectorLigas } from '../core/layout.js';
-import { cargarDatos, cargarNoticias } from '../core/datos.js';
+import { cargarDatos, cargarNoticias, cargarHistorico } from '../core/datos.js';
 import { usuario } from '../core/app.js';
 import { esc, banderaLiga, bandera, vacio, pestanas, $, $$, fecha, chipEquipo } from '../core/ui.js';
 import {
@@ -7,7 +7,7 @@ import {
     tarjetasRecords, activarRecords, fmtValor,
 } from '../core/componentes.js';
 import { LIGAS, LIGAS_NACIONALES, SESION_INFO, PAISES } from '../engine/constants.js';
-import { CATEGORIAS_PILOTO, CATEGORIAS_EQUIPO, calcularRiesgo } from '../engine/stats.js';
+import { CATEGORIAS_PILOTO, CATEGORIAS_EQUIPO, calcularRiesgo, construirTemporada } from '../engine/stats.js';
 import { generarCronica } from '../engine/cronica.js';
 
 const liga = (new URLSearchParams(location.search).get('l') || 'ESP').toUpperCase();
@@ -26,7 +26,7 @@ main.innerHTML = `
 ${selectorLigas(liga)}
 <div class="cabecera-pagina">
   <div><div class="etiqueta">${esInt ? 'Fase final' : 'Liga nacional'} · T${d.temporada}</div><h1>${banderaLiga(liga, { ancho: 26 })} ${esc(esInt ? 'Liga Intercontinental' : L.nombre)}</h1>
-  <p class="sub">${esInt ? `${d.cfg.mundial?.nombre ? `Sede: ${esc(d.cfg.mundial.nombre)} · ` : ''}top 3 de cada liga + 5 mejores del resto` : `Temporada ${d.temporada} · 10 escuderías · 5 fines de semana`}</p></div>
+  <p class="sub">${esInt ? `${d.cfg.mundial?.nombre ? `Sede: ${esc(d.cfg.mundial.nombre)} · ` : ''}top 3 de cada liga + 5 mejores del resto` : `Temporada ${d.temporada} · 10 escuderías · 5 jornadas`}</p></div>
 </div>
 <div class="pestanas" id="tabs">
   <button data-tab="clasificacion">Clasificación</button>
@@ -61,7 +61,7 @@ function resumen() {
     el.innerHTML = `
     <div class="rejilla rejilla-lado">
       <div class="pila">
-        ${evProx ? `<div><div class="etiqueta" style="margin-bottom:8px">${prox ? 'Próximo fin de semana' : 'Fin de semana en curso'}</div>${tarjetaEvento(d, evProx)}</div>` : ''}
+        ${evProx ? `<div><div class="etiqueta" style="margin-bottom:8px">${prox ? 'Próxima jornada' : 'Jornada en curso'}</div>${tarjetaEvento(d, evProx)}</div>` : ''}
         <div class="tarjeta"><div class="tarjeta-titulo"><h2>Clasificación</h2><button class="btn btn-sec btn-peq" data-ir="clasificacion">Completa →</button></div>${tablaClasificacionPilotos(d, liga, { limite: 10 })}</div>
         ${ultimoCompleto ? podiosEvento(ultimoCompleto) : ''}
       </div>
@@ -76,7 +76,7 @@ function resumen() {
 
 function podiosEvento(ev) {
     const carreras = ['R1', 'R2', 'R3'].map(t => d.sesionPublicada(`${ev.id}_${t}`)).filter(Boolean);
-    return `<div class="tarjeta"><div class="tarjeta-titulo"><h2>Último fin de semana · ${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</h2><a class="btn btn-sec btn-peq" href="cronica.html?ev=${esc(ev.id)}">Crónica</a></div>
+    return `<div class="tarjeta"><div class="tarjeta-titulo"><h2>Última jornada · ${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</h2><a class="btn btn-sec btn-peq" href="cronica.html?ev=${esc(ev.id)}">Crónica</a></div>
     <div class="rejilla rejilla-3">${carreras.map(s => {
         const fin = s.filas.filter(f => f.estado === 'FIN');
         return `<a href="sesion.html?id=${esc(s.sid)}" style="display:block"><div class="etiqueta">${esc(SESION_INFO[s.tipo].nombre)}${s.ll ? ' · ' : ''}</div>
@@ -136,7 +136,7 @@ function calendario() {
 function cronicas() {
     const el = $('#p-cronicas');
     const completos = eventos.filter(e => Object.values(e.sesiones).every(s => d.estadoSesion(s) === 'final')).reverse();
-    if (!completos.length) { el.innerHTML = vacio('La primera crónica llegará al terminar el primer fin de semana.'); return; }
+    if (!completos.length) { el.innerHTML = vacio('La primera crónica llegará al terminar el primera jornada.'); return; }
     el.innerHTML = `<div class="rejilla rejilla-2">${completos.map(ev => {
         const S = {};
         for (const t of ['FP', 'Q1', 'R1', 'Q2', 'R2', 'R3']) { const s = d.sesionPublicada(`${ev.id}_${t}`); if (s) S[t] = { ...s, vr: s.vr ? { pid: s.vr } : null }; }
@@ -146,28 +146,33 @@ function cronicas() {
 }
 
 // ---------------------------------------------------------------- Estadísticas
-function estadisticas() {
+async function estadisticas() {
     const el = $('#p-estadisticas');
-    if (!d.sesionesLiga(liga).length) { el.innerHTML = vacio('Las estadísticas aparecerán tras la primera sesión.'); return; }
-    const pil = Object.values(tabla.pilotos);
-    const eqs = Object.values(tabla.equipos);
-    el.innerHTML = `<div class="sub-pestanas" id="sub-est"><button data-sub="rp" class="activa">Pilotos</button><button data-sub="re">Escuderías</button><button data-sub="tp">Tabla completa</button></div><div id="est-cuerpo"></div>`;
+    const historico = (await cargarHistorico(d)).filter(s => s.liga === liga);
+    if (!historico.length) { el.innerHTML = vacio('Las estadísticas aparecerán tras la primera sesión.'); return; }
+    const tablas = { historico: construirTemporada(historico), temporada: tabla };
+    let alcance = 'historico', sub = 'rp';
+    el.innerHTML = `<div class="barra-opciones"><div class="sub-pestanas" id="sub-est" style="margin:0"><button data-sub="rp" class="activa">Pilotos</button><button data-sub="re">Escuderías</button><button data-sub="tp">Tabla completa</button></div>
+      <select id="alcance"><option value="historico">Histórico</option><option value="temporada">Temporada ${d.temporada}</option></select></div><div id="est-cuerpo"></div>`;
     const cuerpo = $('#est-cuerpo', el);
-    const pintar = (sub) => {
+    const pintar = () => {
+        const t = tablas[alcance];
+        const pil = Object.values(t.pilotos), eqs = Object.values(t.equipos);
         $$('#sub-est button', el).forEach(b => b.classList.toggle('activa', b.dataset.sub === sub));
+        if (!pil.length) { cuerpo.innerHTML = vacio('Sin datos todavía.'); return; }
         if (sub === 'rp' || sub === 're') {
             const cats = sub === 'rp' ? CATEGORIAS_PILOTO : CATEGORIAS_EQUIPO;
             const lista = sub === 'rp' ? pil : eqs;
             const tipo = sub === 'rp' ? 'piloto' : 'equipo';
             cuerpo.innerHTML = `<h3>Lo mejor</h3><div class="rejilla rejilla-auto">${tarjetasRecords(d, cats.filter(c => c.bueno), lista, { tipo })}</div>
-              <h3 style="margin-top:22px">El lado oscuro</h3><div class="rejilla rejilla-auto">${tarjetasRecords(d, cats.filter(c => !c.bueno), lista, { tipo })}</div>`;
-            activarRecords(cuerpo, d, cats, lista, { tipo, titulo: `${L.nombre} · Temporada ${d.temporada}` });
-        } else if (sub === 'tp') cuerpo.innerHTML = `<div class="tarjeta">${tablaOrdenablePilotos(pil)}</div>`;
-        else cuerpo.innerHTML = `<div class="tarjeta">${tablaOrdenableEquipos(eqs)}</div>`;
+              <h3 style="margin-top:30px">El lado oscuro</h3><div class="rejilla rejilla-auto">${tarjetasRecords(d, cats.filter(c => !c.bueno), lista, { tipo })}</div>`;
+            activarRecords(cuerpo, d, cats, lista, { tipo, titulo: `${L.nombre} · ${alcance === 'historico' ? 'histórico' : `temporada ${d.temporada}`}` });
+        } else cuerpo.innerHTML = `<div class="tarjeta">${tablaOrdenablePilotos(pil)}</div>`;
         activarOrden(cuerpo);
     };
-    $$('#sub-est button', el).forEach(b => b.addEventListener('click', () => pintar(b.dataset.sub)));
-    pintar('rp');
+    $$('#sub-est button', el).forEach(b => b.addEventListener('click', () => { sub = b.dataset.sub; pintar(); }));
+    $('#alcance', el).addEventListener('change', (e) => { alcance = e.target.value; pintar(); });
+    pintar();
 }
 
 const COLS_P = [

@@ -1,4 +1,4 @@
-// Crónicas autogeneradas del fin de semana
+// Crónicas autogeneradas de la jornada
 import { crearRng } from './rng.js';
 import { LIGAS } from './constants.js';
 
@@ -19,7 +19,7 @@ export function generarCronica(ctx) {
     ganadores.forEach(id => { cuenta[id] = (cuenta[id] || 0) + 1; });
     const dominador = Object.entries(cuenta).find(([, n]) => n >= 2)?.[0];
 
-    // Puntos del fin de semana
+    // Puntos de la jornada
     const ptsFinde = {};
     for (const t of ['Q1', 'R1', 'Q2', 'R2', 'R3']) S[t]?.filas?.forEach(f => { ptsFinde[f.pid] = (ptsFinde[f.pid] || 0) + f.pts; });
     const topFinde = Object.entries(ptsFinde).sort((a, b) => b[1] - a[1]);
@@ -30,7 +30,7 @@ export function generarCronica(ctx) {
     if (dominador && cuenta[dominador] === 3) titulo = rng.pick([`${apellido(dominador)} arrasa en ${circuito}: tres de tres`, `Pleno histórico de ${apellido(dominador)} en ${circuito}`, `${apellido(dominador)}, intratable: gana las tres carreras`]);
     else if (dominador) titulo = rng.pick([`${apellido(dominador)} manda en ${circuito} con un doblete de victorias`, `Doble triunfo de ${apellido(dominador)} en ${circuito}`, `${apellido(dominador)} se hace fuerte en ${circuito}`]);
     else if (ganadores.length === 3) titulo = rng.pick([`Tres carreras, tres ganadores distintos en ${circuito}`, `Locura en ${circuito}: ${apellido(ganadores[0])}, ${apellido(ganadores[1])} y ${apellido(ganadores[2])} se reparten las victorias`, `${circuito} no tiene dueño`]);
-    else titulo = `Crónica del fin de semana en ${circuito}`;
+    else titulo = `Crónica de la jornada en ${circuito}`;
 
     // Líder del campeonato
     const liderAntes = ctx.antes?.clasPilotos?.[0];
@@ -47,7 +47,7 @@ export function generarCronica(ctx) {
     const pole1 = polePid(S.Q1);
     if (pole1) {
         const fp = S.FP?.filas?.[0];
-        let t = rng.pick(['El viernes arrancó con', 'El fin de semana empezó con']) + ` la pole de ${nombre(pole1)} (${equipo(S.Q1.filas[0].eq)}) en la Clasificación 1`;
+        let t = rng.pick(['La jornada arrancó con', 'Todo empezó con']) + ` la pole de ${nombre(pole1)} (${equipo(S.Q1.filas[0].eq)}) en la Clasificación 1`;
         if (fp && fp.pid !== pole1) t += `, pese a que en los libres el más rápido había sido ${apellido(fp.pid)}`;
         t += '.';
         const sinTiempo = S.Q1.filas.filter(f => f.estado === 'SIN TIEMPO');
@@ -62,7 +62,7 @@ export function generarCronica(ctx) {
         p.push(parrafoCarrera(s, ord, t, ctx, rng));
     }
 
-    // Figura del fin de semana
+    // Figura de la jornada
     if (mvp) {
         let t = `Con ${mvp[1]} puntos, ${nombre(mvp[0])} fue el piloto que más sumó en ${circuito}.`;
         const remontadas = [S.R1, S.R2, S.R3].filter(Boolean).flatMap(s => s.filas.filter(f => f.estado === 'FIN' && f.parrilla).map(f => ({ ...f, gan: f.parrilla - f.pos, ses: s.tipo })));
@@ -72,7 +72,7 @@ export function generarCronica(ctx) {
         const conteo = {};
         dnfs.forEach(id => { conteo[id] = (conteo[id] || 0) + 1; });
         const gafado = Object.entries(conteo).sort((a, b) => b[1] - a[1])[0];
-        if (gafado && gafado[1] >= 2) t += ` En el otro extremo, ${apellido(gafado[0])} abandonó ${gafado[1]} veces: fin de semana para olvidar.`;
+        if (gafado && gafado[1] >= 2) t += ` En el otro extremo, ${apellido(gafado[0])} abandonó ${gafado[1]} veces: jornada para olvidar.`;
         p.push(t);
     }
 
@@ -121,7 +121,7 @@ function parrafoCarrera(s, ordinal, tipo, ctx, rng) {
     }
     if (tipo === 'R3' && fin.length) {
         const ultimo = fin[fin.length - 1];
-        if (ultimo.parrilla && ultimo.parrilla <= 5) t += ` Mal domingo para ${apellido(ultimo.pid)}, que salió ${ultimo.parrilla}º y terminó último.`;
+        if (ultimo.parrilla && ultimo.parrilla <= 5) t += ` Mal cierre para ${apellido(ultimo.pid)}, que salió ${ultimo.parrilla}º y terminó último.`;
     }
     return t;
 }

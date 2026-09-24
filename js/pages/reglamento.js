@@ -1,44 +1,128 @@
 import { montar } from '../core/layout.js';
-import { PUNTOS_CARRERA, PUNTOS_QUALY, ECO, costeMejora, tandasSimulador } from '../engine/constants.js';
+import {
+    PUNTOS_CARRERA, PUNTOS_QUALY, PUNTOS_VR, ECO, costeMejora, tandasSimulador, SLOTS_ID, RECARGO_URGENTE,
+} from '../engine/constants.js';
+import { MERCADO } from '../engine/mercado.js';
 import { dinero } from '../core/ui.js';
 
 await montar({ activo: 'reglamento' });
+
+const indice = [
+    ['simulacion', 'Qué es esto'], ['formato', 'El campeonato'], ['jornada', 'Una jornada'], ['puntos', 'Puntos'],
+    ['mundial', 'El Mundial'], ['mercado', 'El mercado'], ['despidos', 'Despidos'], ['economia', 'Economía'],
+    ['cada-dia', 'Qué hacer cada día'], ['carrera', 'Cómo se decide una carrera'],
+];
+const seccion = (id, titulo, html) => `<section id="${id}" style="scroll-margin-top:90px;padding:30px 0;border-bottom:1px solid var(--hair)">
+  <div class="tarjeta-titulo"><h2>${titulo}</h2></div><div class="guia">${html}</div></section>`;
+const tabla = (cab, filas) => `<div class="tabla-scroll" style="margin-bottom:14px"><table class="tabla"><thead><tr>${cab.map((c, i) => `<th class="${i ? 'der' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${filas.map(f => `<tr>${f.map((c, i) => `<td class="${i ? 'der' : ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+const tablaTexto = (cab, filas) => `<div class="tabla-scroll" style="margin-bottom:14px"><table class="tabla"><thead><tr>${cab.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${filas.map(f => `<tr>${f.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+
 document.getElementById('main').innerHTML = `
-<div class="cabecera-pagina"><div><div class="etiqueta">Hyper Race X1</div><h1>Reglamento</h1><p class="sub">Campeonato Global Hyper Race X1 · Vehículo oficial: BAC Mono (580 kg, 304 bhp, tracción trasera, dirección a 540°, sin ayudas electrónicas).</p></div></div>
-<div class="rejilla rejilla-2">
-<section class="tarjeta"><h2>1. La competición</h2>
-<p><b>Fase 1 · Ligas nacionales.</b> España, Italia, Reino Unido, Alemania y Australia. 20 pilotos y 10 escuderías por país, 5 fines de semana por liga.</p>
-<p><b>Fase 2 · Liga Intercontinental.</b> Sede neutral distinta cada año, 3 fines de semana. Clasifican 20 pilotos: el top 3 de cada liga nacional y los 5 mejores del resto por puntos. Se compite por el título de Pilotos y el Mundial de Escuderías.</p>
-<p><b>Recompensa.</b> Clasificar al Mundial da inmunidad de despido para la temporada siguiente.</p></section>
+<style>
+  .guia p, .guia li { font-size: 15px; line-height: 1.6; color: var(--body); max-width: 68ch; }
+  .guia ul, .guia ol { padding-left: 18px; margin: 0 0 1em; }
+  .guia li { margin-bottom: 6px; }
+  .guia b { color: var(--ink); }
+  .indice { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0 0 18px; border-bottom: 1px solid var(--hair); }
+  .indice a { font: 700 10px var(--sans); text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+  .indice a:hover { color: var(--accent); }
+</style>
+<div class="cabecera-pagina"><div><div class="etiqueta">Guía completa</div><h1>Cómo funciona</h1><p class="sub">Todo lo que necesitas saber para dirigir tu escudería.</p></div></div>
+<nav class="indice">${indice.map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</nav>
 
-<section class="tarjeta"><h2>2. El fin de semana</h2>
-<ul class="lista">
-<li><b>Viernes:</b> Libres (20 min) + Clasificación 1 (15 min).</li>
-<li><b>Sábado:</b> Carrera 1 (10 vueltas, parrilla de la Qualy 1) + Clasificación 2.</li>
-<li><b>Domingo:</b> Carrera 2 (10 vueltas, parrilla de la Qualy 2) + Carrera 3 (15 vueltas, parrilla según el resultado de la Carrera 2).</li></ul>
-<p class="muted">Los horarios exactos los fija la organización y aparecen en el calendario de cada liga.</p></section>
+${seccion('simulacion', 'Qué es esto', `
+<p>Hyper Race X1 es un campeonato de coches iguales (el BAC Mono) repartido en cinco ligas nacionales. <b>Tú no conduces: diriges una escudería.</b> Tus decisiones (reglaje, estrategia, desarrollo del coche y dinero) cambian cómo rinden tus dos pilotos.</p>
+<p><b>Todas las sesiones se simulan solas</b> con los datos de cada piloto, cada coche y lo que haya decidido cada mánager. De esa simulación salen los resultados, los tiempos por vuelta, los adelantamientos, las estadísticas y las crónicas. Se publican a la hora exacta del calendario y se pueden seguir en directo.</p>`)}
 
-<section class="tarjeta"><h2>3. Puntos</h2>
-<p><b>Clasificación (top 5):</b> ${PUNTOS_QUALY.join(', ')}.</p>
-<p><b>Carrera (top 15):</b> ${PUNTOS_CARRERA.join(', ')}.</p>
-<p><b>Vuelta rápida:</b> +3 puntos al piloto que la consiga y termine la carrera.</p>
-<p>La clasificación de escuderías suma los puntos de sus dos pilotos.</p></section>
+${seccion('formato', 'El campeonato', `
+<ul>
+<li><b>Cinco ligas nacionales:</b> España, Italia, Reino Unido, Alemania y Australia. Cada una tiene 10 escuderías, 20 pilotos y 5 jornadas.</li>
+<li><b>Los pilotos son de la liga, no de las escuderías.</b> No se fichan: la liga los asigna y los mueve según las normas del mercado.</li>
+<li><b>Cuota nacional:</b> el Piloto 1 de cada escudería es siempre de la nacionalidad de la liga, y cada liga tiene al menos 11 pilotos locales.</li>
+<li>Algunas marcas (Valcor, Kessler, Altair, Stellari, Northline) tienen escuderías en varios países. Cuando una mejora un área del coche, sus hermanas la desarrollan un 25% más barata.</li>
+<li>Al terminar las ligas se juega la <b>Liga Intercontinental</b> (el Mundial) en una sede neutral.</li>
+</ul>`)}
 
-<section class="tarjeta"><h2>4. Franquicias y mercado</h2>
-<p><b>Cuota nacional:</b> mínimo 11 pilotos locales de 20 por liga. El Piloto 1 de cada escudería es siempre de la nacionalidad de la liga. Algunos grupos tienen equipos en varios países.</p>
-<p><b>Traspasos internacionales:</b> cada liga pierde un <i>Galáctico</i> (un piloto del top 5) y un <i>Táctico</i> (media tabla), que cambian de país.</p>
-<p><b>Despidos por rendimiento relativo:</b> no se despide a los últimos por ser últimos, sino según su rendimiento frente al compañero de equipo (distancia en la clasificación y duelos directos). Los 2 peores índices son despidos directos; los 2 siguientes entran en zona de peligro y solo caen si su compañero está en el top 8 y les saca 5 o más puestos, o si les saca 10 o más (si los dos van mal, el problema es el coche). Las vacantes se cubren con un draft de rookies.</p></section>
+${seccion('jornada', 'Una jornada', `
+<p>Hay una jornada cada pocos días (lo marca el calendario de cada liga). Cada jornada dura <b>dos días</b>:</p>
+${tablaTexto(['Día', 'Sesiones'], [['Día 1', 'Libres · Clasificación 1 · Carrera 1 (10 vueltas, sale según la Clasificación 1)'], ['Día 2', 'Clasificación 2 · Carrera 2 (10 vueltas, sale según la Clasificación 2) · Carrera 3 (15 vueltas, sale según el resultado de la Carrera 2)']])}
+<p>La estrategia de cada sesión se cierra un rato antes de que empiece (normalmente 30 minutos). Después ya no se puede cambiar.</p>`)}
 
-<section class="tarjeta"><h2>5. Cómo se juega (mánagers)</h2>
-<ul class="lista">
-<li><b>Cada día:</b> recoge tu recompensa (la racha multiplica el dinero: hasta ${dinero(ECO.checkinBase + 7 * ECO.checkinPorRacha)} al día) y responde a la <b>decisión del día</b> antes de medianoche. Si no contestas, se aplica la peor opción.</li>
-<li><b>Simulador:</b> cada evento tiene un reglaje ideal secreto (ala, suspensión, marchas) distinto para cada coche. Tienes ${tandasSimulador(0)} tandas diarias (más con el simulador mejorado) para acercarte. Un buen reglaje vale varias décimas por vuelta.</li>
-<li><b>Estrategia por sesión:</b> reglaje, nivel de riesgo en qualy, ritmo y actitud en carrera. Cada sesión se cierra 30 min antes de su hora (ajustable por la organización).</li>
-<li><b>I+D:</b> motor, aerodinámica, chasis y fiabilidad (niveles 0-10). Los proyectos tardan horas y pueden fallar. El primer nivel cuesta ${dinero(costeMejora(0))}.</li>
-<li><b>Instalaciones:</b> fábrica, simulador y marketing.</li>
-<li><b>Espionaje:</b> coche, pilotos o la estrategia de un rival. Te pueden pillar.</li>
-<li><b>Multijugador:</b> los pilotos los contrata la liga, así que no se fichan: se compite en el coche, la estrategia y la gestión. Hay un ranking global de mánagers, declaraciones diarias en el Paddock, espionaje entre rivales, un escaparate para ofrecer a tu piloto como Táctico, y los equipos del mismo grupo (Valcor, Kessler, Altair, Stellari, Northline) se pasan tecnología: cuando uno mejora un área, los demás la desarrollan un 25% más barata.</li>
-<li><b>Patrocinador:</b> seguro, por rendimiento o de alto riesgo. Uno por temporada.</li>
+${seccion('puntos', 'Puntos', `
+${tabla(['Posición', 'Clasificación', 'Carrera'], PUNTOS_CARRERA.map((p, i) => [`${i + 1}º`, PUNTOS_QUALY[i] ?? '—', p]))}
+<p>La vuelta rápida de cada carrera da <b>${PUNTOS_VR} puntos extra</b> si el piloto termina. Una escudería suma los puntos de sus dos pilotos.</p>`)}
+
+${seccion('mundial', 'El Mundial', `
+<ul>
+<li>Clasifican <b>20 pilotos</b>: los 3 primeros de cada liga y los 5 mejores del resto por puntos, sea cual sea su liga.</li>
+<li>Se juegan <b>3 jornadas</b> y hay título de pilotos y de escuderías.</li>
+<li>Los pilotos que van al Mundial <b>no pueden ser despedidos</b> ese verano.</li>
+<li>Tu escudería cobra <b>${dinero(ECO.bonusClasificadoMundial)} por cada piloto clasificado</b>, y en el Mundial <b>cada punto vale el triple</b> en premios.</li>
+<li>Al final: ${ECO.premiosMundialEscuderias.map((v, i) => `${i + 1}º de escuderías ${dinero(v)}`).join(', ')}, y ${dinero(ECO.bonusCampeonMundial)} para la escudería del campeón del mundo.</li>
+</ul>`)}
+
+${seccion('mercado', 'El mercado', `
+<p>Al terminar el Mundial se abre el mercado. Lo decide el reglamento, así que no hay fichajes libres, pero los mánagers pueden influir.</p>
+<p><b>Galácticos y Tácticos.</b> Cada liga cede a uno de sus mejores pilotos a otra liga mediante un <b>traspaso entre dos escuderías</b>:</p>
+<ul>
+<li><b>El Galáctico</b> es un piloto del top 5 de su liga. Se va a una escudería de otro país.</li>
+<li><b>El Táctico</b> es un piloto de media tabla de la escudería que se lleva al Galáctico. Hace el camino contrario: es la moneda de cambio.</li>
+<li>Además, la escudería compradora paga a la vendedora: mínimo ${dinero(MERCADO.importeMinimo)}, o ${dinero(MERCADO.importeIA)} si lo decide la liga.</li>
 </ul>
-<p class="muted">Todo se procesa automáticamente: las sesiones se simulan al cerrar las estrategias y se publican, con retransmisión en directo, a la hora del calendario.</p></section>
-</div>`;
+<p><b>¿Por qué se va mi piloto si ha quedado 4º?</b> Porque es de los mejores de su liga y otra liga lo necesita. Pero <b>no te quedas con las manos vacías</b>: recibes al Táctico del comprador (un piloto con experiencia, no un rookie) y el dinero, que puedes invertir en el coche. Cada liga pierde exactamente 2 pilotos por traspaso y recibe otros 2.</p>
+<p><b>Pedir un Galáctico.</b> Si tu escudería está entre las ${MERCADO.topComprador} mejores de su liga, puedes hacer una oferta durante la temporada por un piloto del top 5 de otra liga (Mi escudería → Equipo). Ofreces a uno de tus pilotos como Táctico y una cantidad de dinero. Al cerrar el Mundial se organizan los traspasos para que entren las ofertas más altas; donde no hay ofertas, decide la liga. Las ofertas son públicas y la escudería afectada se entera.</p>
+<p><b>Quién puede salir.</b> Solo un piloto cuyo compañero sea de la nacionalidad de la liga, para que su escudería conserve un Piloto 1 local. Por eso a veces el Galáctico no es el mejor de la liga.</p>
+<p><b>Rookies.</b> Las plazas de los despedidos se cubren con un draft de pilotos nuevos. Eligen antes las escuderías peor clasificadas. Si tienes una vacante, ordenas a tus favoritos en la página de Mercado.</p>`)}
+
+${seccion('despidos', 'Despidos', `
+<p>No se despide a los últimos por ser últimos. Se mide a cada piloto <b>contra su compañero</b>, que lleva el mismo coche:</p>
+<ul>
+<li>Cuenta la distancia entre los dos en la clasificación y cuántas veces se han ganado el uno al otro en carrera y en clasificación.</li>
+<li><b>Despido directo:</b> los 2 pilotos de cada liga que peor rinden frente a su compañero.</li>
+<li><b>Zona de peligro:</b> los 2 siguientes. Caen si su compañero acabó en el top 8 y les sacó 5 puestos o más, o si les sacó 10 o más. Si los dos van mal, se entiende que el coche era malo y se salvan.</li>
+<li>Ejemplo: un 18º cuyo compañero es 4º está en peligro; un 16º cuyo compañero es 19º, no.</li>
+<li>Los clasificados al Mundial son inmunes.</li>
+</ul>
+<p>En la pestaña "Mundial y mercado" de cada liga ves en tiempo real quién caería si la temporada acabara hoy.</p>`)}
+
+${seccion('economia', 'Economía', `
+<p>Empiezas con <b>${dinero(ECO.presupuestoInicial)}</b>. El dinero sirve para mejorar el coche y las instalaciones, espiar y pedir Galácticos.</p>
+${tablaTexto(['Entra dinero por', 'Cuánto'], [
+    ['Recompensa diaria', `${dinero(ECO.checkinBase + ECO.checkinPorRacha)} el primer día, hasta ${dinero(ECO.checkinBase + 7 * ECO.checkinPorRacha)} con 7 días seguidos (más con marketing)`],
+    ['Puntos', `${dinero(ECO.premioPorPunto)} por cada punto de tus pilotos (el triple en el Mundial)`],
+    ['Patrocinador', 'Un pago por jornada, más un bonus si cumples su objetivo'],
+    ['Pilotos en el Mundial', `${dinero(ECO.bonusClasificadoMundial)} por cada uno`],
+    ['Fin de temporada', `Según tu puesto en la liga: de ${dinero(ECO.premiosLiga[0])} (1º) a ${dinero(ECO.premiosLiga[ECO.premiosLiga.length - 1])} (10º)`],
+    ['Vender un Galáctico', 'El importe de la operación'],
+])}
+${tablaTexto(['Sale dinero por', 'Cuánto'], [
+    ['Salarios de los pilotos', 'Al terminar cada jornada de liga'],
+    ['Mejorar un área del coche', `De ${dinero(costeMejora(0))} (nivel 1) a ${dinero(costeMejora(9))} (nivel 10). Urgente: ×${RECARGO_URGENTE} el precio y menos de la mitad de tiempo`],
+    ['Instalaciones', 'Fábrica, simulador y marketing: 2 M€ por nivel'],
+    ['Espionaje', `De ${dinero(ECO.costeInvestigacion.piloto)} a ${dinero(ECO.costeInvestigacion.estrategia)} por misión`],
+    ['Pedir un Galáctico', 'Lo que ofrezcas, solo si la operación se hace'],
+])}
+<p>El coche tiene cuatro áreas (motor, aerodinámica, chasis y fiabilidad) con 10 niveles. Puedes tener ${SLOTS_ID} mejoras en marcha a la vez; tardan horas y pueden fallar (si fallan recuperas la mitad). Cada circuito premia más unas áreas que otras.</p>
+<p>Al empezar una temporada nueva cada área baja 2 niveles por el cambio de reglamento, y el presupuesto se queda en la mitad más 8 M€.</p>`)}
+
+${seccion('cada-dia', 'Qué hacer cada día', `
+<ol>
+<li><b>Recoge la recompensa diaria.</b> Si fallas un día, la racha vuelve a 1.</li>
+<li><b>Responde la decisión del día</b> antes de medianoche. Si no, se aplica la opción por defecto (normalmente la peor).</li>
+<li><b>Prueba reglajes en el simulador</b> (${tandasSimulador(0)} pruebas al día, más si lo mejoras). Cada coche tiene un reglaje ideal secreto en cada circuito y el ingeniero te dice si te pasas o te quedas corto.</li>
+<li><b>Guarda la estrategia</b> de la próxima jornada antes de que cierre.</li>
+<li><b>Ten el coche siempre en desarrollo.</b></li>
+</ol>
+<p>Todo lo que pides (mejoras, simulador, espionaje…) lo procesa el servidor cada pocos minutos.</p>`)}
+
+${seccion('carrera', 'Cómo se decide una carrera', `
+<p>Cada vuelta de cada piloto se calcula con:</p>
+<ul>
+<li><b>El piloto:</b> ritmo, regularidad, agresividad, defensa, lluvia, experiencia, moral y forma.</li>
+<li><b>El coche:</b> los niveles de motor, aero y chasis según lo que pida el circuito, y la fiabilidad para las averías.</li>
+<li><b>El reglaje:</b> cuanto más cerca del ideal, más rápido (hasta un 0,8% por vuelta).</li>
+<li><b>La estrategia:</b> riesgo en clasificación, y ritmo y actitud en carrera.</li>
+<li><b>El azar:</b> errores, toques, averías, tráfico y lluvia (que se anuncia antes como probabilidad).</li>
+</ul>
+<p>Los adelantamientos dependen de la diferencia de ritmo, de lo fácil que sea adelantar en ese circuito y del duelo entre la agresividad de uno y la defensa del otro.</p>`)}
+`;

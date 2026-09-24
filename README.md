@@ -26,13 +26,17 @@ Navegador (web estática)  ──lee/escribe──▶  Firestore  ◀──cada 
 4. **Preparar la temporada** desde `control.html` (solo visible para administradores):
    1. *Temporada* → **Borrar todo** (limpia la temporada pasada; conserva las cuentas).
    2. *Parrilla* → **Cargar la parrilla ficticia incluida** → Validar → Importar.
-   3. *Calendario* → guarda la sede del Mundial y **genera el calendario** de cada liga y de la Intercontinental.
+   3. *Calendario* → guarda la sede del Mundial y **genera el calendario** de cada liga y de la Intercontinental (jornadas de 2 días: día 1 libres, Q1 y C1; día 2 Q2, C2 y C3; una jornada cada X días).
    4. *Estado* → **Ejecutar ciclo ahora** una vez.
    5. Pasa el enlace: la gente se registra, elige escudería en «Mi escudería» y a jugar.
 
 ## Frecuencia del ciclo
 
 El repositorio es público, así que los minutos de GitHub Actions son gratis: el ciclo corre cada 10 minutos. GitHub a veces retrasa unos minutos las ejecuciones programadas; por eso las estrategias cierran 30 minutos antes de cada sesión (ajustable en el panel). Los resultados se publican a la hora exacta igualmente.
+
+## Reglas del juego
+
+La página **Cómo funciona** (`reglamento.html`) explica el formato, el mercado (Galácticos y Tácticos), los despidos y la economía. Si cambias números en `js/engine/constants.js` o `js/engine/mercado.js`, la guía se actualiza sola.
 
 ## Probar sin tocar Firebase
 

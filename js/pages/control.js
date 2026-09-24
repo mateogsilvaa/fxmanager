@@ -17,7 +17,7 @@ import {
 await montar({ activo: 'control' });
 const main = document.getElementById('main');
 if (!esAdmin()) { main.innerHTML = vacio('No tienes acceso a esta página.'); throw new Error('no admin'); }
-const PATRON = { FP: [0, '18:00'], Q1: [0, '19:00'], R1: [1, '18:00'], Q2: [1, '19:00'], R2: [2, '18:00'], R3: [2, '19:00'] };
+const PATRON = { FP: [0, '17:00'], Q1: [0, '18:00'], R1: [0, '19:00'], Q2: [1, '17:00'], R2: [1, '18:00'], R3: [1, '19:00'] };
 let d = await cargarDatos();
 let cfg = (await store().get('config/juego')) || null;
 
@@ -102,11 +102,13 @@ async function pintarEstado() {
 // ======================================================================
 // CALENDARIO
 // ======================================================================
-function opcionesCircuito(ligaPais, sel) {
+function opcionesCircuito(pais, sel, { mundial = false } = {}) {
+    const paisesLigas = new Set(LIGAS_NACIONALES.map(l => LIGAS[l].pais));
+    const lista = CIRCUITOS.filter(c => mundial ? !paisesLigas.has(c.pais) || c.pais === pais : c.pais === pais);
     const grupos = {};
-    CIRCUITOS.forEach(c => { (grupos[c.pais] ||= []).push(c); });
-    const orden = Object.keys(grupos).sort((a, b) => (b === ligaPais) - (a === ligaPais) || (PAISES[a] || a).localeCompare(PAISES[b] || b));
-    return orden.map(p => `<optgroup label="${esc(PAISES[p] || p)}">${grupos[p].map(c => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.nombre)}${c.oficial ? ' · Kunos' : ' · mod'}</option>`).join('')}</optgroup>`).join('') + `<option value="__custom" ${sel === '__custom' ? 'selected' : ''}>Circuito personalizado…</option>`;
+    lista.forEach(c => { (grupos[c.pais] ||= []).push(c); });
+    const orden = Object.keys(grupos).sort((x, y) => (y === pais) - (x === pais) || (PAISES[x] || x).localeCompare(PAISES[y] || y));
+    return orden.map(p => `<optgroup label="${esc(PAISES[p] || p)}">${grupos[p].map(c => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('')}</optgroup>`).join('') + `<option value="__custom" ${sel === '__custom' ? 'selected' : ''}>Otro circuito…</option>`;
 }
 
 async function pintarCalendario() {
@@ -117,18 +119,18 @@ async function pintarCalendario() {
     <div class="tarjeta" style="margin-bottom:16px"><div class="tarjeta-titulo"><h2>Sede del Mundial (temporada ${cfg.temporada})</h2></div>
       <form class="campo-fila" id="f-sede"><label>País<select name="pais">${Object.entries(PAISES).map(([k, v]) => `<option value="${k}" ${cfg.mundial?.pais === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
       <label>Nombre que se mostrará<input name="nombre" value="${esc(cfg.mundial?.nombre || '')}" placeholder="Japón"></label><label>&nbsp;<button class="btn">Guardar sede</button></label></form>
-      <p class="muted" style="font-size:.85rem">Luego crea sus 3 fines de semana en la liga Intercontinental más abajo. Los 20 pilotos se fijan solos al terminar las ligas nacionales.</p></div>
+      <p class="muted" style="font-size:.85rem">Luego crea sus 3 jornadas en la liga Intercontinental más abajo. Los 20 pilotos se fijan solos al terminar las ligas nacionales.</p></div>
 
     <div class="tarjeta" style="margin-bottom:16px"><div class="tarjeta-titulo"><h2>Generar calendario de una liga</h2></div>
       <form id="f-gen">
         <div class="campo-fila"><label>Liga<select name="liga">${ligas.map(l => `<option value="${l}">${esc(LIGAS[l].nombre)}</option>`).join('')}</select></label>
-          <label>Primer viernes<input type="date" name="inicio" required></label><label>Días entre fines de semana<input type="number" name="cada" value="7" min="1" max="30"></label>
-          <label>Nº de fines de semana<input type="number" name="n" value="5" min="1" max="10"></label></div>
-        <div class="etiqueta" style="margin:12px 0 6px">Horario de cada sesión (día relativo al viernes · hora de Madrid)</div>
-        <div class="campo-fila">${SESIONES.map(t => `<label>${esc(SESION_INFO[t].corto)}<div class="fila" style="flex-wrap:nowrap"><select name="dia_${t}" style="width:80px">${[0, 1, 2, 3, 4, 5, 6].map(i => `<option value="${i}" ${PATRON[t][0] === i ? 'selected' : ''}>${['Vie', 'Sáb', 'Dom', 'Lun', 'Mar', 'Mié', 'Jue'][i]}</option>`).join('')}</select><input type="time" name="h_${t}" value="${PATRON[t][1]}"></div></label>`).join('')}</div>
+          <label>Primer día<input type="date" name="inicio" required></label><label>Cada cuántos días hay jornada<input type="number" name="cada" value="4" min="2" max="30"></label>
+          <label>Nº de jornadas<input type="number" name="n" value="5" min="1" max="10"></label></div>
+        <div class="etiqueta" style="margin:12px 0 6px">Horario de cada sesión (día 1 o 2 de la jornada · hora de Madrid)</div>
+        <div class="campo-fila">${SESIONES.map(t => `<label>${esc(SESION_INFO[t].corto)}<div class="fila" style="flex-wrap:nowrap"><select name="dia_${t}" style="width:80px">${[0, 1].map(i => `<option value="${i}" ${PATRON[t][0] === i ? 'selected' : ''}>Día ${i + 1}</option>`).join('')}</select><input type="time" name="h_${t}" value="${PATRON[t][1]}"></div></label>`).join('')}</div>
         <div class="etiqueta" style="margin:12px 0 6px">Circuitos (en orden)</div>
         <div id="gen-circuitos" class="campo-fila"></div>
-        <div class="fila-botones"><button class="btn">Crear fines de semana</button></div>
+        <div class="fila-botones"><button class="btn">Crear jornadas</button></div>
       </form>
       <p class="muted" style="font-size:.82rem">Consejo: escalona las ligas (por ejemplo, cada liga en un día distinto de la semana) para que haya algo que ver casi todos los días.</p>
     </div>
@@ -138,8 +140,9 @@ async function pintarCalendario() {
         const f = $('#f-gen');
         const l = f.liga.value, n = +f.n.value;
         const pais = LIGAS[l].pais || cfg.mundial?.pais;
+        const mundial = l === 'INT';
         const propios = CIRCUITOS.filter(c => c.pais === pais);
-        $('#gen-circuitos').innerHTML = Array.from({ length: n }, (_, i) => `<label>R${i + 1}<select name="c${i}">${opcionesCircuito(pais, propios[i % Math.max(1, propios.length)]?.id)}</select></label>`).join('');
+        $('#gen-circuitos').innerHTML = Array.from({ length: n }, (_, i) => `<label>Jornada ${i + 1}<select name="c${i}">${opcionesCircuito(pais, propios[i % Math.max(1, propios.length)]?.id, { mundial })}</select></label>`).join('');
     };
     $('#f-gen').liga.addEventListener('change', pintarSelectoresGen);
     $('#f-gen').n.addEventListener('change', pintarSelectoresGen);
@@ -171,7 +174,7 @@ async function pintarCalendario() {
         }
         const primera = Math.min(...eventos.map(ev => ev.sesiones.FP.lockAt));
         if (primera < ahora()) return toast('Hay sesiones que ya habrían cerrado. Elige fechas futuras.', 'error');
-        if (!await confirmar(`Se crearán ${eventos.length} fines de semana en ${esc(LIGAS[l].nombre)}:<br>${eventos.map(ev => `R${ev.ronda} · ${esc(ev.circuito.nombre)} · ${fecha(ev.sesiones.FP.publishAt)}`).join('<br>')}`)) return;
+        if (!await confirmar(`Se crearán ${eventos.length} jornadas en ${esc(LIGAS[l].nombre)}:<br>${eventos.map(ev => `R${ev.ronda} · ${esc(ev.circuito.nombre)} · ${fecha(ev.sesiones.FP.publishAt)}`).join('<br>')}`)) return;
         await guardarEventos(store(), eventos);
         await recargar(); toast('Calendario creado'); pintarCalendario();
     });
@@ -180,8 +183,8 @@ async function pintarCalendario() {
 
 function pedirCircuito() {
     return new Promise(res => {
-        const m = modal(`<h2>Circuito personalizado</h2><p class="muted">Para usar un circuito de Assetto Corsa que no está en la lista. La carpeta es la de <code>assettocorsa/content/tracks</code>.</p>
-        <form id="f-cc" style="display:grid;gap:10px"><div class="campo-fila"><label>Nombre<input name="nombre" required></label><label>Carpeta AC (opcional)<input name="acId" placeholder="mi_circuito/layout"></label></div>
+        const m = modal(`<h2>Circuito personalizado</h2><p class="muted">Para un circuito que no esté en la lista.</p>
+        <form id="f-cc" style="display:grid;gap:10px"><div class="campo-fila"><label>Nombre<input name="nombre" required></label></div>
         <div class="campo-fila"><label>País<select name="pais">${Object.entries(PAISES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select></label><label>Longitud (km)<input name="km" type="number" step="0.001" value="4.0" required></label><label>Velocidad media BAC Mono (km/h)<input name="vel" type="number" value="160"></label></div>
         <div class="campo-fila"><label>Peso motor (0-1)<input name="motor" type="number" step="0.05" value="0.35"></label><label>Peso aero (0-1)<input name="aero" type="number" step="0.05" value="0.35"></label><label>Peso chasis (0-1)<input name="chasis" type="number" step="0.05" value="0.3"></label></div>
         <div class="campo-fila"><label>Facilidad para adelantar (0-1)<input name="adelantar" type="number" step="0.05" value="0.4"></label><label>Desgaste (0-1)<input name="desgaste" type="number" step="0.05" value="0.5"></label><label>Prob. lluvia (0-1)<input name="lluvia" type="number" step="0.05" value="0.15"></label></div>
@@ -199,15 +202,13 @@ function pintarEventos() {
     const cont = $('#lista-eventos');
     cont.innerHTML = [...LIGAS_NACIONALES, 'INT'].map(l => {
         const evs = d.eventosLiga(l);
-        return `<div class="tarjeta" style="margin-bottom:14px"><div class="tarjeta-titulo"><h3>${banderaLiga(l)} ${esc(LIGAS[l].nombre)}</h3><span class="muted">${evs.length} fines de semana</span></div>
-        ${evs.length ? `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>R</th><th>Circuito</th><th>Carpeta AC</th>${SESIONES.map(t => `<th>${SESION_INFO[t].corto}</th>`).join('')}<th></th></tr></thead><tbody>
+        return `<div class="tarjeta" style="margin-bottom:14px"><div class="tarjeta-titulo"><h3>${banderaLiga(l)} ${esc(LIGAS[l].nombre)}</h3><span class="muted">${evs.length} jornadas</span></div>
+        ${evs.length ? `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>J</th><th>Circuito</th>${SESIONES.map(t => `<th>${SESION_INFO[t].corto}</th>`).join('')}<th></th></tr></thead><tbody>
         ${evs.map(ev => `<tr><td>${ev.ronda}</td><td>${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}<div class="muted" style="font-size:.75rem">${ev.circuito?.km} km · ref. ${formatoTiempo(ev.circuito?.tiempoBase)}</div></td>
-          <td>${ev.circuito?.acId ? `<code style="font-size:.78rem;cursor:pointer" title="Copiar" data-copiar="${esc(ev.circuito.acId)}">${esc(ev.circuito.acId)}</code>` : '<span class="muted">—</span>'}</td>
           ${SESIONES.map(t => { const s = ev.sesiones[t]; return `<td style="font-size:.78rem;white-space:nowrap">${s ? `${fecha(s.publishAt)}<br><span class="estado ${d.estadoSesion(s)}">${d.estadoSesion(s)}</span>` : '—'}</td>`; }).join('')}
           <td><button class="btn btn-sec btn-peq" data-editar="${esc(ev.id)}">Editar</button> <button class="btn btn-peligro btn-peq" data-borrar="${esc(ev.id)}">✕</button></td></tr>`).join('')}
-        </tbody></table></div>` : '<p class="muted">Sin fines de semana.</p>'}</div>`;
+        </tbody></table></div>` : '<p class="muted">Sin jornadas.</p>'}</div>`;
     }).join('');
-    $$('[data-copiar]', cont).forEach(c => c.addEventListener('click', () => { navigator.clipboard?.writeText(c.dataset.copiar); toast('Carpeta copiada: ' + c.dataset.copiar, 'info'); }));
     $$('[data-borrar]', cont).forEach(b => b.addEventListener('click', async () => {
         const ev = d.evento(b.dataset.borrar);
         const empezado = Object.values(ev.sesiones).some(s => s.lockAt < ahora());
@@ -223,7 +224,7 @@ async function editarEvento(id) {
     const local = (ms) => { const dt = new Date(ms); dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset()); return dt.toISOString().slice(0, 16); };
     const m = modal(`<h2>R${ev.ronda} · ${esc(ev.circuito.nombre)}</h2>
       <form id="f-ed" style="display:grid;gap:12px">
-        <label>Circuito<select name="circ" ${Object.values(ev.sesiones).some(s => s.estado !== 'programada') ? 'disabled' : ''}>${opcionesCircuito(ev.circuito.pais, ev.circuito.id)}</select></label>
+        <label>Circuito<select name="circ" ${Object.values(ev.sesiones).some(s => s.estado !== 'programada') ? 'disabled' : ''}>${opcionesCircuito(ev.liga === 'INT' ? cfg.mundial?.pais : LIGAS[ev.liga].pais, ev.circuito.id, { mundial: ev.liga === 'INT' })}</select></label>
         <div class="campo-fila">${SESIONES.filter(t => ev.sesiones[t]).map(t => `<label>${esc(SESION_INFO[t].nombre)} ${ev.sesiones[t].estado !== 'programada' ? `<span class="muted">(${ev.sesiones[t].estado})</span>` : ''}<input type="datetime-local" name="${t}" value="${local(ev.sesiones[t].publishAt)}" ${ev.sesiones[t].estado !== 'programada' ? 'disabled' : ''}></label>`).join('')}</div>
         <div class="campo-fila">${SESIONES.filter(t => ev.sesiones[t]).map(t => `<label>Lluvia ${esc(SESION_INFO[t].corto)} (%)<input type="number" min="0" max="100" name="ll_${t}" value="${Math.round((ev.meteo?.[t] || 0) * 100)}"></label>`).join('')}</div>
         <div class="fila-botones"><button class="btn">Guardar</button></div></form>`, { ancho: 820 });

@@ -1,10 +1,10 @@
 import { montar, barraDirecto } from '../core/layout.js';
-import { cargarDatos } from '../core/datos.js';
+import { cargarDatos, cargarHistorico } from '../core/datos.js';
 import { store, usuario } from '../core/app.js';
 import { esc, bandera, banderaLiga, vacio, $, barra } from '../core/ui.js';
 import { celdaEquipo, pos, fmtValor } from '../core/componentes.js';
 import { LIGAS, PAISES, SESION_INFO } from '../engine/constants.js';
-import { calcularRiesgo } from '../engine/stats.js';
+import { calcularRiesgo, construirTemporada } from '../engine/stats.js';
 
 const pid = new URLSearchParams(location.search).get('id');
 await montar();
@@ -37,6 +37,11 @@ if (liga && liga !== 'INT' && st) {
 }
 
 const eventos = liga ? d.eventosLiga(liga) : [];
+const historico = await cargarHistorico(d);
+const carrera = construirTemporada(historico.filter(s => s.filas.some(f => f.pid === pid))).pilotos[pid];
+const titulos = (d.cfg.palmares || []).reduce((n, p) => n + Object.values(p.ligas || {}).filter(x => x.piloto === pid).length, 0);
+const mundiales = (d.cfg.palmares || []).filter(p => p.mundial === pid).length;
+const temporadas = new Set(historico.filter(s => s.filas.some(f => f.pid === pid)).map(s => s.sid.split('_')[0])).size;
 main.innerHTML = `
 <section class="hero">
   <div class="fila" style="gap:20px;align-items:flex-end">
@@ -55,6 +60,8 @@ main.innerHTML = `
     </div></div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Resultados de la temporada</h3></div>${tablaResultados()}</div>
     ${stInt ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Liga Intercontinental</h3></div><div class="datos">${dato(stInt.pts, 'Puntos')}${dato(stInt.victorias, 'Victorias')}${dato(stInt.podios, 'Podios')}${dato(stInt.poles, 'Poles')}</div></div>` : ''}
+    <div class="tarjeta"><div class="tarjeta-titulo"><h3>Carrera deportiva</h3><span>${temporadas} temporada${temporadas === 1 ? '' : 's'}</span></div>
+      <div class="datos">${dato(carrera?.carreras ?? 0, 'Carreras')}${dato(carrera?.victorias ?? 0, 'Victorias')}${dato(carrera?.podios ?? 0, 'Podios')}${dato(carrera?.poles ?? 0, 'Poles')}${dato(carrera?.pts ?? 0, 'Puntos')}${dato(titulos, 'Títulos de liga')}${dato(mundiales, 'Mundiales')}</div></div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Trayectoria</h3></div>${historia()}</div>
   </div>
   <aside class="pila">
