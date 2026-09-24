@@ -2,14 +2,14 @@
 import {
     SESION_INFO, esCarrera, esQualy, ECO, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST, SLOTS_ID,
     costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion,
-    ESTRATEGIA_DEF, diaMadrid, finDiaMadrid, LIGAS, LIGAS_NACIONALES, SETUP_PARAMS,
+    ESTRATEGIA_DEF, diaMadrid, finDiaMadrid, LIGAS, LIGAS_NACIONALES, SETUP_PARAMS, SETUP_BASE,
 } from '../engine/constants.js';
 import { crearRng } from '../engine/rng.js';
 import { simularSesion } from '../engine/sim.js';
 import { compactar, descompactar, construirTemporada, proyeccionMundial } from '../engine/stats.js';
 import {
     setupIdeal, calidadSetup, informeSetup, tandasDisponibles, cartaDelDia, rellenarTexto, efectosOpcion,
-    ofertasSponsor, pagoSponsor, deltaMoral, decisionIA, setupIA, rangoAprox, CARTAS,
+    ofertasSponsor, pagoSponsor, deltaMoral, decisionIA, setupIA, rangoAprox, CARTAS, textoLectura,
 } from '../engine/juego.js';
 import {
     crearContexto, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, cargarEventos, sesionesOrdenadas,
@@ -17,6 +17,7 @@ import {
 } from './comun.js';
 import { reconstruirCatalogo } from './catalogo.js';
 import { prepararMercado, cerrarMercado } from './temporada.js';
+import { noticiasSesion, previaJornada } from '../engine/cronica.js';
 import { MERCADO } from '../engine/mercado.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -69,6 +70,12 @@ async function simularPendientes(ctx) {
     cola.sort((a, b) => a.s.lockAt - b.s.lockAt || SESION_INFO_ORD(a.s.tipo) - SESION_INFO_ORD(b.s.tipo));
     for (const { ev, s } of cola) {
         await simularUna(ctx, ev, s.tipo);
+        if (s.tipo === 'FP') {
+            // Previa de la jornada: se prepara ahora y aparece justo cuando empiezan los libres
+            const pilotos = await cargarPilotos(ctx);
+            const tabla = construirTemporada(JSON.parse((await ctx.store.get(`resumen/${idResumen(ctx.temporada)}`))?.json || '{"sesiones":[]}').sesiones.filter(x => x.liga === ev.liga).map(descompactar));
+            noticia(ctx, { ...previaJornada({ ev, tabla, nombre: (pid) => nombrePiloto(pilotos[pid]), apellido: (pid) => pilotos[pid]?.apellido || '—' }), liga: ev.liga, publishAt: s.publishAt });
+        }
         ev.sesiones[s.tipo].estado = 'simulada';
         await ctx.store.update(`eventos/${ev.id}`, { [`sesiones.${s.tipo}.estado`]: 'simulada' });
         ctx.nota(`Simulada ${ev.id} ${s.tipo}`);
@@ -107,7 +114,7 @@ export async function simularUna(ctx, ev, tipo) {
             setup = setupIA(ideal, crearRng(`${ctx.secreto}|iasetup|${ev.id}|${p.equipoId}`), 1);
             estr = { riesgo: rngAI.pick([1, 2, 2, 3]), ritmo: rngAI.pick(['conservador', 'equilibrado', 'equilibrado', 'ataque']), actitud: rngAI.pick(['defensiva', 'normal', 'normal', 'agresiva']) };
         } else {
-            setup = e?.setup || priv.ultimoSetup || { ala: 5, susp: 5, marchas: 5 };
+            setup = { ...SETUP_BASE, ...(e?.setup || priv.ultimoSetup || {}) };
             const mismaCategoria = estrategias.filter(x => x.equipoId === p.equipoId && x.pilotos?.[p.id])
                 .filter(x => esQualy(x.tipo) === esQualy(tipo) && ordenTipos.indexOf(x.tipo) <= ordenTipos.indexOf(tipo))
                 .sort((a, b) => ordenTipos.indexOf(b.tipo) - ordenTipos.indexOf(a.tipo))[0];
@@ -165,8 +172,11 @@ async function publicarPendientes(ctx) {
         const res = await ctx.store.get(`resultados/${idResultado(ev.id, s.tipo)}`);
         if (!res) { ctx.nota(`Falta resultado ${ev.id} ${s.tipo}`); continue; }
         res.id = idResultado(ev.id, s.tipo);
+        const deLiga = () => resumen.sesiones.filter(x => x.liga === ev.liga).map(descompactar);
+        const antes = s.tipo !== 'FP' ? construirTemporada(deLiga()) : null;
         resumen.sesiones = resumen.sesiones.filter(x => x.sid !== res.id);
         resumen.sesiones.push(compactar(res));
+        await noticiasAutomaticas(ctx, ev, res, antes, antes ? construirTemporada(deLiga()) : null);
         await efectosPublicacion(ctx, ev, res);
         ev.sesiones[s.tipo].estado = 'publicada';
         await ctx.store.update(`eventos/${ev.id}`, { [`sesiones.${s.tipo}.estado`]: 'publicada' });
@@ -176,6 +186,16 @@ async function publicarPendientes(ctx) {
     }
     resumen.sesiones.sort((a, b) => a.t - b.t);
     await ctx.store.set(resumenRef, { json: JSON.stringify(resumen), actualizado: ctx.ahora, temporada: ctx.temporada, n: resumen.sesiones.length });
+}
+
+async function noticiasAutomaticas(ctx, ev, res, antes, despues) {
+    const pilotos = await cargarPilotos(ctx);
+    const equipos = await cargarEquipos(ctx);
+    const nombre = (pid) => nombrePiloto(pilotos[pid]);
+    const apellido = (pid) => pilotos[pid]?.apellido || '—';
+    const equipo = (eq) => equipos[eq]?.nombre || '—';
+    if (res.tipo === 'FP') return;
+    for (const n of noticiasSesion({ res, ev, nombre, apellido, equipo, antes, despues })) noticia(ctx, { ...n, liga: ev.liga });
 }
 
 async function efectosPublicacion(ctx, ev, res) {
@@ -192,13 +212,13 @@ async function efectosPublicacion(ctx, ev, res) {
         res.filas.forEach(f => { (porEq[f.eq] ||= []).push(f); });
         for (const [eq, fs] of Object.entries(porEq)) {
             if (!equipos[eq]?.ownerId) continue;
-            const setup = res.setups?.[eq] || { ala: 5, susp: 5, marchas: 5 };
+            const setup = { ...SETUP_BASE, ...(res.setups?.[eq] || {}) };
             const ideal = setupIdeal(ctx.secreto, ev.id, eq, ev.circuito);
             const inf = informeSetup(setup, ideal, privs[eq]?.inst?.simulador || 0, crearRng(`${ctx.secreto}|fpinf|${ev.id}|${eq}`));
             notificar(ctx, eq, {
                 remitente: 'Ingeniero de pista', tipo: 'setup', titulo: `Informe de libres · ${ev.circuito.nombre}`,
-                texto: `Reglaje usado: ala ${setup.ala}, suspensión ${setup.susp}, marchas ${setup.marchas}.\n` +
-                    Object.keys(SETUP_PARAMS).map(k => `${SETUP_PARAMS[k].nombre}: ${inf[k]}`).join(' · ') + `\n${inf.sensacion}\n` +
+                texto: `Reglaje usado: ${Object.keys(SETUP_PARAMS).map(k => `${SETUP_PARAMS[k].nombre.toLowerCase()} ${setup[k]}`).join(', ')}.\n` +
+                    Object.keys(SETUP_PARAMS).map(k => `${SETUP_PARAMS[k].nombre}: ${textoLectura(inf[k])}`).join(' · ') + `\n${inf.sensacion}\n` +
                     fs.map(f => `${nombre(f.pid)}: P${f.pos}`).join(' · '),
             });
         }
@@ -278,7 +298,7 @@ async function cerrarEvento(ctx, ev) {
     const r3 = resultados.find(r => r.tipo === 'R3') || resultados[resultados.length - 1];
     const ganador = r3?.filas?.[0];
     noticia(ctx, {
-        titulo: `Crónica: ${LIGAS[ev.liga]?.nombre} · Ronda ${ev.ronda} (${ev.circuito.nombre})`,
+        titulo: `Crónica: ${LIGAS[ev.liga]?.nombre} · Jornada ${ev.ronda} (${ev.circuito.nombre})`,
         texto: ganador ? `${nombrePiloto(pilotos[ganador.pid])} gana la última carrera de la jornada. Ya está disponible la crónica completa.` : '',
         liga: ev.liga, tipo: 'cronica',
     });
@@ -551,7 +571,7 @@ async function informeEspionaje(ctx, eq, p, rng) {
             else {
                 const ult = est.sort((a, b) => (b.actualizado || 0) - (a.actualizado || 0))[0];
                 const pil = await cargarPilotos(ctx);
-                texto = `Sesión ${ult.tipo}: reglaje ala ${ult.setup?.ala ?? '?'}, suspensión ${ult.setup?.susp ?? '?'}, marchas ${ult.setup?.marchas ?? '?'}. ` +
+                texto = `Sesión ${ult.tipo}: reglaje ${Object.keys(SETUP_PARAMS).map(k => `${SETUP_PARAMS[k].nombre.toLowerCase()} ${ult.setup?.[k] ?? '?'}`).join(', ')}. ` +
                     Object.entries(ult.pilotos || {}).map(([pid, e]) => `${pil[pid]?.apellido}: riesgo ${e.riesgo}, ritmo ${e.ritmo}, actitud ${e.actitud}`).join(' · ');
             }
         }

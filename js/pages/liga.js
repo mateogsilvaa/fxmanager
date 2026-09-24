@@ -100,7 +100,7 @@ function zonaMundialLiga(proy) {
 // ---------------------------------------------------------------- Clasificación
 function clasificacion() {
     const el = $('#p-clasificacion');
-    el.innerHTML = `<div class="sub-pestanas" id="sub-clas"><button data-sub="pilotos" class="activa">Pilotos</button><button data-sub="equipos">Escuderías</button><button data-sub="rondas">Por ronda</button></div><div class="tarjeta" id="clas-cuerpo"></div>`;
+    el.innerHTML = `<div class="sub-pestanas" id="sub-clas"><button data-sub="pilotos" class="activa">Pilotos</button><button data-sub="equipos">Escuderías</button><button data-sub="rondas">Por jornada</button></div><div class="tarjeta" id="clas-cuerpo"></div>`;
     const cuerpo = $('#clas-cuerpo', el);
     const pintar = (sub) => {
         $$('#sub-clas button', el).forEach(b => b.classList.toggle('activa', b.dataset.sub === sub));
@@ -141,7 +141,7 @@ function cronicas() {
         const S = {};
         for (const t of ['FP', 'Q1', 'R1', 'Q2', 'R2', 'R3']) { const s = d.sesionPublicada(`${ev.id}_${t}`); if (s) S[t] = { ...s, vr: s.vr ? { pid: s.vr } : null }; }
         const c = generarCronica({ evento: ev, sesiones: S, nombre: d.nombre, apellido: d.apellido, equipo: d.nombreEquipo });
-        return `<a class="tarjeta" href="cronica.html?ev=${esc(ev.id)}"><div class="etiqueta">Ronda ${ev.ronda} · ${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</div><h3 style="margin-top:6px">${esc(c.titulo)}</h3><p class="muted">${esc(c.entradilla)}</p><span class="btn btn-sec btn-peq">Leer crónica</span></a>`;
+        return `<a class="tarjeta" href="cronica.html?ev=${esc(ev.id)}"><div class="etiqueta">Jornada ${ev.ronda} · ${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</div><h3 style="margin-top:6px">${esc(c.titulo)}</h3><p class="muted">${esc(c.entradilla)}</p><span class="btn btn-sec btn-peq">Leer crónica</span></a>`;
     }).join('')}</div>`;
 }
 

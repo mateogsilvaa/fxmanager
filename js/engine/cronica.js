@@ -36,7 +36,7 @@ export function generarCronica(ctx) {
     const liderAntes = ctx.antes?.clasPilotos?.[0];
     const liderDespues = ctx.despues?.clasPilotos?.[0];
     const segundo = ctx.despues?.clasPilotos?.[1];
-    let entradilla = `Ronda ${evento.ronda} de la liga ${liga}.`;
+    let entradilla = `Jornada ${evento.ronda} de la liga ${liga}.`;
     if (liderDespues) {
         const ventaja = liderDespues.pts - (segundo?.pts || 0);
         if (liderAntes && liderAntes.pid !== liderDespues.pid) entradilla += ` ${nombre(liderDespues.pid)} es el nuevo líder del campeonato con ${ventaja} punto${ventaja === 1 ? '' : 's'} de ventaja.`;
@@ -138,4 +138,66 @@ export function titularSesion(s, apellido) {
     if (s.tipo === 'FP') return `${apellido(p1.pid)} lidera los libres`;
     if (s.tipo.startsWith('Q')) return `Pole para ${apellido(p1.pid)}`;
     return `Victoria de ${apellido(p1.pid)}`;
+}
+
+// Noticias automáticas tras cada sesión.
+// ctx: { res (resultado con filas), ev, nombre, apellido, equipo, antes, despues } (antes/despues = tablas de la liga)
+export function noticiasSesion({ res, ev, nombre, apellido, equipo, antes, despues }) {
+    const out = [];
+    const rng = crearRng(`noticia|${ev.id}|${res.tipo}`);
+    const circuito = ev.circuito?.nombre || 'el circuito';
+    const nCarrera = { R1: 'Carrera 1', R2: 'Carrera 2', R3: 'Carrera 3' }[res.tipo];
+    const lluvia = res.lluvia ? ' bajo la lluvia' : '';
+    if (res.tipo === 'Q1' || res.tipo === 'Q2') {
+        const [p1, p2] = res.filas;
+        if (!p1?.mejor) return out;
+        const dif = p2?.mejor ? ((p2.mejor - p1.mejor) / 1000).toFixed(3) : null;
+        out.push({
+            titulo: rng.pick([`Pole para ${nombre(p1.pid)} en ${circuito}`, `${apellido(p1.pid)} manda en la ${res.tipo === 'Q1' ? 'Clasificación 1' : 'Clasificación 2'}`, `${apellido(p1.pid)}, el más rápido${lluvia} en ${circuito}`]),
+            texto: `${nombre(p1.pid)} (${equipo(p1.eq)}) saldrá primero en la ${res.tipo === 'Q1' ? 'Carrera 1' : 'Carrera 2'}${dif ? `, ${dif} s por delante de ${apellido(p2.pid)}` : ''}.`,
+            tipo: 'noticia',
+        });
+        const sinTiempo = res.filas.filter(f => f.estado === 'SIN TIEMPO' && (antes?.pilotos?.[f.pid]?.posicion || 99) <= 5);
+        sinTiempo.forEach(f => out.push({ titulo: `Desastre de ${apellido(f.pid)} en la clasificación`, texto: `${nombre(f.pid)}, entre los cinco primeros del campeonato, no marca tiempo válido y saldrá desde el fondo.`, tipo: 'noticia' }));
+        return out;
+    }
+    if (!nCarrera) return out;
+    const fin = res.filas.filter(f => f.estado === 'FIN');
+    const g = fin[0];
+    if (!g) return out;
+    // R3 ya tiene su crónica; aquí solo hitos
+    if (res.tipo !== 'R3') {
+        const salida = g.parrilla ? (g.parrilla === 1 ? 'desde la pole' : `saliendo ${g.parrilla}º`) : '';
+        out.push({
+            titulo: rng.pick([`${apellido(g.pid)} gana la ${nCarrera} en ${circuito}`, `Victoria de ${apellido(g.pid)}${lluvia} en ${circuito}`, `${apellido(g.pid)} se lleva la ${nCarrera}`]),
+            texto: `${nombre(g.pid)} (${equipo(g.eq)}) gana ${salida}${fin[1] ? ` por delante de ${apellido(fin[1].pid)}${fin[2] ? ` y ${apellido(fin[2].pid)}` : ''}` : ''}.`,
+            tipo: 'noticia',
+        });
+    }
+    const victoriasAntes = antes?.pilotos?.[g.pid]?.victorias || 0;
+    if (!victoriasAntes) out.push({ titulo: `Primera victoria de la temporada para ${apellido(g.pid)}`, texto: `${nombre(g.pid)} estrena su casillero de triunfos en la ${nCarrera} de ${circuito}.`, tipo: 'noticia' });
+    const remontada = fin.filter(f => f.parrilla && f.parrilla - f.pos >= 8).sort((a, b) => (b.parrilla - b.pos) - (a.parrilla - a.pos))[0];
+    if (remontada) out.push({ titulo: `Remontada de ${apellido(remontada.pid)}`, texto: `Salió ${remontada.parrilla}º y terminó ${remontada.pos}º en la ${nCarrera}.`, tipo: 'noticia' });
+    const liderAntes = antes?.clasPilotos?.[0]?.pid;
+    const dnfLider = res.filas.find(f => f.pid === liderAntes && f.estado === 'DNF');
+    if (dnfLider) out.push({ titulo: `Golpe para el líder: abandona ${apellido(liderAntes)}`, texto: `${nombre(liderAntes)} no termina la ${nCarrera} y sus rivales recortan en la general.`, tipo: 'noticia' });
+    const liderDespues = despues?.clasPilotos?.[0]?.pid;
+    if (liderAntes && liderDespues && liderAntes !== liderDespues) {
+        const ventaja = despues.clasPilotos[0].pts - (despues.clasPilotos[1]?.pts || 0);
+        out.push({ titulo: `${apellido(liderDespues)}, nuevo líder`, texto: `Tras la ${nCarrera} de ${circuito}, ${nombre(liderDespues)} supera a ${apellido(liderAntes)} y lidera con ${ventaja} punto${ventaja === 1 ? '' : 's'} de ventaja.`, tipo: 'noticia' });
+    }
+    return out;
+}
+
+// Previa de una jornada (se publica al empezar los libres)
+export function previaJornada({ ev, tabla, nombre, apellido }) {
+    const c = ev.circuito || {};
+    const lider = tabla?.clasPilotos?.[0], segundo = tabla?.clasPilotos?.[1];
+    const lluvias = Object.values(ev.meteo || {});
+    const maxLluvia = lluvias.length ? Math.round(Math.max(...lluvias) * 100) : 0;
+    let texto = `${c.nombre || 'El circuito'} (${c.km ?? '?'} km) acoge la jornada ${ev.ronda}.`;
+    if (lider && segundo && lider.pts) texto += ` ${nombre(lider.pid)} llega líder con ${lider.pts - segundo.pts} puntos sobre ${apellido(segundo.pid)}.`;
+    if (c.adelantar != null) texto += c.adelantar > 0.5 ? ' Es un trazado donde se puede adelantar: la carrera puede dar vuelcos.' : c.adelantar < 0.3 ? ' Adelantar aquí es muy difícil: la clasificación será clave.' : '';
+    if (maxLluvia >= 30) texto += ` Ojo al cielo: hasta un ${maxLluvia}% de probabilidad de lluvia.`;
+    return { titulo: `Previa: jornada ${ev.ronda} en ${c.nombre || 'el circuito'}`, texto, tipo: 'previa' };
 }

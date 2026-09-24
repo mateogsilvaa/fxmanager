@@ -40,9 +40,9 @@ export const PUNTOS_VR = 3;
 
 // Duración de la retransmisión "en directo" (ms). Tras ella la sesión cuenta en clasificaciones.
 export function duracionDirecto(tipo) {
-    if (tipo === 'FP') return 60_000;
-    if (esQualy(tipo)) return 90_000;
-    return (SESION_INFO[tipo]?.vueltas || 10) * 15_000 + 15_000;
+    if (tipo === 'FP') return 150_000;
+    if (esQualy(tipo)) return 150_000;
+    return (SESION_INFO[tipo]?.vueltas || 10) * 24_000 + 15_000; // semáforos + carrera + bandera a cuadros
 }
 
 export const PLAZAS_MUNDIAL = { porLiga: 3, mejoresRestantes: 5 };
@@ -100,7 +100,12 @@ export const SETUP_PARAMS = {
     ala: { nombre: 'Ala / carga', bajo: 'poca carga', alto: 'mucha carga' },
     susp: { nombre: 'Suspensión', bajo: 'blanda', alto: 'dura' },
     marchas: { nombre: 'Desarrollo de marchas', bajo: 'corto', alto: 'largo' },
+    presion: { nombre: 'Presión de neumáticos', bajo: 'baja', alto: 'alta' },
 };
+export const SETUP_BASE = { ala: 5, susp: 5, marchas: 5, presion: 5 };
+// Lectura del ingeniero por ajuste según la distancia al ideal
+export const NIVELES_LECTURA = ['Excelente', 'Bueno', 'Medio', 'Malo', 'Súper malo'];
+export function nivelLectura(distancia) { return distancia === 0 ? 0 : distancia === 1 ? 1 : distancia === 2 ? 2 : distancia <= 4 ? 3 : 4; }
 
 export const ESTRATEGIA_DEF = {
     riesgo: 2,          // qualy 1..3

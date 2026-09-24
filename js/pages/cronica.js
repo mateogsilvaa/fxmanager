@@ -29,7 +29,7 @@ const c = generarCronica({ evento: { id: evId, ...ev }, sesiones: S, nombre: d.n
 main.innerHTML = `
 <article class="rejilla rejilla-lado">
   <div class="tarjeta cronica">
-    <div class="etiqueta">${banderaLiga(ev.liga)} ${esc(LIGAS[ev.liga].nombre)} · Ronda ${ev.ronda} · ${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</div>
+    <div class="etiqueta">${banderaLiga(ev.liga)} ${esc(LIGAS[ev.liga].nombre)} · Jornada ${ev.ronda} · ${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</div>
     <h2 style="margin-top:10px">${esc(c.titulo)}</h2>
     <p class="entradilla">${esc(c.entradilla)}</p>
     <div class="cuerpo">${c.parrafos.map(p => `<p>${esc(p)}</p>`).join('')}</div>

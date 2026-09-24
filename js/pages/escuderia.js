@@ -7,7 +7,7 @@ import {
     SLOTS_ID, costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion, ECO,
     SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, tandasSimulador,
 } from '../engine/constants.js';
-import { tandasDisponibles } from '../engine/juego.js';
+import { tandasDisponibles, textoLectura } from '../engine/juego.js';
 import { candidatosGalactico, tacticosDisponibles, puedePedirGalactico, MERCADO } from '../core/mercado-ui.js';
 
 const u = await montar({ activo: 'escuderia' });
@@ -215,29 +215,30 @@ function pintarCarrera() {
     const primeraAbierta = abiertas[0];
     const tandas = E.acciones.filter(a => a.tipo === 'simulador' && a.params?.eventoId === ev.id);
     const ultimaTanda = tandas.find(a => a.estado === 'hecha')?.resultado?.setup;
-    const setup = heredada(primeraAbierta || tipos[tipos.length - 1])?.setup || ultimaTanda || E.priv.ultimoSetup || { ala: 5, susp: 5, marchas: 5 };
+    const setup = heredada(primeraAbierta || tipos[tipos.length - 1])?.setup || ultimaTanda || E.priv.ultimoSetup || {};
+    for (const k of Object.keys(SETUP_PARAMS)) setup[k] ??= 5;
     const t = tandasDisponibles(E.priv, hoy());
     const libres = Math.max(0, t.quedan - pendientes('simulador').length);
     const nivelSim = E.priv.inst?.simulador || 0;
 
     el.innerHTML = `
     <div class="tarjeta" style="margin-bottom:12px">
-      <div class="fila-entre"><div><div class="etiqueta">Ronda ${ev.ronda}${ev.liga === 'INT' ? ' · Mundial' : ''}</div><h2 style="margin:2px 0 0">${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</h2></div>
+      <div class="fila-entre"><div><div class="etiqueta">Jornada ${ev.ronda}${ev.liga === 'INT' ? ' · Mundial' : ''}</div><h2 style="margin:2px 0 0">${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</h2></div>
       ${primeraAbierta ? `<span class="estado abierta">Próximo cierre en <span data-cuenta="${ev.sesiones[primeraAbierta].lockAt}" data-corta>${cuentaAtras(ev.sesiones[primeraAbierta].lockAt, true)}</span></span>` : ''}</div>
     </div>
     <div class="rejilla rejilla-2">
       <div class="tarjeta">
         <div class="tarjeta-titulo"><h2>Reglaje</h2><span class="muted peq">${libres} de ${t.max} pruebas hoy</span></div>
-        <p class="muted peq">Cada coche tiene un reglaje ideal secreto para este circuito. Pruébalo en el simulador y el ingeniero te dirá si te pasas o te quedas corto.</p>
+        <p class="muted peq">Cada coche tiene un reglaje ideal secreto para este circuito. Pruébalo en el simulador: el ingeniero califica cada ajuste de Súper malo a Excelente.</p>
         ${Object.entries(SETUP_PARAMS).map(([k, p]) => `<div class="setup-param" style="margin:10px 0"><span>${esc(p.nombre)}</span><input type="range" min="1" max="10" name="${k}" value="${setup[k]}" oninput="this.nextElementSibling.value=this.value"><output>${setup[k]}</output></div>`).join('')}
         <div class="fila-botones"><button class="btn btn-sec" id="probar" ${libres ? '' : 'disabled'}>${libres ? 'Probar en el simulador' : 'Sin pruebas hasta mañana'}</button></div>
         ${tandas.length ? `<div style="margin-top:12px">${tandas.slice(0, 3).map(a => {
-            if (a.estado === 'pendiente') return `<div class="fila-entre peq" style="padding:6px 0;border-top:1px solid var(--hair2)"><span>${a.params.setup.ala} · ${a.params.setup.susp} · ${a.params.setup.marchas}</span><span class="muted">en pista…</span></div>`;
+            if (a.estado === 'pendiente') return `<div class="fila-entre peq" style="padding:6px 0;border-top:1px solid var(--hair2)"><span>${Object.keys(SETUP_PARAMS).map(k => a.params.setup[k] ?? '—').join(' · ')}</span><span class="muted">en pista…</span></div>`;
             if (a.estado === 'error') return `<div class="peq mal" style="padding:6px 0;border-top:1px solid var(--hair2)">${esc(a.resultado?.error)}</div>`;
             const r = a.resultado;
-            return `<div class="fila-entre peq" style="padding:6px 0;border-top:1px solid var(--hair2)"><span>${[['ala', 'Ala'], ['susp', 'Susp.'], ['marchas', 'Marchas']].map(([k, n]) => `<span class="muted">${n}</span> ${r.setup[k]} ${lectura(r.informe[k])}`).join(' &nbsp;')}</span><button class="btn btn-sec btn-peq" data-usar='${esc(JSON.stringify(r.setup))}'>Usar</button></div>`;
+            return `<div class="fila-entre peq" style="padding:6px 0;border-top:1px solid var(--hair2)"><span>${Object.entries(SETUP_PARAMS).map(([k, p]) => `<span class="muted">${esc(p.nombre.split(' ')[0])}</span> ${r.setup[k] ?? '—'} ${lectura(r.informe[k])}`).join(' &nbsp;')}</span><button class="btn btn-sec btn-peq" data-usar='${esc(JSON.stringify(r.setup))}'>Usar</button></div>`;
         }).join('')}</div>` : ''}
-        <p class="muted peq" style="margin:10px 0 0">Simulador nivel ${nivelSim}: ${nivelSim >= 2 ? 'te dice cuánto te pasas' : 'solo dice si vas alto o bajo'}. El informe llega ${proximoCiclo()}.</p>
+        <p class="muted peq" style="margin:10px 0 0">Cada ajuste se califica de Súper malo a Excelente. Simulador nivel ${nivelSim}: ${nivelSim >= 2 ? 'además te dice si subir o bajar' : 'no dice hacia dónde corregir (a partir del nivel 2 sí) y a veces se equivoca'}. El informe llega ${proximoCiclo()}.</p>
       </div>
       <div class="tarjeta">
         <div class="tarjeta-titulo"><h2>Estrategia</h2></div>
@@ -262,7 +263,7 @@ function pintarCarrera() {
     $('#probar', el)?.addEventListener('click', () => lanzar('simulador', { eventoId: ev.id, setup: leerSetup() }, 'Coche en pista'));
     $$('[data-usar]', el).forEach(b => b.addEventListener('click', () => {
         const s = JSON.parse(b.dataset.usar);
-        for (const k of Object.keys(SETUP_PARAMS)) { const i = $(`[name=${k}]`, el); i.value = s[k]; i.nextElementSibling.value = s[k]; }
+        for (const k of Object.keys(SETUP_PARAMS)) { const i = $(`[name=${k}]`, el); i.value = s[k] ?? 5; i.nextElementSibling.value = s[k] ?? 5; }
         toast('Reglaje copiado. Pulsa Guardar para usarlo.');
     }));
     $('#guardar-estr', el)?.addEventListener('click', async (e) => {
@@ -286,9 +287,11 @@ function pintarCarrera() {
 function seg(nombre, opciones, valor, activo) {
     return `<div class="seg" data-nombre="${esc(nombre)}">${opciones.map(([v, t]) => `<button type="button" data-v="${v}" class="${String(v) === String(valor) ? 'activa' : ''}" ${activo ? '' : 'disabled'}>${t}</button>`).join('')}</div>`;
 }
-function lectura(txt) {
-    const c = /perfecto|bien/.test(txt) ? 'perfecto' : /pelín/.test(txt) ? 'pelin' : /muy/.test(txt) ? 'muy' : 'lejos';
-    return `<span class="lectura ${c}">${esc(txt)}</span>`;
+function lectura(l) {
+    if (!l) return '';
+    const n = typeof l === 'string' ? (/perfecto|bien/.test(l) ? 0 : /pelín/.test(l) ? 1 : /muy/.test(l) ? 4 : 3) : l.nivel;
+    const clase = ['perfecto', 'pelin', 'lejos', 'muy', 'muy'][n];
+    return `<span class="lectura ${clase}">${esc(textoLectura(l))}</span>`;
 }
 
 // ======================================================================

@@ -1,6 +1,6 @@
 // Reglas de gestión: reglajes, decisiones diarias, patrocinadores, moral, IA
 import { crearRng } from './rng.js';
-import { SETUP_PARAMS, tandasSimulador } from './constants.js';
+import { SETUP_PARAMS, tandasSimulador, NIVELES_LECTURA, nivelLectura } from './constants.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -11,40 +11,38 @@ export function setupIdeal(secreto, eventoId, equipoId, circuito) {
     const baseAla = 2 + circuito.aero * 9 - circuito.motor * 3;
     const baseSusp = 3 + (1 - circuito.chasis) * 5;
     const baseMarchas = 2 + circuito.motor * 9;
-    const f = (b) => clamp(Math.round(b + rng.gauss(0, 1.6)), 1, 10);
-    return { ala: f(baseAla), susp: f(baseSusp), marchas: f(baseMarchas) };
+    const basePresion = 7 - (circuito.desgaste ?? 0.5) * 5;
+    const f = (b) => clamp(Math.round(b + rng.gauss(0, 1.8)), 1, 10);
+    return { ala: f(baseAla), susp: f(baseSusp), marchas: f(baseMarchas), presion: f(basePresion) };
 }
 
 export function calidadSetup(setup, ideal) {
-    if (!setup) return 0.55;
-    const d = Object.keys(SETUP_PARAMS).map(k => Math.abs((+setup[k] || 5) - ideal[k]));
-    return clamp(1 - d.reduce((s, x) => s + x, 0) / 3 / 7, 0, 1);
+    if (!setup) return 0.5;
+    const claves = Object.keys(SETUP_PARAMS);
+    const d = claves.map(k => Math.abs((+setup[k] || 5) - (ideal[k] ?? 5)));
+    return clamp(1 - d.reduce((s, x) => s + x, 0) / claves.length / 6, 0, 1);
 }
 
-// Informe del ingeniero para un reglaje probado. La precisión depende del simulador.
+// Informe del ingeniero: para cada ajuste, un nivel de Excelente a Súper malo.
+// Con simulador de nivel 2 o más, además dice si hay que subir o bajar.
 export function informeSetup(setup, ideal, nivelSim, rng) {
     const out = {};
     for (const k of Object.keys(SETUP_PARAMS)) {
-        const d = (+setup[k] || 5) - ideal[k];
-        const ad = Math.abs(d);
-        let txt;
-        if (nivelSim >= 2) {
-            if (ad === 0) txt = 'perfecto';
-            else if (ad === 1) txt = d > 0 ? 'un pelín alto' : 'un pelín bajo';
-            else if (ad <= 3) txt = d > 0 ? 'alto' : 'bajo';
-            else txt = d > 0 ? 'muy alto' : 'muy bajo';
-        } else {
-            // simulador básico: solo dirección, y "bien" cubre ±1
-            if (ad <= 1) txt = 'bien';
-            else txt = d > 0 ? 'alto' : 'bajo';
-            // 10% de lecturas erróneas con simulador de nivel 0
-            if (nivelSim === 0 && ad >= 2 && rng.chance(0.1)) txt = 'bien';
-        }
-        out[k] = txt;
+        const dif = (+setup[k] || 5) - (ideal[k] ?? 5);
+        let n = nivelLectura(Math.abs(dif));
+        // simulador básico: a veces se equivoca en un nivel
+        if (nivelSim === 0 && rng.chance(0.12)) n = clamp(n + (rng.chance(0.5) ? 1 : -1), 0, 4);
+        out[k] = { nivel: n, texto: NIVELES_LECTURA[n], dir: nivelSim >= 2 && dif !== 0 ? (dif > 0 ? 'bajar' : 'subir') : null };
     }
     const q = calidadSetup(setup, ideal);
-    out.sensacion = q > 0.95 ? 'El piloto está encantado con el coche.' : q > 0.8 ? 'El coche va bien, pero se puede afinar.' : q > 0.6 ? 'El piloto no termina de confiar en el coche.' : 'El coche es muy difícil de conducir.';
+    out.sensacion = q > 0.93 ? 'El piloto está encantado con el coche.' : q > 0.78 ? 'El coche va bien, pero se puede afinar.' : q > 0.6 ? 'El piloto no termina de confiar en el coche.' : 'El coche es muy difícil de conducir.';
     return out;
+}
+
+export function textoLectura(l) {
+    if (!l) return '';
+    if (typeof l === 'string') return l; // informes antiguos
+    return l.texto + (l.dir ? ` (${l.dir})` : '');
 }
 
 export function tandasDisponibles(priv, dia) {
@@ -298,5 +296,5 @@ export function decisionIA(priv, circuitoProx, rng) {
 
 export function setupIA(ideal, rng, habilidad = 1) {
     const f = (v) => clamp(v + Math.round(rng.gauss(0, 1.3 * habilidad)), 1, 10);
-    return { ala: f(ideal.ala), susp: f(ideal.susp), marchas: f(ideal.marchas) };
+    return Object.fromEntries(Object.keys(SETUP_PARAMS).map(k => [k, f(ideal[k] ?? 5)]));
 }

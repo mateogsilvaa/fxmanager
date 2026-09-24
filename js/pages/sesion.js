@@ -5,6 +5,7 @@ import { esc, banderaLiga, bandera, vacio, fecha, $, cuentaAtras } from '../core
 import { celdaPiloto, celdaEquipo, pos } from '../core/componentes.js';
 import { LIGAS, SESION_INFO, esCarrera, esQualy, SESIONES } from '../engine/constants.js';
 import { formatoTiempo } from '../engine/sim.js';
+import { montarDirecto } from '../core/directo.js';
 
 const sid = new URLSearchParams(location.search).get('id') || '';
 const tipo = sid.split('_').pop();
@@ -26,7 +27,7 @@ const colorEq = (eq) => d.equipo(eq)?.color || 'var(--dim)';
 
 main.innerHTML = `
 <div class="cabecera-pagina">
-  <div><div class="etiqueta">${banderaLiga(ev.liga, { ancho: 18 })} ${esc(LIGAS[ev.liga].nombre)} · Ronda ${ev.ronda} · <a href="liga.html?l=${ev.liga}&tab=calendario">calendario</a></div>
+  <div><div class="etiqueta">${banderaLiga(ev.liga, { ancho: 18 })} ${esc(LIGAS[ev.liga].nombre)} · Jornada ${ev.ronda} · <a href="liga.html?l=${ev.liga}&tab=calendario">calendario</a></div>
   <h1>${esc(info.nombre)}</h1>
   <p class="sub">${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)} · ${fecha(ses.publishAt)}${info.vueltas ? ` · ${info.vueltas} vueltas` : info.minutos ? ` · ${info.minutos} min` : ''}</p></div>
   <div class="sub-pestanas">${SESIONES.filter(t => ev.sesiones[t]).map(t => `<a class="btn btn-peq ${t === tipo ? '' : 'btn-sec'}" href="sesion.html?id=${esc(evId)}_${t}">${esc(SESION_INFO[t].corto)}</a>`).join('')}</div>
@@ -62,65 +63,8 @@ function antesDePublicar() {
 function nivelTxt(v) { return v == null ? '—' : v > 0.55 ? 'alto' : v > 0.35 ? 'medio' : 'bajo'; }
 
 // ---------------------------------------------------------------- Directo
-function directo(r, { repeticion = false, velocidad = 1 } = {}) {
-    const duracion = Math.max(20_000, ses.revealAt - ses.publishAt - 15_000);
-    const inicio = repeticion ? Date.now() : null;
-    const n = esCarrera(tipo) ? info.vueltas : Math.max(...r.filas.map(f => f.laps.length));
-    cont.innerHTML = `<div class="rejilla rejilla-lado">
-      <div class="tarjeta"><div class="tarjeta-titulo"><h2><span class="en-vivo">${repeticion ? 'REPETICIÓN' : 'EN DIRECTO'}</span></h2><span class="progreso-carrera" id="prog"></span></div>
-        ${r.lluvia ? '<div class="info-caja" style="margin-bottom:10px">Sesión en mojado</div>' : ''}
-        <div class="torre" id="torre"></div>
-        <div class="fila-botones"><button class="btn btn-sec btn-peq" id="spoiler">Saltar al resultado final</button></div></div>
-      <div class="tarjeta"><div class="tarjeta-titulo"><h3>Lo que está pasando</h3></div><div class="feed" id="feed"></div></div>
-    </div>`;
-    $('#spoiler').addEventListener('click', () => { clearInterval(h); final(r); });
-    const offset = {};
-    r.filas.forEach(f => { offset[f.pid] = ((f.parrilla || 1) - 1) * 250; });
-    let prevOrden = [];
-    const pintar = () => {
-        const trans = repeticion ? (Date.now() - inicio) * velocidad : ahora() - ses.publishAt;
-        const frac = Math.min(1, trans / duracion);
-        const k = Math.min(n, Math.floor(frac * n + 1e-9));
-        let filas;
-        if (esCarrera(tipo)) {
-            $('#prog').textContent = k === 0 ? 'Salida' : k >= n ? 'Bandera a cuadros' : `Vuelta ${k + 1}/${n}`;
-            filas = r.filas.map(f => {
-                const hechas = Math.min(k, f.laps.length);
-                const fuera = f.estado === 'DNF' && hechas < k;
-                const cum = offset[f.pid] + f.laps.slice(0, hechas).reduce((s, x) => s + x, 0);
-                const p = hechas > 0 ? f.posLap[hechas - 1] : f.parrilla;
-                return { f, cum, p: fuera ? 100 + (f.vueltas) : (p ?? 99), fuera, hechas };
-            }).sort((a, b) => a.fuera - b.fuera || (a.fuera ? b.hechas - a.hechas : a.p - b.p));
-            const lider = filas[0]?.cum || 0;
-            filas.forEach((x, i) => { x.txt = x.fuera ? 'OUT' : k === 0 ? `P${x.f.parrilla}` : i === 0 ? `V${k}` : `+${((x.cum - lider) / 1000).toFixed(1)}`; });
-        } else {
-            $('#prog').textContent = k >= n ? 'Sesión terminada' : `Quedan ${Math.max(0, Math.ceil((1 - frac) * (info.minutos || 15)))} min`;
-            filas = r.filas.map(f => {
-                const vistas = f.laps.slice(0, k).filter(t => t > 0);
-                const best = vistas.length ? Math.min(...vistas) : null;
-                return { f, best };
-            }).sort((a, b) => (a.best ?? 1e12) - (b.best ?? 1e12));
-            const mejor = filas[0]?.best;
-            filas.forEach((x, i) => { x.txt = x.best == null ? 'Sin tiempo' : i === 0 ? formatoTiempo(x.best) : `+${((x.best - mejor) / 1000).toFixed(3)}`; });
-        }
-        const orden = filas.map(x => x.f.pid);
-        $('#torre').innerHTML = filas.map((x, i) => {
-            const antes = prevOrden.indexOf(x.f.pid);
-            const cls = antes >= 0 && antes > i ? 'sube' : antes >= 0 && antes < i ? 'baja' : '';
-            return `<div class="torre-fila ${cls} ${x.fuera ? 'fuera' : ''}" style="border-left:3px solid ${esc(colorEq(x.f.eq))}${x.f.eq === miEq ? ';outline:1px solid var(--acento)' : ''}">${pos(i + 1)}${celdaPiloto(d, x.f.pid, { enlace: false })}<span class="muted" style="font-size:.8rem">${esc(d.equipo(x.f.eq)?.corto || '')}</span><span class="gap">${esc(x.txt)}</span></div>`;
-        }).join('');
-        prevOrden = orden;
-        if (esCarrera(tipo)) {
-            const evs = (r.eventos || []).filter(e => e.v <= k).slice().reverse();
-            $('#feed').innerHTML = evs.length ? evs.slice(0, 60).map(textoEvento).join('') : '<div>Semáforo en rojo… ¡se apagan las luces!</div>';
-        } else {
-            const vr = filas[0];
-            $('#feed').innerHTML = vr?.best ? `<div class="adel">Mejor tiempo provisional: <b>${esc(d.nombre(vr.f.pid))}</b> · ${formatoTiempo(vr.best)}</div>` : '<div>Los coches salen a pista…</div>';
-        }
-        if (frac >= 1) { clearInterval(h); setTimeout(() => final(r), 2500); }
-    };
-    const h = setInterval(pintar, 1000);
-    pintar();
+function directo(r, { repeticion = false } = {}) {
+    montarDirecto(cont, { r, ses, ev: { id: evId, ...ev }, d, miEq, repeticion, alFinal: () => final(r) });
 }
 
 function textoEvento(e) {
@@ -161,7 +105,7 @@ function final(r) {
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Incidencias</h3></div><div class="feed">${(r.eventos || []).filter(e => e.tipo !== 'adelantamiento').map(textoEvento).join('') || '<div>Carrera limpia, sin incidentes.</div>'}</div>
     <p class="muted" style="margin-top:10px;font-size:.85rem">${(r.eventos || []).filter(e => e.tipo === 'adelantamiento').length} adelantamientos en pista.</p></div></div>` : ''}
     ${carrera ? `<div class="tarjeta" style="margin-top:16px"><div class="tarjeta-titulo"><h3>Tiempos por vuelta</h3></div>${tablaVueltas(r)}</div>` : ''}`;
-    $('#repetir')?.addEventListener('click', () => directo(r, { repeticion: true, velocidad: 4 }));
+    $('#repetir')?.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); directo(r, { repeticion: true }); });
 }
 
 function graficaPosiciones(r) {

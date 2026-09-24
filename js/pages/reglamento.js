@@ -109,7 +109,7 @@ ${seccion('cada-dia', 'Qué hacer cada día', `
 <ol>
 <li><b>Recoge la recompensa diaria.</b> Si fallas un día, la racha vuelve a 1.</li>
 <li><b>Responde la decisión del día</b> antes de medianoche. Si no, se aplica la opción por defecto (normalmente la peor).</li>
-<li><b>Prueba reglajes en el simulador</b> (${tandasSimulador(0)} pruebas al día, más si lo mejoras). Cada coche tiene un reglaje ideal secreto en cada circuito y el ingeniero te dice si te pasas o te quedas corto.</li>
+<li><b>Prueba reglajes en el simulador</b> (${tandasSimulador(0)} pruebas al día, más si lo mejoras). Cada coche tiene un reglaje ideal secreto en cada circuito (ala, suspensión, marchas y presión de neumáticos). El ingeniero califica cada ajuste de Súper malo a Excelente; con el simulador mejorado (nivel 2) además te dice si subir o bajar.</li>
 <li><b>Guarda la estrategia</b> de la próxima jornada antes de que cierre.</li>
 <li><b>Ten el coche siempre en desarrollo.</b></li>
 </ol>
@@ -120,7 +120,7 @@ ${seccion('carrera', 'Cómo se decide una carrera', `
 <ul>
 <li><b>El piloto:</b> ritmo, regularidad, agresividad, defensa, lluvia, experiencia, moral y forma.</li>
 <li><b>El coche:</b> los niveles de motor, aero y chasis según lo que pida el circuito, y la fiabilidad para las averías.</li>
-<li><b>El reglaje:</b> cuanto más cerca del ideal, más rápido (hasta un 0,8% por vuelta).</li>
+<li><b>El reglaje</b> (4 ajustes): cuanto más cerca del ideal, más rápido (hasta un 0,8% por vuelta).</li>
 <li><b>La estrategia:</b> riesgo en clasificación, y ritmo y actitud en carrera.</li>
 <li><b>El azar:</b> errores, toques, averías, tráfico y lluvia (que se anuncia antes como probabilidad).</li>
 </ul>

@@ -91,7 +91,7 @@ function duelo(t, a = { g: 0, p: 0 }, b) {
 function tablaResultados() {
     if (!eventos.length || !st) return vacio('Todavía no ha competido esta temporada.');
     const cols = ['Q1', 'R1', 'Q2', 'R2', 'R3'];
-    return `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Ronda</th>${cols.map(c => `<th class="cen">${SESION_INFO[c].corto}</th>`).join('')}<th class="der">Pts</th></tr></thead><tbody>
+    return `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Jornada</th>${cols.map(c => `<th class="cen">${SESION_INFO[c].corto}</th>`).join('')}<th class="der">Pts</th></tr></thead><tbody>
     ${eventos.map(ev => {
         const celdas = cols.map(c => {
             const h = st.historial.find(x => x.sid === `${ev.id}_${c}`);
