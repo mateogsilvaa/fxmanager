@@ -17,7 +17,10 @@ export function bandera(nac, { ancho = 20, titulo = true } = {}) {
 }
 
 export function banderaLiga(liga, opts) {
-    if (liga === 'INT') return `<span class="bandera-int" title="Intercontinental">🌐</span>`;
+    if (liga === 'INT') {
+        const t = opts?.ancho || 20;
+        return `<span class="bandera-int" title="Intercontinental"><svg width="${t}" height="${Math.round(t * 0.75)}" viewBox="0 0 24 18" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="9" r="7.5"/><path d="M4.5 9h15M12 1.5c2.5 2.2 2.5 12.8 0 15M12 1.5c-2.5 2.2-2.5 12.8 0 15"/></svg></span>`;
+    }
     return bandera(LIGAS[liga]?.pais, opts);
 }
 
@@ -35,9 +38,13 @@ export function fecha(ms, opts = {}) {
 export function fechaCorta(ms) { return fecha(ms, { weekday: undefined, hour: undefined, minute: undefined }); }
 export function hora(ms) { return new Date(ms).toLocaleTimeString('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' }); }
 
-export function cuentaAtras(ms) {
+export function cuentaAtras(ms, corta = false) {
     let d = ms - ahora();
     if (d <= 0) return 'ya';
+    if (corta) {
+        if (d >= 864e5) return `${Math.floor(d / 864e5)}d ${Math.floor(d % 864e5 / 36e5)}h`;
+        if (d >= 36e5) return `${Math.floor(d / 36e5)}h ${Math.floor(d % 36e5 / 6e4)}m`;
+    }
     const dias = Math.floor(d / 864e5); d -= dias * 864e5;
     const h = Math.floor(d / 36e5); d -= h * 36e5;
     const m = Math.floor(d / 6e4); d -= m * 6e4;
@@ -59,7 +66,8 @@ let relojActivo = false;
 export function activarCuentas() {
     if (relojActivo) return;
     relojActivo = true;
-    setInterval(() => $$('[data-cuenta]').forEach(el => { el.textContent = cuentaAtras(+el.dataset.cuenta); }), 1000);
+    const tic = () => $$('[data-cuenta]').forEach(el => { el.textContent = cuentaAtras(+el.dataset.cuenta, el.hasAttribute('data-corta')); });
+    tic(); setInterval(tic, 1000);
 }
 
 export function toast(msg, tipo = 'ok') {
@@ -108,8 +116,8 @@ export function pestanas(root, { alCambiar, param = 'tab' } = {}) {
     return activar;
 }
 
-export function vacio(texto, icono = '🏁') {
-    return `<div class="vacio"><div class="vacio-icono">${icono}</div><p>${texto}</p></div>`;
+export function vacio(texto) {
+    return `<div class="vacio"><p>${texto}</p></div>`;
 }
 
 export function cargando(el, texto = 'Cargando…') { if (el) el.innerHTML = `<div class="cargando"><span class="spinner"></span>${esc(texto)}</div>`; }

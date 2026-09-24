@@ -150,3 +150,23 @@ export async function cargarNoticias(limite = 30) {
         return await store().list('noticias', [['publishAt', '<=', ahora() - 120_000]], { orden: ['publishAt', 'desc'], limit: limite });
     } catch (e) { console.warn('noticias', e); return []; }
 }
+
+// Ranking global de mánagers: puntos de su escudería respecto a la media de su liga (100 = media)
+Datos.prototype.rankingManagers = function () {
+    const out = [];
+    for (const liga of LIGAS_NACIONALES) {
+        const clas = this.clasificacionEquipos(liga);
+        const media = clas.reduce((s, e) => s + e.pts, 0) / Math.max(1, clas.length);
+        clas.forEach(e => {
+            const eq = this.equipo(e.eq);
+            if (!eq?.ownerId) return;
+            out.push({ uid: eq.ownerId, nombre: eq.ownerNombre || 'Mánager', eq: e.eq, liga, pos: e.posicion, pts: e.pts, indice: media ? Math.round(e.pts / media * 100) : 100 });
+        });
+    }
+    return out.sort((a, b) => b.indice - a.indice || a.pos - b.pos);
+};
+
+export async function cargarPaddock(limite = 40) {
+    try { return await store().list('paddock', [], { orden: ['fecha', 'desc'], limit: limite }); }
+    catch (e) { console.warn('paddock', e); return []; }
+}

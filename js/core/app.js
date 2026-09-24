@@ -35,7 +35,7 @@ export function iniciar() {
             }
             addEventListener('pagehide', () => { try { sessionStorage.setItem('fx-demo-estado', JSON.stringify({ offset: _offset, datos: _store.volcar() })); } catch { } });
             const eq = (await _store.get('usuarios/u_ana'))?.equipoId ?? 'valcor-es';
-            _usuario = { uid: 'u_ana', email: 'ana@demo', perfil: { nombre: 'Ana (demo)', isAdmin: true, equipoId: eq } };
+            _usuario = { uid: 'u_ana', email: 'ana@demo', perfil: { nombre: 'Ana (demo)', isAdmin: true, equipoId: eq, estado: 'aprobado' } };
             return;
         }
         const [{ initializeApp }, authMod, fsMod, { FirestoreStore }, { FIREBASE_CONFIG }] = await Promise.all([
@@ -51,7 +51,7 @@ export function iniciar() {
                 if (u) {
                     let perfil = await _store.get(`usuarios/${u.uid}`).catch(() => null);
                     if (!perfil) {
-                        perfil = { nombre: u.displayName || u.email.split('@')[0], email: u.email, isAdmin: false, equipoId: null };
+                        perfil = { nombre: u.displayName || u.email.split('@')[0], email: u.email, isAdmin: false, equipoId: null, estado: 'pendiente' };
                         await _store.set(`usuarios/${u.uid}`, perfil).catch(() => { });
                     }
                     _usuario = { uid: u.uid, email: u.email, perfil };
@@ -81,7 +81,7 @@ export async function entrar(email, password) {
 export async function registrar(nombre, email, password) {
     if (DEMO) return;
     const cred = await _fb.createUserWithEmailAndPassword(_auth, email, password);
-    await _store.set(`usuarios/${cred.user.uid}`, { nombre, email, isAdmin: false, equipoId: null });
+    await _store.set(`usuarios/${cred.user.uid}`, { nombre, email, isAdmin: false, equipoId: null, estado: 'pendiente', creado: Date.now() });
 }
 export async function recuperar(email) {
     if (DEMO) return;

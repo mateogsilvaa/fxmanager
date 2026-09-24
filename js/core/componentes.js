@@ -31,31 +31,31 @@ export function tablaClasificacionPilotos(d, liga, { limite = null, corteMundial
         const p = d.piloto(s.pid);
         return `<tr class="${p?.equipoId === miEq ? 'yo' : ''} ${corteMundial && liga !== 'INT' && i === 2 ? 'corte' : ''}">
           <td>${pos(i + 1)}</td>
-          <td class="dorsal">${p?.numero ?? ''}</td>
-          <td>${celdaPiloto(d, s.pid)} ${p?.rol === 'P1' ? '<span class="insignia p1">P1</span>' : ''} ${clasif.has(s.pid) ? '<span class="insignia mundial" title="En zona de Mundial">🌐</span>' : ''}</td>
-          <td>${celdaEquipo(d, p?.equipoId || s.eq)}</td>
+          <td class="dorsal ancho">${p?.numero ?? ''}</td>
+          <td><div class="fila" style="flex-wrap:nowrap;gap:6px">${celdaPiloto(d, s.pid)}<span class="celda-piloto-extra">${p?.rol === 'P1' ? '<span class="insignia p1">P1</span> ' : ''}${clasif.has(s.pid) ? '<span class="insignia mundial" title="En zona de Mundial">MUN</span>' : ''}</span></div></td>
+          <td class="ancho">${celdaEquipo(d, p?.equipoId || s.eq)}</td>
           <td class="cen num">${s.victorias || 0}</td>
           <td class="cen num">${s.podios || 0}</td>
           <td class="cen num">${s.poles || 0}</td>
           ${extra ? `<td class="cen num">${extra(s) ?? ''}</td>` : ''}
           <td class="pts">${s.pts}</td></tr>`;
     }).join('');
-    return `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>#</th><th>Piloto</th><th>Equipo</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="cen" title="Poles">Pole</th>${extra ? '<th class="cen">+</th>' : ''}<th class="der">Pts</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+    return `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th class="ancho">#</th><th>Piloto</th><th class="ancho">Equipo</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="cen" title="Poles">Pole</th>${extra ? '<th class="cen">+</th>' : ''}<th class="der">Pts</th></tr></thead><tbody>${filas}</tbody></table></div>`;
 }
 
 export function tablaClasificacionEquipos(d, liga, { limite = null } = {}) {
     const lista = d.clasificacionEquipos(liga).slice(0, limite || undefined);
     if (!lista.length) return vacio('Sin equipos.');
     const miEq = usuario()?.perfil?.equipoId;
-    return `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Escudería</th><th>Mánager</th><th class="cen">V</th><th class="cen">Dobletes</th><th class="cen">Pod</th><th class="der">Pts</th></tr></thead><tbody>${lista.map((s, i) => {
+    return `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Escudería</th><th class="ancho">Mánager</th><th class="cen">V</th><th class="cen ancho">Dobletes</th><th class="cen">Pod</th><th class="der">Pts</th></tr></thead><tbody>${lista.map((s, i) => {
         const e = d.equipo(s.eq);
-        return `<tr class="${s.eq === miEq ? 'yo' : ''}"><td>${pos(i + 1)}</td><td>${celdaEquipo(d, s.eq)} ${e?.grupo ? `<span class="muted" title="Grupo multinacional">· ${esc(e.grupo)}</span>` : ''}</td><td class="muted">${e?.ownerNombre ? esc(e.ownerNombre) : '<span class="tenue">IA</span>'}</td><td class="cen num">${s.victorias || 0}</td><td class="cen num">${s.dobletes || 0}</td><td class="cen num">${s.podios || 0}</td><td class="pts">${s.pts}</td></tr>`;
+        return `<tr class="${s.eq === miEq ? 'yo' : ''}"><td>${pos(i + 1)}</td><td>${celdaEquipo(d, s.eq)} ${e?.grupo ? `<span class="muted" title="Grupo multinacional">· ${esc(e.grupo)}</span>` : ''}</td><td class="muted ancho">${e?.ownerNombre ? esc(e.ownerNombre) : '<span class="tenue">IA</span>'}</td><td class="cen num">${s.victorias || 0}</td><td class="cen num ancho">${s.dobletes || 0}</td><td class="cen num">${s.podios || 0}</td><td class="pts">${s.pts}</td></tr>`;
     }).join('')}</tbody></table></div>`;
 }
 
 export function filaSesion(d, s) {
     const estado = d.estadoSesion(s);
-    const txt = { abierta: 'Estrategia abierta', cerrada: 'Estrategias cerradas', directo: 'EN DIRECTO', final: 'Resultados' }[estado];
+    const txt = { abierta: 'Estrategia abierta', cerrada: 'Estrategias cerradas', directo: 'En directo', final: 'Resultados' }[estado];
     const pub = d.sesionPublicada(s.sid);
     let detalle = `<span class="muted">${fecha(s.publishAt)}</span>`;
     if (estado === 'final' && pub?.filas?.[0]) detalle = `${celdaPiloto(d, pub.filas[0].pid, { enlace: false })}`;
@@ -75,13 +75,13 @@ export function tarjetaEvento(d, ev, { mostrarLiga = false } = {}) {
         <div class="muted" style="font-size:.85rem">${mostrarLiga ? `${banderaLiga(ev.liga, { ancho: 16 })} ${esc(LIGAS[ev.liga]?.nombre)} · ` : ''}${inicio ? fecha(inicio, { hour: undefined, minute: undefined }) : ''}${ev.circuito?.km ? ` · ${ev.circuito.km} km` : ''}</div></div>
       </div>
       <div class="sesiones-lista">${sesiones.map(s => filaSesion(d, s)).join('')}</div>
-      ${terminado ? `<a class="btn btn-sec btn-peq" href="cronica.html?ev=${esc(ev.id)}">📰 Leer la crónica</a>` : ''}
+      ${terminado ? `<a class="btn btn-sec btn-peq" href="cronica.html?ev=${esc(ev.id)}">Leer la crónica</a>` : ''}
     </div>`;
 }
 
 export function listaNoticias(noticias, { liga = false } = {}) {
-    if (!noticias.length) return vacio('Todavía no hay noticias.', '📰');
-    return noticias.map(n => `<div class="noticia"><h4>${n.tipo === 'rumor' ? '🗣️ ' : n.tipo === 'mercado' ? '🔁 ' : n.tipo === 'cronica' ? '📰 ' : n.tipo === 'fase' ? '🏁 ' : ''}${esc(n.titulo)}</h4>${n.texto ? `<p>${esc(n.texto)}</p>` : ''}<div class="meta">${liga && n.liga ? `${banderaLiga(n.liga, { ancho: 14 })} ` : ''}${fecha(n.publishAt)}</div></div>`).join('');
+    if (!noticias.length) return vacio('Todavía no hay noticias.');
+    return noticias.map(n => `<div class="noticia"><h4>${esc(n.titulo)}</h4>${n.texto ? `<p>${esc(n.texto)}</p>` : ''}<div class="meta">${liga && n.liga ? `${banderaLiga(n.liga, { ancho: 14 })} ` : ''}${{ rumor: 'Rumor · ', mercado: 'Mercado · ', cronica: 'Crónica · ' }[n.tipo] || ''}${fecha(n.publishAt)}</div></div>`).join('');
 }
 
 // Tarjetas de récords: al pulsar se abre el ranking completo
@@ -90,9 +90,9 @@ export function tarjetasRecords(d, categorias, lista, { tipo = 'piloto' } = {}) 
         const r = ranking(c, lista).slice(0, 3);
         if (!r.length) return '';
         return `<div class="tarjeta record-tarjeta" data-cat="${esc(c.id)}" tabindex="0" role="button">
-          <div class="etiqueta">${c.bueno ? '' : '⚠️ '}${esc(c.nombre)}</div>
+          <div class="etiqueta">${esc(c.nombre)}</div>
           <div class="top">${r.map(x => `<div><span>${x.pos}. ${esc(tipo === 'piloto' ? d.nombre(x.x.pid) : d.nombreEquipo(x.x.eq))}</span><span class="num">${fmtValor(x.v)}${c.sufijo || ''}</span></div>`).join('')}</div>
-          <div class="ver">Ver ranking completo →</div></div>`;
+          <div class="ver">Ver ranking completo</div></div>`;
     }).join('');
 }
 

@@ -31,13 +31,14 @@ document.getElementById('main').innerHTML = `
 
 <section class="tarjeta"><h2>5. Cómo se juega (mánagers)</h2>
 <ul class="lista">
-<li>🗓️ <b>Cada día:</b> recoge tu recompensa (la racha multiplica el dinero: hasta ${dinero(ECO.checkinBase + 7 * ECO.checkinPorRacha)} al día) y responde a la <b>decisión del día</b> antes de medianoche. Si no contestas, se aplica la peor opción.</li>
-<li>🧪 <b>Simulador:</b> cada evento tiene un reglaje ideal secreto (ala, suspensión, marchas) distinto para cada coche. Tienes ${tandasSimulador(0)} tandas diarias (más con el simulador mejorado) para acercarte. Un buen reglaje vale varias décimas por vuelta.</li>
-<li>🎛️ <b>Estrategia por sesión:</b> reglaje, nivel de riesgo en qualy, ritmo y actitud en carrera. Cada sesión se cierra ${60} min antes de su hora.</li>
-<li>🔧 <b>I+D:</b> motor, aerodinámica, chasis y fiabilidad (niveles 0-10). Los proyectos tardan horas y pueden fallar. El primer nivel cuesta ${dinero(costeMejora(0))}.</li>
-<li>🏗️ <b>Instalaciones:</b> fábrica, simulador y marketing.</li>
-<li>🕵️ <b>Espionaje:</b> coche, pilotos o la estrategia de un rival. Te pueden pillar.</li>
-<li>💼 <b>Patrocinador:</b> seguro, por rendimiento o de alto riesgo. Uno por temporada.</li>
-<li>🎯 <b>Pronósticos:</b> abiertos a todo el mundo, tengas equipo o no.</li></ul>
+<li><b>Cada día:</b> recoge tu recompensa (la racha multiplica el dinero: hasta ${dinero(ECO.checkinBase + 7 * ECO.checkinPorRacha)} al día) y responde a la <b>decisión del día</b> antes de medianoche. Si no contestas, se aplica la peor opción.</li>
+<li><b>Simulador:</b> cada evento tiene un reglaje ideal secreto (ala, suspensión, marchas) distinto para cada coche. Tienes ${tandasSimulador(0)} tandas diarias (más con el simulador mejorado) para acercarte. Un buen reglaje vale varias décimas por vuelta.</li>
+<li><b>Estrategia por sesión:</b> reglaje, nivel de riesgo en qualy, ritmo y actitud en carrera. Cada sesión se cierra 30 min antes de su hora (ajustable por la organización).</li>
+<li><b>I+D:</b> motor, aerodinámica, chasis y fiabilidad (niveles 0-10). Los proyectos tardan horas y pueden fallar. El primer nivel cuesta ${dinero(costeMejora(0))}.</li>
+<li><b>Instalaciones:</b> fábrica, simulador y marketing.</li>
+<li><b>Espionaje:</b> coche, pilotos o la estrategia de un rival. Te pueden pillar.</li>
+<li><b>Multijugador:</b> los pilotos los contrata la liga, así que no se fichan: se compite en el coche, la estrategia y la gestión. Hay un ranking global de mánagers, declaraciones diarias en el Paddock, espionaje entre rivales, un escaparate para ofrecer a tu piloto como Táctico, y los equipos del mismo grupo (Valcor, Kessler, Altair, Stellari, Northline) se pasan tecnología: cuando uno mejora un área, los demás la desarrollan un 25% más barata.</li>
+<li><b>Patrocinador:</b> seguro, por rendimiento o de alto riesgo. Uno por temporada.</li>
+</ul>
 <p class="muted">Todo se procesa automáticamente: las sesiones se simulan al cerrar las estrategias y se publican, con retransmisión en directo, a la hora del calendario.</p></section>
 </div>`;

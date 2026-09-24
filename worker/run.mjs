@@ -35,7 +35,7 @@ try {
 
 const ref = doc(db, `usuarios/${cred.user.uid}`);
 const perfil = await getDoc(ref);
-if (!perfil.exists()) await setDoc(ref, { nombre: 'Bot del juego', email: BOT_EMAIL, isAdmin: false, equipoId: null });
+if (!perfil.exists()) await setDoc(ref, { nombre: 'Bot del juego', email: BOT_EMAIL, isAdmin: false, equipoId: null, estado: 'pendiente' });
 if (!perfil.exists() || perfil.data().isAdmin !== true) {
     console.error(`❌ La cuenta "${BOT_EMAIL}" (Bot del juego) todavía no es administradora.\n   Entra en la web → control.html → pestaña Usuarios → marca la casilla Admin de "Bot del juego" y vuelve a lanzar el workflow.`);
     process.exit(1);

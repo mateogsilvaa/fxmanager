@@ -1,4 +1,4 @@
-import { montar, barraDirecto } from '../core/layout.js';
+import { montar, barraDirecto, selectorLigas } from '../core/layout.js';
 import { cargarDatos, cargarNoticias } from '../core/datos.js';
 import { usuario } from '../core/app.js';
 import { esc, banderaLiga, bandera, vacio, pestanas, $, $$, fecha, chipEquipo } from '../core/ui.js';
@@ -23,28 +23,22 @@ const tabla = d.tabla(liga);
 const clasP = d.clasificacionPilotos(liga);
 
 main.innerHTML = `
+${selectorLigas(liga)}
 <div class="cabecera-pagina">
-  <div><div class="etiqueta">Liga ${esc(L.gentilicio)} · Temporada ${d.temporada}</div>
-  <h1>${banderaLiga(liga, { ancho: 44 })} ${esc(esInt ? 'Liga Intercontinental' : L.nombre)}</h1>
-  ${esInt ? `<p class="sub">${d.cfg.mundial?.nombre ? `Sede: ${bandera(d.cfg.mundial.pais)} ${esc(d.cfg.mundial.nombre)} · ` : ''}20 pilotos: el top 3 de cada liga y los 5 mejores del resto.</p>` : `<p class="sub">20 pilotos · 10 escuderías · 5 fines de semana · Piloto 1 siempre ${esc(L.gentilicio)}</p>`}</div>
+  <div><h1>${banderaLiga(liga, { ancho: 26 })} ${esc(esInt ? 'Liga Intercontinental' : L.nombre)}</h1>
+  <p class="sub">${esInt ? `${d.cfg.mundial?.nombre ? `Sede: ${esc(d.cfg.mundial.nombre)} · ` : ''}top 3 de cada liga + 5 mejores del resto` : `Temporada ${d.temporada} · 10 escuderías · 5 fines de semana`}</p></div>
 </div>
 <div class="pestanas" id="tabs">
-  <button data-tab="resumen">Resumen</button>
   <button data-tab="clasificacion">Clasificación</button>
   <button data-tab="calendario">Calendario</button>
-  <button data-tab="cronicas">Crónicas</button>
-  <button data-tab="estadisticas">Estadísticas</button>
-  <button data-tab="pilotos">Pilotos</button>
   <button data-tab="equipos">Escuderías</button>
-  ${esInt ? '' : '<button data-tab="riesgo">Mundial y despidos</button>'}
+  <button data-tab="estadisticas">Estadísticas</button>
+  ${esInt ? '' : '<button data-tab="riesgo">Mundial y mercado</button>'}
 </div>
-<section data-panel="resumen" id="p-resumen"></section>
 <section data-panel="clasificacion" id="p-clasificacion"></section>
 <section data-panel="calendario" id="p-calendario"></section>
-<section data-panel="cronicas" id="p-cronicas"></section>
-<section data-panel="estadisticas" id="p-estadisticas"></section>
-<section data-panel="pilotos" id="p-pilotos"></section>
 <section data-panel="equipos" id="p-equipos"></section>
+<section data-panel="estadisticas" id="p-estadisticas"></section>
 <section data-panel="riesgo" id="p-riesgo"></section>`;
 
 const pintados = new Set();
@@ -73,7 +67,7 @@ function resumen() {
       </div>
       <aside class="pila">
         <div class="tarjeta"><div class="tarjeta-titulo"><h3>Escuderías</h3></div>${miniEquipos()}</div>
-        ${!esInt && proy ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>🌐 Zona Mundial</h3><button class="btn btn-sec btn-peq" data-ir="riesgo">Ver →</button></div>${zonaMundialLiga(proy)}</div>` : ''}
+        ${!esInt && proy ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Zona Mundial</h3><button class="btn btn-sec btn-peq" data-ir="riesgo">Ver →</button></div>${zonaMundialLiga(proy)}</div>` : ''}
         <div class="tarjeta"><div class="tarjeta-titulo"><h3>Noticias</h3></div>${listaNoticias(news)}</div>
       </aside>
     </div>`;
@@ -82,10 +76,10 @@ function resumen() {
 
 function podiosEvento(ev) {
     const carreras = ['R1', 'R2', 'R3'].map(t => d.sesionPublicada(`${ev.id}_${t}`)).filter(Boolean);
-    return `<div class="tarjeta"><div class="tarjeta-titulo"><h2>Último fin de semana · ${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</h2><a class="btn btn-sec btn-peq" href="cronica.html?ev=${esc(ev.id)}">📰 Crónica</a></div>
+    return `<div class="tarjeta"><div class="tarjeta-titulo"><h2>Último fin de semana · ${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</h2><a class="btn btn-sec btn-peq" href="cronica.html?ev=${esc(ev.id)}">Crónica</a></div>
     <div class="rejilla rejilla-3">${carreras.map(s => {
         const fin = s.filas.filter(f => f.estado === 'FIN');
-        return `<a href="sesion.html?id=${esc(s.sid)}" style="display:block"><div class="etiqueta">${esc(SESION_INFO[s.tipo].nombre)}${s.ll ? ' · 🌧️' : ''}</div>
+        return `<a href="sesion.html?id=${esc(s.sid)}" style="display:block"><div class="etiqueta">${esc(SESION_INFO[s.tipo].nombre)}${s.ll ? ' · ' : ''}</div>
           <ol class="lista" style="margin-top:6px">${fin.slice(0, 3).map(f => `<li class="fila">${pos(f.pos)} ${esc(d.nombre(f.pid))}</li>`).join('')}</ol></a>`;
     }).join('')}</div></div>`;
 }
@@ -96,7 +90,7 @@ function miniEquipos() {
 }
 
 function zonaMundialLiga(proy) {
-    if (!d.sesionesLiga(liga).length) return vacio('Se decide cuando arranque la liga.', '🌐');
+    if (!d.sesionesLiga(liga).length) return vacio('Se decide cuando arranque la liga.');
     const aqui = proy.clasificados.filter(c => c.liga === liga);
     const aspir = (proy.aspirantes || []).filter(a => a.liga === liga).slice(0, 3);
     return `<ul class="lista">${aqui.map(c => `<li class="fila-entre"><span>${esc(d.nombre(c.pid))} ${c.via === 'repesca' ? '<span class="insignia mundial">repesca</span>' : ''}</span><span class="num muted">${c.pts}</span></li>`).join('')}</ul>
@@ -106,11 +100,11 @@ function zonaMundialLiga(proy) {
 // ---------------------------------------------------------------- Clasificación
 function clasificacion() {
     const el = $('#p-clasificacion');
-    el.innerHTML = `<div class="sub-pestanas" id="sub-clas"><button data-sub="pilotos" class="activa">Pilotos</button><button data-sub="equipos">Escuderías</button><button data-sub="rondas">Puntos por ronda</button><button data-sub="qualy">Clasificación (qualy)</button></div><div class="tarjeta" id="clas-cuerpo"></div>`;
+    el.innerHTML = `<div class="sub-pestanas" id="sub-clas"><button data-sub="pilotos" class="activa">Pilotos</button><button data-sub="equipos">Escuderías</button><button data-sub="rondas">Por ronda</button></div><div class="tarjeta" id="clas-cuerpo"></div>`;
     const cuerpo = $('#clas-cuerpo', el);
     const pintar = (sub) => {
         $$('#sub-clas button', el).forEach(b => b.classList.toggle('activa', b.dataset.sub === sub));
-        if (sub === 'pilotos') cuerpo.innerHTML = tablaClasificacionPilotos(d, liga, { extra: s => s.h2hTotal ? `${s.h2hTotal.g}-${s.h2hTotal.p}` : '' }) + `<p class="muted" style="font-size:.8rem;margin-top:8px">+ = cara a cara contra el compañero (sesiones ganadas-perdidas). ${esInt ? '' : 'La línea discontinua marca el top 3 que va directo al Mundial.'}</p>`;
+        if (sub === 'pilotos') cuerpo.innerHTML = tablaClasificacionPilotos(d, liga) + (esInt ? '' : `<p class="muted peq" style="margin:10px 0 0">MUN = en zona de Mundial ahora mismo.</p>`);
         else if (sub === 'equipos') cuerpo.innerHTML = tablaClasificacionEquipos(d, liga);
         else if (sub === 'rondas') cuerpo.innerHTML = tablaRondas();
         else cuerpo.innerHTML = tablaQualy();
@@ -135,15 +129,14 @@ function tablaQualy() {
 // ---------------------------------------------------------------- Calendario
 function calendario() {
     const el = $('#p-calendario');
-    el.innerHTML = eventos.length ? `<div class="rejilla rejilla-auto" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">${eventos.map(ev => tarjetaEvento(d, ev)).join('')}</div>
-    <p class="muted" style="margin-top:14px;font-size:.85rem">Las estrategias de cada sesión se cierran ${d.cfg.minutosCierre || 30} minutos antes de su hora. Los resultados se publican exactamente a la hora indicada, con retransmisión en directo.</p>` : vacio('El calendario todavía no está publicado.', '📅');
+    el.innerHTML = eventos.length ? `<div class="rejilla rejilla-auto" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))">${eventos.map(ev => tarjetaEvento(d, ev)).join('')}</div>` : vacio('El calendario todavía no está publicado.');
 }
 
 // ---------------------------------------------------------------- Crónicas
 function cronicas() {
     const el = $('#p-cronicas');
     const completos = eventos.filter(e => Object.values(e.sesiones).every(s => d.estadoSesion(s) === 'final')).reverse();
-    if (!completos.length) { el.innerHTML = vacio('La primera crónica llegará al terminar el primer fin de semana.', '📰'); return; }
+    if (!completos.length) { el.innerHTML = vacio('La primera crónica llegará al terminar el primer fin de semana.'); return; }
     el.innerHTML = `<div class="rejilla rejilla-2">${completos.map(ev => {
         const S = {};
         for (const t of ['FP', 'Q1', 'R1', 'Q2', 'R2', 'R3']) { const s = d.sesionPublicada(`${ev.id}_${t}`); if (s) S[t] = { ...s, vr: s.vr ? { pid: s.vr } : null }; }
@@ -155,10 +148,10 @@ function cronicas() {
 // ---------------------------------------------------------------- Estadísticas
 function estadisticas() {
     const el = $('#p-estadisticas');
-    if (!d.sesionesLiga(liga).length) { el.innerHTML = vacio('Las estadísticas aparecerán tras la primera sesión.', '📊'); return; }
+    if (!d.sesionesLiga(liga).length) { el.innerHTML = vacio('Las estadísticas aparecerán tras la primera sesión.'); return; }
     const pil = Object.values(tabla.pilotos);
     const eqs = Object.values(tabla.equipos);
-    el.innerHTML = `<div class="sub-pestanas" id="sub-est"><button data-sub="rp" class="activa">Récords de pilotos</button><button data-sub="re">Récords de escuderías</button><button data-sub="tp">Tabla completa pilotos</button><button data-sub="te">Tabla completa escuderías</button></div><div id="est-cuerpo"></div>`;
+    el.innerHTML = `<div class="sub-pestanas" id="sub-est"><button data-sub="rp" class="activa">Pilotos</button><button data-sub="re">Escuderías</button><button data-sub="tp">Tabla completa</button></div><div id="est-cuerpo"></div>`;
     const cuerpo = $('#est-cuerpo', el);
     const pintar = (sub) => {
         $$('#sub-est button', el).forEach(b => b.classList.toggle('activa', b.dataset.sub === sub));
@@ -222,12 +215,12 @@ function pilotos() {
     const el = $('#p-pilotos');
     const lista = d.pilotosLiga(liga).map(p => ({ ...p, st: clasP.find(s => s.pid === p.id) }))
         .sort((a, b) => (a.st?.posicion || 99) - (b.st?.posicion || 99));
-    if (!lista.length) { el.innerHTML = vacio(esInt ? 'Los participantes se conocerán al terminar las ligas nacionales.' : 'Sin pilotos.', '🧑‍✈️'); return; }
+    if (!lista.length) { el.innerHTML = vacio(esInt ? 'Los participantes se conocerán al terminar las ligas nacionales.' : 'Sin pilotos.'); return; }
     el.innerHTML = `<div class="rejilla rejilla-auto">${lista.map(p => {
         const eq = d.equipo(p.equipoId);
         return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}" style="border-left:4px solid ${esc(eq?.color || '#555')}">
-          <div class="fila-entre"><span class="dorsal" style="font-size:1.8rem">${p.numero ?? ''}</span>${p.st ? pos(p.st.posicion) : ''}</div>
-          <div class="fila" style="margin-top:4px">${bandera(p.nac, { ancho: 24 })}<div><div>${esc(p.nombre)}</div><b style="font-family:var(--f-titulo);font-size:1.4rem;text-transform:uppercase">${esc(p.apellido)}</b></div></div>
+          <div class="fila-entre"><span class="dorsal" style="font-size:18px">${p.numero ?? ''}</span>${p.st ? pos(p.st.posicion) : ''}</div>
+          <div class="fila" style="margin-top:4px">${bandera(p.nac, { ancho: 24 })}<div><div>${esc(p.nombre)}</div><b style="font-size:16px">${esc(p.apellido)}</b></div></div>
           <div class="fila-entre" style="margin-top:8px">${chipEquipo(eq)}<span>${p.rol === 'P1' ? '<span class="insignia p1">Piloto 1</span>' : ''} ${p.rookie ? '<span class="insignia rookie">Rookie</span>' : ''}</span></div>
           <div class="muted" style="font-size:.85rem;margin-top:6px">${esc(PAISES[p.nac] || '')} · ${p.edad ?? '?'} años · <b style="color:var(--texto)">${p.st?.pts ?? 0} pts</b></div></a>`;
     }).join('')}</div>`;
@@ -260,16 +253,16 @@ function riesgo() {
     el.innerHTML = `
     <div class="rejilla rejilla-lado">
       <div class="tarjeta">
-        <div class="tarjeta-titulo"><h2>Mercado: si la temporada acabara hoy</h2></div>
-        <p class="muted">El riesgo de despido no depende de ser el último: se mide contra el compañero de equipo (distancia en la clasificación y duelos directos). Un 18º cuyo compañero va 4º está peor que un 16º cuyo compañero va 19º, porque ahí el problema es el coche.</p>
+        <div class="tarjeta-titulo"><h2>Si la temporada acabara hoy</h2></div>
+        <p class="muted peq">El riesgo se mide contra el compañero de equipo, no por ir último.</p>
         <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Piloto</th><th class="cen">Pos</th><th>Compañero</th><th class="cen">Pos</th><th class="cen">Déficit</th><th class="cen">Duelos</th><th class="cen">Índice</th><th>Situación</th></tr></thead><tbody>
         ${r.map(x => `<tr><td>${celdaPiloto(d, x.pid)}</td><td class="cen">${x.pos}</td><td>${x.comp ? esc(d.nombre(x.comp)) : '—'}</td><td class="cen">${x.posComp ?? '—'}</td><td class="cen ${x.deficit > 0 ? 'mal' : 'ok'}">${x.deficit > 0 ? '+' : ''}${x.deficit}</td><td class="cen">${x.h2h.g}-${x.h2h.p}</td><td class="cen num">${fmtValor(x.riesgo)}</td><td>${zona[x.zona]}${x.zona === 'peligro' ? (x.caeria ? ' <span class="mal" style="font-size:.8rem">→ caería</span>' : ' <span class="ok" style="font-size:.8rem">→ se salva</span>') : ''}</td></tr>`).join('')}
         </tbody></table></div>
         <p class="muted" style="font-size:.82rem;margin-top:10px">Despido directo: los 2 índices más altos. Zona de peligro: los 2 siguientes; caen si su compañero está en el top 8 y les saca 5+ puestos, o si les saca 10+. Los clasificados al Mundial son inmunes. Además, cada liga pierde un Galáctico (top 5) y un Táctico (media tabla) que cambian de país.</p>
       </div>
       <aside class="pila">
-        <div class="tarjeta"><div class="tarjeta-titulo"><h3>🌐 ${proy.fijado ? 'Clasificados' : 'Proyección Mundial'}</h3></div>
-          ${proy.clasificados?.length && d.sesiones.length ? `<ul class="lista">${proy.clasificados.map(c => `<li class="fila-entre"><span>${banderaLiga(c.liga, { ancho: 16 })} ${c.liga === liga ? `<b>${esc(d.nombre(c.pid))}</b>` : esc(d.nombre(c.pid))} ${c.via === 'repesca' ? '<span class="insignia mundial">repesca</span>' : ''}</span><span class="num muted">${c.pts}</span></li>`).join('')}</ul>` : vacio('Aún sin datos.', '🌐')}
+        <div class="tarjeta"><div class="tarjeta-titulo"><h3>${proy.fijado ? 'Clasificados' : 'Proyección Mundial'}</h3></div>
+          ${proy.clasificados?.length && d.sesiones.length ? `<ul class="lista">${proy.clasificados.map(c => `<li class="fila-entre"><span>${banderaLiga(c.liga, { ancho: 16 })} ${c.liga === liga ? `<b>${esc(d.nombre(c.pid))}</b>` : esc(d.nombre(c.pid))} ${c.via === 'repesca' ? '<span class="insignia mundial">repesca</span>' : ''}</span><span class="num muted">${c.pts}</span></li>`).join('')}</ul>` : vacio('Aún sin datos.')}
         </div>
       </aside>
     </div>`;

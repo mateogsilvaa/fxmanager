@@ -74,7 +74,7 @@ export async function volcar(ctx) {
     const ops = ctx.ops.splice(0);
     for (const id of ctx.sucios.privs) ops.push({ op: 'set', path: `equipos_priv/${id}`, data: sinId(ctx.privs[id]) });
     // de los equipos públicos el servidor solo toca los fans (ownerId lo escribe el cliente al reclamar)
-    for (const id of ctx.sucios.equipos) ops.push({ op: 'merge', path: `equipos/${id}`, data: { fans: ctx.equipos[id].fans || 0 } });
+    for (const id of ctx.sucios.equipos) ops.push({ op: 'merge', path: `equipos/${id}`, data: { fans: ctx.equipos[id].fans || 0, escaparate: ctx.equipos[id].escaparate || null } });
     for (const id of ctx.sucios.pilotosPriv) ops.push({ op: 'set', path: `pilotos_priv/${id}`, data: sinId(ctx.pilotosPriv[id]) });
     for (const id of ctx.sucios.pilotos) ops.push({ op: 'set', path: `pilotos/${id}`, data: sinId(ctx.pilotos[id]) });
     Object.values(ctx.sucios).forEach(s => s.clear());

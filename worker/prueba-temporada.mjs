@@ -73,14 +73,15 @@ while (t < FIN) {
             for (const tipo of ['FP', 'Q1', 'R1']) {
                 await store.set(`estrategias/${prox.id}_${tipo}_valcor-es`, { eventoId: prox.id, tipo, equipoId: 'valcor-es', uid: 'u_ana', setup: { ala: 6, susp: 5, marchas: 5 }, pilotos: {}, actualizado: t });
             }
-            const cat = await store.get('catalogo/actual');
-            const esp = Object.entries(cat.pilotos).filter(([, p]) => p.liga === 'ESP').map(([id]) => id);
-            await store.set(`pronosticos/${prox.id}_R1_u_ana`, { uid: 'u_ana', nombre: 'Ana', sesionId: `${prox.id}_R1`, eventoId: prox.id, tipo: 'R1', liga: 'ESP', p1: esp[0], p2: esp[2], p3: esp[4], creado: t });
         }
     }
     const r = await ejecutarTick(store, { ahora: t, log: () => {} });
     if (r.errores?.length) ok(false, `Errores en tick ${new Date(t).toISOString()}: ${r.errores.join(' | ')}`);
     if (DEMO && !demoGuardado && t >= T0 + 2 * 7 * D + 2 * D + H + 30 * 60_000) {
+        const dia = diaMadrid(t);
+        await store.set(`paddock/${dia}_u_ana`, { uid: 'u_ana', nombre: 'Ana', equipoId: 'valcor-es', liga: 'ESP', texto: 'Tres carreras sin podio no son casualidad. El coche va, nos falta afinar el reglaje del domingo.', fecha: t - 2 * H, dia });
+        await store.set(`paddock/${dia}_u_leo`, { uid: 'u_leo', nombre: 'Leo', equipoId: 'kessler-de', liga: 'GER', texto: 'A los que nos espían: el motor nuevo llega en Hockenheim. Id preparando excusas.', fecha: t - 5 * H, dia });
+        await store.set('usuarios/u_nuevo', { nombre: 'Carla', email: 'carla@correo.com', isAdmin: false, equipoId: null, estado: 'pendiente', creado: t - H });
         writeFileSync(new URL('../data/demo.json', import.meta.url), JSON.stringify({ ahora: t, datos: store.volcar() }));
         demoGuardado = true;
         console.log('💾 data/demo.json guardado en', new Date(t).toISOString());
@@ -125,8 +126,6 @@ console.log('Acciones:', acciones.length, 'errores:', errs.length, [...new Set(e
 ok(acciones.every(a => a.estado !== 'pendiente'), 'Quedan acciones pendientes');
 const notifs = await store.list('notificaciones', [['uid', '==', 'u_ana']]);
 console.log('Notificaciones Ana:', notifs.length, '| tipos:', [...new Set(notifs.map(x => x.tipo))].join(','));
-const ranking = await store.get('ranking/pronosticos_T1');
-console.log('Pronósticos:', JSON.stringify(ranking?.usuarios));
 const decis = await store.list('decisiones');
 ok(decis.every(d => d.aplicada), 'Hay decisiones sin aplicar');
 console.log('Noticias:', (await store.list('noticias')).length, '| lecturas', store.lecturas, 'escrituras', store.escrituras);

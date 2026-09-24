@@ -5,7 +5,7 @@ import { nombreAleatorio, EXTRANJEROS } from './nombres.js';
 import { atributosAleatorios } from './juego.js';
 
 // tablas: {liga: temporada}, pilotos: catálogo [{id, nac, equipoId, liga, rol}], inmunes: Set de pids clasificados al Mundial
-export function planMercado({ tablas, pilotos, inmunes, rng }) {
+export function planMercado({ tablas, pilotos, inmunes, rng, ofrecidos = new Set() }) {
     const despidos = [], salvados = [], riesgoPorLiga = {};
     for (const liga of LIGAS_NACIONALES) {
         const pl = pilotos.filter(p => p.liga === liga && p.equipoId);
@@ -39,6 +39,11 @@ export function planMercado({ tablas, pilotos, inmunes, rng }) {
             const clas = t.clasPilotos.map(s => pilotos.find(p => p.id === s.pid)).filter(p => p && p.liga === liga && p.equipoId);
             const rango = tipo === 'galactico' ? clas.slice(0, 5) : clas.slice(6, 14);
             let cands = rango.filter(p => elegible(p, usados));
+            // Los mánagers pueden poner a un piloto en el escaparate: tiene prioridad como Táctico
+            if (tipo === 'tactico') {
+                const escaparate = clas.slice(5).filter(p => ofrecidos.has(p.id) && elegible(p, usados));
+                if (escaparate.length) cands = escaparate;
+            }
             if (!cands.length && tipo === 'galactico') cands = clas.slice(5, 8).filter(p => elegible(p, usados));
             if (!cands.length) continue;
             const p = tipo === 'galactico'

@@ -159,9 +159,6 @@ async function publicarPendientes(ctx) {
     const resumenRef = `resumen/${idResumen(ctx.temporada)}`;
     const resumenDoc = await ctx.store.get(resumenRef);
     const resumen = resumenDoc?.json ? JSON.parse(resumenDoc.json) : { sesiones: [] };
-    const rankingRef = `ranking/pronosticos_T${ctx.temporada}`;
-    const ranking = (await ctx.store.get(rankingRef)) || { usuarios: {} };
-    let rankingSucio = false;
 
     for (const { ev, s } of cola) {
         const res = await ctx.store.get(`resultados/${idResultado(ev.id, s.tipo)}`);
@@ -170,7 +167,6 @@ async function publicarPendientes(ctx) {
         resumen.sesiones = resumen.sesiones.filter(x => x.sid !== res.id);
         resumen.sesiones.push(compactar(res));
         await efectosPublicacion(ctx, ev, res);
-        if (s.tipo !== 'FP') rankingSucio = (await puntuarPronosticos(ctx, res, ranking)) || rankingSucio;
         ev.sesiones[s.tipo].estado = 'publicada';
         await ctx.store.update(`eventos/${ev.id}`, { [`sesiones.${s.tipo}.estado`]: 'publicada' });
         const ultima = sesionesOrdenadas(ev).slice(-1)[0]?.tipo;
@@ -179,7 +175,6 @@ async function publicarPendientes(ctx) {
     }
     resumen.sesiones.sort((a, b) => a.t - b.t);
     await ctx.store.set(resumenRef, { json: JSON.stringify(resumen), actualizado: ctx.ahora, temporada: ctx.temporada, n: resumen.sesiones.length });
-    if (rankingSucio) await ctx.store.set(rankingRef, ranking);
 }
 
 async function efectosPublicacion(ctx, ev, res) {
@@ -274,7 +269,7 @@ async function cerrarEvento(ctx, ev) {
         ctx.sucios.privs.add(eq);
         notificar(ctx, eq, {
             remitente: 'Dirección financiera', tipo: 'finanzas', titulo: `Balance del fin de semana · ${ev.circuito.nombre}`,
-            texto: `Puntos: ${puntos}. Patrocinio: ${M(pago.total)}${priv.sponsor?.objetivo ? (pago.cumplido ? ' (objetivo cumplido ✅)' : ' (objetivo no cumplido)') : ''}. ` +
+            texto: `Puntos: ${puntos}. Patrocinio: ${M(pago.total)}${priv.sponsor?.objetivo ? (pago.cumplido ? ' (objetivo cumplido )' : ' (objetivo no cumplido)') : ''}. ` +
                 (ev.liga !== 'INT' ? `Salarios: −${M(sueldos)}. ` : '') + `Presupuesto actual: ${M(priv.presupuesto)}.`,
         });
     }
@@ -287,29 +282,6 @@ async function cerrarEvento(ctx, ev) {
         liga: ev.liga, tipo: 'cronica',
     });
     void equipos;
-}
-
-async function puntuarPronosticos(ctx, res, ranking) {
-    const pron = await ctx.store.list('pronosticos', [['sesionId', '==', res.id]]);
-    if (!pron.length) return false;
-    const podio = res.filas.filter(f => f.estado === 'FIN' || esQualy(res.tipo)).slice(0, 3).map(f => f.pid);
-    for (const p of pron) {
-        if (p.puntuado) continue;
-        const elegidos = [p.p1, p.p2, p.p3];
-        let pts = 0, aciertos = 0;
-        elegidos.forEach((pid, i) => {
-            if (!pid) return;
-            if (podio[i] === pid) { pts += i === 0 ? 10 : 5; aciertos++; }
-            else if (podio.includes(pid)) pts += 2;
-        });
-        if (aciertos === 3) pts += 10;
-        const u = (ranking.usuarios[p.uid] ||= { nombre: p.nombre || 'Anónimo', puntos: 0, aciertos: 0, jugados: 0, plenos: 0 });
-        u.nombre = p.nombre || u.nombre;
-        u.puntos += pts; u.aciertos += aciertos; u.jugados++;
-        if (aciertos === 3) u.plenos++;
-        ctx.ops.push({ op: 'update', path: `pronosticos/${p.id}`, data: { puntuado: true, puntos: pts } });
-    }
-    return true;
 }
 
 // ======================================================================
@@ -380,11 +352,13 @@ const ACCIONES = {
         if (activos.length >= SLOTS_ID) throw new Error(`Solo puedes tener ${SLOTS_ID} proyectos de I+D a la vez.`);
         if (activos.some(p => p.clave === area)) throw new Error('Ya hay un proyecto en marcha en esa área.');
         const urgente = !!a.params?.urgente;
-        const coste = Math.round(costeMejora(nivel) * (urgente ? RECARGO_URGENTE : 1));
+        const descuento = priv.descuentos?.[area] || 0;
+        const coste = Math.round(costeMejora(nivel) * (urgente ? RECARGO_URGENTE : 1) * (1 - descuento));
         if ((priv.presupuesto || 0) < coste) throw new Error(`Presupuesto insuficiente (necesitas ${M(coste)}).`);
         const horas = horasMejora(nivel, priv.inst?.fabrica || 0, urgente);
         const inicio = Math.min(a.creado || ctx.ahora, ctx.ahora);
-        movimiento(priv, `I+D ${AREAS[area].nombre} → nivel ${nivel + 1}${urgente ? ' (urgente)' : ''}`, -coste, ctx.ahora);
+        movimiento(priv, `I+D ${AREAS[area].nombre} → nivel ${nivel + 1}${urgente ? ' (urgente)' : ''}${descuento ? ' (transferencia de grupo)' : ''}`, -coste, ctx.ahora);
+        if (descuento) priv.descuentos = { ...priv.descuentos, [area]: 0 };
         priv.proyectos = [...(priv.proyectos || []), { id: a.id, tipo: 'area', clave: area, nivel: nivel + 1, inicio, fin: inicio + horas * 3600_000, coste, urgente }];
         return { ok: true, coste, horas };
     },
@@ -465,6 +439,18 @@ const ACCIONES = {
         return { ok: true };
     },
 
+    async tactico_ofrecer(ctx, a) {
+        const pid = a.params?.pilotoId || null;
+        const pil = await cargarPilotos(ctx);
+        if (pid && pil[pid]?.equipoId !== a.equipoId) throw new Error('Ese piloto no es de tu equipo.');
+        if (ctx.cfg.fase === 'mercado' || ctx.cfg.fase === 'cerrada') throw new Error('El mercado ya está decidido.');
+        ctx.equipos[a.equipoId].escaparate = pid;
+        ctx.sucios.equipos.add(a.equipoId);
+        ctx.catalogoSucio = true;
+        if (pid) noticia(ctx, { titulo: `${ctx.equipos[a.equipoId].nombre} pone a ${nombrePiloto(pil[pid])} en el escaparate`, texto: 'Podría ser el Táctico de su liga en el mercado de fin de temporada.', liga: ctx.equipos[a.equipoId].liga, tipo: 'mercado' });
+        return { ok: true, pilotoId: pid };
+    },
+
     async draft(ctx, a) {
         if (ctx.cfg.fase !== 'mercado') throw new Error('El draft no está abierto.');
         const lista = (a.params?.lista || []).slice(0, 8).map(String);
@@ -495,16 +481,24 @@ async function completarProyectos(ctx) {
                 const exito = rng.chance(probExitoMejora(p.nivel - 1, priv.inst?.fabrica || 0));
                 if (exito) {
                     priv.coche = { ...(priv.coche || {}), [p.clave]: Math.max(priv.coche?.[p.clave] || 0, p.nivel) };
-                    notificar(ctx, eq, { remitente: 'Departamento técnico', tipo: 'id', titulo: `✅ ${AREAS[p.clave].nombre} mejorada a nivel ${p.nivel}`, texto: 'La pieza ha superado las pruebas y ya está montada en los coches.' });
+                    notificar(ctx, eq, { remitente: 'Departamento técnico', tipo: 'id', titulo: `${AREAS[p.clave].nombre} mejorada a nivel ${p.nivel}`, texto: 'La pieza ha superado las pruebas y ya está montada en los coches.' });
+                    // Cooperación de grupo: los equipos hermanos desarrollan esa área un 25% más barata
+                    const grupo = equipos[eq]?.grupo;
+                    if (grupo) for (const [hid, h] of Object.entries(equipos)) {
+                        if (hid === eq || h.grupo !== grupo || !privs[hid]) continue;
+                        privs[hid].descuentos = { ...(privs[hid].descuentos || {}), [p.clave]: 0.25 };
+                        ctx.sucios.privs.add(hid);
+                        notificar(ctx, hid, { remitente: `Grupo ${grupo}`, tipo: 'id', titulo: `Transferencia técnica de ${equipos[eq].nombre}`, texto: `Tu próxima mejora de ${AREAS[p.clave].nombre.toLowerCase()} costará un 25% menos.` });
+                    }
                     if (p.nivel >= 4 && rng.chance(0.5)) noticia(ctx, { titulo: `${equipos[eq].nombre} estrena evolución`, texto: `Se rumorea en el paddock que ${equipos[eq].nombre} ha dado un paso adelante en ${AREAS[p.clave].nombre.toLowerCase()}.`, liga: equipos[eq].liga, tipo: 'rumor' });
                 } else {
                     const devolucion = Math.round(p.coste * 0.5);
                     movimiento(priv, `Reembolso parcial I+D fallido (${AREAS[p.clave].nombre})`, devolucion, ctx.ahora);
-                    notificar(ctx, eq, { remitente: 'Departamento técnico', tipo: 'id', titulo: `❌ Falló la mejora de ${AREAS[p.clave].nombre}`, texto: `La pieza no pasó las pruebas de homologación. Recuperamos ${M(devolucion)}.` });
+                    notificar(ctx, eq, { remitente: 'Departamento técnico', tipo: 'id', titulo: `Falló la mejora de ${AREAS[p.clave].nombre}`, texto: `La pieza no pasó las pruebas de homologación. Recuperamos ${M(devolucion)}.` });
                 }
             } else if (p.tipo === 'inst') {
                 priv.inst = { ...(priv.inst || {}), [p.clave]: p.nivel };
-                notificar(ctx, eq, { remitente: 'Obras', tipo: 'inst', titulo: `🏗️ ${INSTALACIONES[p.clave].nombre} ampliada a nivel ${p.nivel}`, texto: INSTALACIONES[p.clave].desc });
+                notificar(ctx, eq, { remitente: 'Obras', tipo: 'inst', titulo: `${INSTALACIONES[p.clave].nombre} ampliada a nivel ${p.nivel}`, texto: INSTALACIONES[p.clave].desc });
             } else if (p.tipo === 'espia') {
                 await informeEspionaje(ctx, eq, p, rng);
             }
@@ -518,7 +512,7 @@ async function informeEspionaje(ctx, eq, p, rng) {
     if (p.clave === 'coche') {
         objetivoEq = p.objetivo;
         const c = ctx.privs[p.objetivo]?.coche || {};
-        titulo = `🕵️ Informe: coche de ${equipos[p.objetivo]?.nombre}`;
+        titulo = `Informe: coche de ${equipos[p.objetivo]?.nombre}`;
         texto = Object.keys(AREAS).map(k => `${AREAS[k].nombre}: nivel ${c[k] || 0}`).join(' · ');
     } else if (p.clave === 'piloto') {
         const pil = await cargarPilotos(ctx);
@@ -527,12 +521,12 @@ async function informeEspionaje(ctx, eq, p, rng) {
         const pp = (await cargarPilotosPriv(ctx, [p.objetivo]))[p.objetivo];
         const at = pp?.attrs || {};
         const r = (v) => { const [a, b] = rangoAprox(v || 0, rng); return `${a}-${b}`; };
-        titulo = `🕵️ Informe: ${nombrePiloto(piloto)}`;
+        titulo = `Informe: ${nombrePiloto(piloto)}`;
         texto = `Ritmo ${r(at.ritmo)} · Consistencia ${r(at.consistencia)} · Agresividad ${r(at.agresividad)} · Adelantamiento ${r(at.adelantamiento)} · Defensa ${r(at.defensa)} · Lluvia ${r(at.lluvia)} · Moral ${pp?.moral >= 70 ? 'alta' : pp?.moral >= 45 ? 'normal' : 'baja'}`;
     } else {
         objetivoEq = p.objetivo;
         const ev = proximoEvento(ctx, equipos[p.objetivo]?.liga);
-        titulo = `🕵️ Informe: estrategia de ${equipos[p.objetivo]?.nombre}`;
+        titulo = `Informe: estrategia de ${equipos[p.objetivo]?.nombre}`;
         if (!ev) texto = 'No hay ningún evento próximo.';
         else {
             const est = (await ctx.store.list('estrategias', [['eventoId', '==', ev.id]])).filter(e => e.equipoId === p.objetivo);
@@ -547,7 +541,7 @@ async function informeEspionaje(ctx, eq, p, rng) {
     }
     notificar(ctx, eq, { remitente: 'Espionaje', tipo: 'espia', titulo, texto });
     if (objetivoEq && objetivoEq !== eq && rng.chance(ECO.probDeteccionEspia)) {
-        notificar(ctx, objetivoEq, { remitente: 'Seguridad', tipo: 'espia', titulo: '🚨 Hemos detectado espías', texto: `Hemos pillado a gente de ${equipos[eq]?.nombre} husmeando en nuestras instalaciones.` });
+        notificar(ctx, objetivoEq, { remitente: 'Seguridad', tipo: 'espia', titulo: 'Hemos detectado espías', texto: `Hemos pillado a gente de ${equipos[eq]?.nombre} husmeando en nuestras instalaciones.` });
         noticia(ctx, { titulo: `Escándalo: ${equipos[eq]?.nombre} pillado espiando`, texto: `Fuentes del paddock aseguran que ${equipos[eq]?.nombre} fue sorprendido espiando a ${equipos[objetivoEq]?.nombre}.`, liga: equipos[eq]?.liga, tipo: 'rumor' });
         const eqPub = equipos[eq];
         eqPub.fans = Math.max(0, (eqPub.fans || 0) - 150);
@@ -586,7 +580,7 @@ async function procesarDecisiones(ctx) {
             for (const id of ids) {
                 if (!pp[id]) continue;
                 if (ef.moral[id]) { pp[id].moral = clamp((pp[id].moral ?? 60) + ef.moral[id], 5, 100); partes.push(`moral ${pilotos[id]?.apellido} ${ef.moral[id] > 0 ? '+' : ''}${ef.moral[id]}`); }
-                if (ef.forma[id]) { pp[id].forma = clamp((pp[id].forma ?? 0) + ef.forma[id], -1, 1); partes.push(`forma ${pilotos[id]?.apellido} ${ef.forma[id] > 0 ? '↑' : '↓'}`); }
+                if (ef.forma[id]) { pp[id].forma = clamp((pp[id].forma ?? 0) + ef.forma[id], -1, 1); partes.push(`forma ${pilotos[id]?.apellido} ${ef.forma[id] > 0 ? '' : ''}`); }
                 ctx.sucios.pilotosPriv.add(id);
             }
         }

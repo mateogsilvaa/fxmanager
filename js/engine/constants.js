@@ -60,10 +60,10 @@ export const ECO = {
 };
 
 export const AREAS = {
-    motor: { nombre: 'Motor', icono: '⚙️' },
-    aero: { nombre: 'Aerodinámica', icono: '🪽' },
-    chasis: { nombre: 'Chasis y tracción', icono: '🔩' },
-    fiabilidad: { nombre: 'Fiabilidad', icono: '🛡️' },
+    motor: { nombre: 'Motor', icono: '' },
+    aero: { nombre: 'Aerodinámica', icono: '' },
+    chasis: { nombre: 'Chasis y tracción', icono: '' },
+    fiabilidad: { nombre: 'Fiabilidad', icono: '' },
 };
 export const NIVEL_MAX_AREA = 10;
 

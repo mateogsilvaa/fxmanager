@@ -11,8 +11,8 @@ const main = document.getElementById('main');
 const d = await cargarDatos();
 barraDirecto(d);
 const e = d.equipo(eqId);
-if (!e) { main.innerHTML = vacio('Escudería no encontrada.', '❓'); throw new Error('no encontrado'); }
-document.documentElement.style.setProperty('--acento', e.color);
+if (!e) { main.innerHTML = vacio('Escudería no encontrada.'); throw new Error('no encontrado'); }
+
 const pub = await store().get(`equipos/${eqId}`).catch(() => null);
 const liga = e.liga;
 const st = d.tabla(liga).equipos[eqId];
@@ -31,7 +31,7 @@ const mejorCarrera = filasEq.filter(f => f.s.tipo.startsWith('R') && f.estado ==
 const mejorRemontada = filasEq.filter(f => f.s.tipo.startsWith('R') && f.estado === 'FIN' && f.parrilla).map(f => ({ ...f, g: f.parrilla - f.pos })).sort((a, b) => b.g - a.g)[0];
 
 main.innerHTML = `
-<section class="hero" style="padding:28px;border-top:4px solid ${esc(e.color)}">
+<section class="hero">
   <div class="etiqueta">${banderaLiga(liga)} ${esc(LIGAS[liga]?.nombre)}${e.grupo ? ` · Grupo ${esc(e.grupo)}` : ''}</div>
   <h1 style="margin:6px 0">${esc(e.nombre)}</h1>
   <p>${e.ownerNombre ? `Mánager: <b style="color:var(--texto)">${esc(e.ownerNombre)}</b>${esMio ? ' (tú) · <a href="escuderia.html">Ir al panel</a>' : ''}` : 'Sin mánager: la dirige la IA. <a href="escuderia.html">¿La quieres?</a>'} · ${e.fans || 0} fans</p>
@@ -44,8 +44,8 @@ main.innerHTML = `
     </div></div>
     <div class="rejilla rejilla-2">${pilotos.map(p => {
         const s = d.tabla(liga).pilotos[p.id];
-        return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}"><div class="fila-entre"><span class="dorsal" style="font-size:2rem;color:${esc(e.color)}">${p.numero ?? ''}</span>${p.rol === 'P1' ? '<span class="insignia p1">Piloto 1</span>' : '<span class="muted">Piloto 2</span>'}</div>
-        <div class="fila">${bandera(p.nac, { ancho: 24 })}<div><div>${esc(p.nombre)}</div><b style="font-family:var(--f-titulo);font-size:1.5rem;text-transform:uppercase">${esc(p.apellido)}</b></div></div>
+        return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}"><div class="fila-entre"><span class="dorsal" style="font-size:20px;color:${esc(e.color)}">${p.numero ?? ''}</span>${p.rol === 'P1' ? '<span class="insignia p1">Piloto 1</span>' : '<span class="muted">Piloto 2</span>'}</div>
+        <div class="fila">${bandera(p.nac, { ancho: 24 })}<div><div>${esc(p.nombre)}</div><b style="font-size:16px">${esc(p.apellido)}</b></div></div>
         <div class="muted" style="font-size:.85rem;margin-top:6px">${esc(PAISES[p.nac] || '')} · ${s?.pts ?? 0} pts · ${s?.victorias ?? 0} victorias</div></a>`;
     }).join('')}</div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Puntos por fin de semana</h3></div>${porRonda()}</div>
@@ -62,7 +62,7 @@ main.innerHTML = `
       <li class="fila-entre"><span class="muted">Media de llegada</span><b>${st?.mediaPos != null ? fmtValor(st.mediaPos) : '—'}</b></li>
       <li class="fila-entre"><span class="muted">Errores de pilotaje</span><b>${st?.errores ?? 0}</b></li>
     </ul></div>
-    ${stInt ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>🌐 Mundial de Escuderías</h3></div><div class="datos">${dato(stInt.pts, 'Puntos')}${dato(stInt.victorias, 'Victorias')}</div></div>` : ''}
+    ${stInt ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Mundial de Escuderías</h3></div><div class="datos">${dato(stInt.pts, 'Puntos')}${dato(stInt.victorias, 'Victorias')}</div></div>` : ''}
     ${hermanos.length ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Grupo ${esc(e.grupo)}</h3></div><p class="muted" style="font-size:.88rem">Franquicia con equipos en varios países.</p><ul class="lista">${hermanos.map(([id, x]) => `<li>${banderaLiga(x.liga)} ${celdaEquipo(d, id)}</li>`).join('')}</ul></div>` : ''}
   </aside>
 </div>`;

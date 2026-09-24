@@ -14,9 +14,9 @@ barraDirecto(d);
 main.innerHTML = `
 <div class="cabecera-pagina"><div><h1>Estadísticas</h1><p class="sub">Temporada ${d.temporada}. Pulsa cualquier récord para ver el ranking completo.</p></div></div>
 <div class="sub-pestanas" id="filtro">
-  <button data-l="TODAS" class="activa">🌍 Todas las ligas</button>
+  <button data-l="TODAS" class="activa">Todas las ligas</button>
   ${[...LIGAS_NACIONALES, 'INT'].map(l => `<button data-l="${l}">${banderaLiga(l, { ancho: 16 })} ${esc(LIGAS[l].nombre)}</button>`).join('')}
-  <button data-l="PALMARES">🏆 Palmarés</button>
+  <button data-l="PALMARES">Palmarés</button>
 </div>
 <div id="cuerpo"></div>`;
 
@@ -26,7 +26,7 @@ const pintar = (l) => {
     if (l === 'PALMARES') return palmares(cuerpo);
     const t = l === 'TODAS' ? d.tablaTodas() : d.tabla(l);
     const pil = Object.values(t.pilotos), eqs = Object.values(t.equipos);
-    if (!pil.length) { cuerpo.innerHTML = vacio('Aún no hay datos para estas estadísticas.', '📊'); return; }
+    if (!pil.length) { cuerpo.innerHTML = vacio('Aún no hay datos para estas estadísticas.'); return; }
     const titulo = l === 'TODAS' ? 'Todas las ligas nacionales' : LIGAS[l].nombre;
     const lider = ranking(CATEGORIAS_PILOTO[0], pil)[0];
     const eficaz = ranking(CATEGORIAS_PILOTO.find(c => c.id === 'eficacia'), pil)[0];
@@ -56,13 +56,13 @@ function destacado(t, nombre, v) {
 
 async function palmares(cuerpo) {
     const lista = d.cfg.palmares || [];
-    if (!lista.length) { cuerpo.innerHTML = vacio('El palmarés se escribe al terminar la primera temporada.', '🏆'); return; }
+    if (!lista.length) { cuerpo.innerHTML = vacio('El palmarés se escribe al terminar la primera temporada.'); return; }
     const pilotosPub = {};
     const ids = [...new Set(lista.flatMap(p => [...Object.values(p.ligas).map(x => x.piloto), p.mundial]).filter(Boolean))];
     await Promise.all(ids.filter(id => !d.piloto(id)).map(async id => { pilotosPub[id] = await store().get(`pilotos/${id}`).catch(() => null); }));
     const nom = (id) => d.piloto(id) ? celdaPiloto(d, id) : pilotosPub[id] ? `${bandera(pilotosPub[id].nac)} ${esc(pilotosPub[id].nombre)} ${esc(pilotosPub[id].apellido)}` : '—';
     cuerpo.innerHTML = lista.slice().reverse().map(p => `<div class="tarjeta" style="margin-bottom:14px"><div class="tarjeta-titulo"><h2>Temporada ${p.temporada}</h2></div>
-      ${p.mundial ? `<p>🌐 <b>Campeón del Mundo:</b> ${nom(p.mundial)} ${p.mundialEquipos ? `· Escuderías: ${celdaEquipo(d, p.mundialEquipos)}` : ''}</p>` : ''}
+      ${p.mundial ? `<p><b>Campeón del Mundo:</b> ${nom(p.mundial)} ${p.mundialEquipos ? `· Escuderías: ${celdaEquipo(d, p.mundialEquipos)}` : ''}</p>` : ''}
       <table class="tabla"><thead><tr><th>Liga</th><th>Campeón</th><th>Escudería campeona</th><th class="der">Pts</th></tr></thead><tbody>
       ${Object.entries(p.ligas).map(([l, x]) => `<tr><td>${banderaLiga(l)} ${esc(LIGAS[l].nombre)}</td><td>${nom(x.piloto)}</td><td>${celdaEquipo(d, x.equipo)}</td><td class="pts">${x.pts}</td></tr>`).join('')}</tbody></table></div>`).join('');
     void pos;

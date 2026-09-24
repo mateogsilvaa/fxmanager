@@ -16,12 +16,13 @@ import {
 
 await montar({ activo: 'control' });
 const main = document.getElementById('main');
-if (!esAdmin()) { main.innerHTML = vacio('No tienes acceso a esta página.', '🔒'); throw new Error('no admin'); }
+if (!esAdmin()) { main.innerHTML = vacio('No tienes acceso a esta página.'); throw new Error('no admin'); }
+const PATRON = { FP: [0, '18:00'], Q1: [0, '19:00'], R1: [1, '18:00'], Q2: [1, '19:00'], R2: [2, '18:00'], R3: [2, '19:00'] };
 let d = await cargarDatos();
 let cfg = (await store().get('config/juego')) || null;
 
 main.innerHTML = `
-<div class="cabecera-pagina"><div><h1>⚙️ Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div></div>
+<div class="cabecera-pagina"><div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div></div>
 <div class="pestanas" id="tabs">
   <button data-tab="estado">Estado y ciclo</button><button data-tab="calendario">Calendario</button><button data-tab="parrilla">Parrilla</button>
   <button data-tab="usuarios">Usuarios</button><button data-tab="noticias">Noticias</button><button data-tab="temporada">Temporada</button>
@@ -42,7 +43,7 @@ const ocupado = async (btn, fn) => {
 async function pintarEstado() {
     const el = $('#p-estado');
     if (!cfg) {
-        el.innerHTML = `<div class="tarjeta">${vacio('El juego no está inicializado.', '🏁')}<div class="fila-botones" style="justify-content:center"><button class="btn" id="ini">Inicializar temporada 1</button></div></div>`;
+        el.innerHTML = `<div class="tarjeta">${vacio('El juego no está inicializado.')}<div class="fila-botones" style="justify-content:center"><button class="btn" id="ini">Inicializar temporada 1</button></div></div>`;
         $('#ini').addEventListener('click', (e) => ocupado(e.target, async () => { await inicializarJuego(store()); await recargar(); pintarEstado(); }));
         return;
     }
@@ -51,7 +52,9 @@ async function pintarEstado() {
     const retraso = tick.ultimo ? ahora() - tick.ultimo : null;
     const pend = await store().list('acciones', [['estado', '==', 'pendiente']]).catch(() => []);
     const prox = d.proximas(6);
+    const solicitudes = (await store().list('usuarios').catch(() => [])).filter(x => !x.isAdmin && x.estado !== 'aprobado' && x.estado !== 'denegado').length;
     el.innerHTML = `
+    ${solicitudes ? `<div class="aviso-caja" style="margin-bottom:12px">${solicitudes} cuenta${solicitudes > 1 ? 's' : ''} esperando aprobación · <a href="#" id="ir-usuarios" style="text-decoration:underline">revisar</a></div>` : ''}
     <div class="rejilla rejilla-lado">
       <div class="pila">
         <div class="tarjeta tarjeta-acento"><div class="tarjeta-titulo"><h2>Ciclo automático</h2><button class="btn" id="tick">▶ Ejecutar ciclo ahora</button></div>
@@ -61,7 +64,7 @@ async function pintarEstado() {
             <div class="dato"><b>${tick.lecturas ?? '—'}</b><span>Lecturas último ciclo</span></div>
             <div class="dato"><b>${tick.escrituras ?? '—'}</b><span>Escrituras</span></div>
           </div>
-          ${retraso > (cfg.cadenciaMin || 10) * 2.5 * 60000 ? `<div class="aviso-caja" style="margin-top:12px">⚠️ El worker de GitHub Actions no se ejecuta desde hace ${hace(tick.ultimo)}. Revisa la pestaña Actions del repositorio o pulsa "Ejecutar ciclo ahora".</div>` : ''}
+          ${retraso > (cfg.cadenciaMin || 10) * 2.5 * 60000 ? `<div class="aviso-caja" style="margin-top:12px">El worker de GitHub Actions no se ejecuta desde hace ${hace(tick.ultimo)}. Revisa la pestaña Actions del repositorio o pulsa "Ejecutar ciclo ahora".</div>` : ''}
           ${tick.errores?.length ? `<div class="aviso-caja" style="margin-top:12px">Errores: ${tick.errores.map(esc).join('<br>')}</div>` : ''}
           <pre id="salida" class="mono" style="white-space:pre-wrap;font-size:.8rem;max-height:240px;overflow:auto;background:var(--panel-2);padding:10px;border-radius:8px;margin-top:12px">${esc((tick.notas || []).join('\n') || 'Sin notas.')}</pre>
         </div>
@@ -81,6 +84,7 @@ async function pintarEstado() {
         <div class="tarjeta"><div class="etiqueta">Fase</div><div class="cuenta" style="font-size:1.6rem">${esc(cfg.fase)}</div><div class="muted">Temporada ${cfg.temporada}</div></div>
       </aside>
     </div>`;
+    $('#ir-usuarios')?.addEventListener('click', (e) => { e.preventDefault(); $('[data-tab="usuarios"]').click(); });
     $('#tick').addEventListener('click', (e) => ocupado(e.target, async () => {
         const lineas = [];
         const r = await ejecutarTick(store(), { ahora: ahora(), origen: 'admin', forzar: true, log: (m) => { lineas.push(m); $('#salida').textContent = lineas.join('\n'); } });
@@ -98,12 +102,11 @@ async function pintarEstado() {
 // ======================================================================
 // CALENDARIO
 // ======================================================================
-const PATRON = { FP: [0, '18:00'], Q1: [0, '19:00'], R1: [1, '18:00'], Q2: [1, '19:00'], R2: [2, '18:00'], R3: [2, '19:00'] };
 function opcionesCircuito(ligaPais, sel) {
     const grupos = {};
     CIRCUITOS.forEach(c => { (grupos[c.pais] ||= []).push(c); });
     const orden = Object.keys(grupos).sort((a, b) => (b === ligaPais) - (a === ligaPais) || (PAISES[a] || a).localeCompare(PAISES[b] || b));
-    return orden.map(p => `<optgroup label="${esc(PAISES[p] || p)}">${grupos[p].map(c => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.nombre)}${c.oficial ? ' · Kunos' : ' · mod'}</option>`).join('')}</optgroup>`).join('') + `<option value="__custom" ${sel === '__custom' ? 'selected' : ''}>➕ Circuito personalizado…</option>`;
+    return orden.map(p => `<optgroup label="${esc(PAISES[p] || p)}">${grupos[p].map(c => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.nombre)}${c.oficial ? ' · Kunos' : ' · mod'}</option>`).join('')}</optgroup>`).join('') + `<option value="__custom" ${sel === '__custom' ? 'selected' : ''}>Circuito personalizado…</option>`;
 }
 
 async function pintarCalendario() {
@@ -111,7 +114,7 @@ async function pintarCalendario() {
     if (!cfg) { el.innerHTML = vacio('Inicializa el juego primero.'); return; }
     const ligas = [...LIGAS_NACIONALES, 'INT'];
     el.innerHTML = `
-    <div class="tarjeta" style="margin-bottom:16px"><div class="tarjeta-titulo"><h2>🌐 Sede del Mundial (temporada ${cfg.temporada})</h2></div>
+    <div class="tarjeta" style="margin-bottom:16px"><div class="tarjeta-titulo"><h2>Sede del Mundial (temporada ${cfg.temporada})</h2></div>
       <form class="campo-fila" id="f-sede"><label>País<select name="pais">${Object.entries(PAISES).map(([k, v]) => `<option value="${k}" ${cfg.mundial?.pais === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
       <label>Nombre que se mostrará<input name="nombre" value="${esc(cfg.mundial?.nombre || '')}" placeholder="Japón"></label><label>&nbsp;<button class="btn">Guardar sede</button></label></form>
       <p class="muted" style="font-size:.85rem">Luego crea sus 3 fines de semana en la liga Intercontinental más abajo. Los 20 pilotos se fijan solos al terminar las ligas nacionales.</p></div>
@@ -335,12 +338,36 @@ async function editarPiloto(p, equipos) {
 async function pintarUsuarios() {
     const el = $('#p-usuarios');
     const us = await store().list('usuarios');
-    el.innerHTML = `<div class="tarjeta"><div class="tarjeta-titulo"><h2>Usuarios</h2><span class="muted">${us.length}</span></div>
-      <p class="muted" style="font-size:.85rem">La cuenta del worker de GitHub (BOT_EMAIL) tiene que ser administradora.</p>
-      <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Nombre</th><th>Email</th><th>Escudería</th><th class="cen">Admin</th></tr></thead><tbody>
-      ${us.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '')).map(x => `<tr><td>${esc(x.nombre || '—')}</td><td class="muted">${esc(x.email || '')}</td><td>${x.equipoId ? esc(d.nombreEquipo(x.equipoId)) : '<span class="muted">—</span>'}</td>
-        <td class="cen"><input type="checkbox" data-admin="${esc(x.id)}" ${x.isAdmin ? 'checked' : ''} ${x.id === usuario().uid ? 'disabled' : ''}></td></tr>`).join('')}
+    const aprobado = (x) => x.isAdmin || x.estado === 'aprobado';
+    const pendientes = us.filter(x => !aprobado(x) && x.estado !== 'denegado').sort((a, b) => (b.creado || 0) - (a.creado || 0));
+    const resto = us.filter(x => !pendientes.includes(x)).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    const estadoTxt = (x) => x.isAdmin ? 'admin' : x.estado === 'aprobado' ? 'aprobado' : x.estado === 'denegado' ? '<span class="mal">denegado</span>' : 'pendiente';
+    el.innerHTML = `
+    <div class="tarjeta" style="margin-bottom:12px"><div class="tarjeta-titulo"><h2>Solicitudes pendientes</h2><span class="muted">${pendientes.length}</span></div>
+      ${pendientes.length ? `<div class="tabla-scroll"><table class="tabla"><tbody>${pendientes.map(x => `<tr><td><b>${esc(x.nombre || '—')}</b><div class="muted peq">${esc(x.email || '')}${x.creado ? ` · ${hace(x.creado)}` : ''}</div></td>
+        <td class="der"><button class="btn btn-peq btn-sec" data-estado="denegado" data-uid="${esc(x.id)}">Denegar</button> <button class="btn btn-peq" data-estado="aprobado" data-uid="${esc(x.id)}">Aprobar</button></td></tr>`).join('')}</tbody></table></div>`
+        : vacio('No hay cuentas esperando aprobación.')}
+      <p class="muted peq" style="margin:8px 0 0">Una cuenta aprobada puede elegir cualquier escudería libre. La cuenta del bot (BOT_EMAIL) solo necesita la casilla Admin.</p>
+    </div>
+    <div class="tarjeta"><div class="tarjeta-titulo"><h2>Todas las cuentas</h2><span class="muted">${resto.length}</span></div>
+      <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Nombre</th><th>Estado</th><th>Escudería</th><th class="cen">Admin</th><th></th></tr></thead><tbody>
+      ${resto.map(x => `<tr><td>${esc(x.nombre || '—')}<div class="muted peq">${esc(x.email || '')}</div></td><td class="peq">${estadoTxt(x)}</td>
+        <td>${x.equipoId ? esc(d.nombreEquipo(x.equipoId)) : '<span class="tenue">—</span>'}</td>
+        <td class="cen"><input type="checkbox" data-admin="${esc(x.id)}" ${x.isAdmin ? 'checked' : ''} ${x.id === usuario().uid ? 'disabled' : ''}></td>
+        <td class="der">${x.estado === 'denegado' ? `<button class="btn btn-peq btn-sec" data-estado="aprobado" data-uid="${esc(x.id)}">Aprobar</button>` : !x.isAdmin && x.id !== usuario().uid ? `<button class="btn btn-peq btn-sec" data-estado="denegado" data-uid="${esc(x.id)}">Bloquear</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div></div>`;
+    $$('[data-estado]', el).forEach(b => b.addEventListener('click', async () => {
+        const x = us.find(y => y.id === b.dataset.uid);
+        const ops = [{ op: 'merge', path: `usuarios/${x.id}`, data: { estado: b.dataset.estado } }];
+        if (b.dataset.estado === 'denegado' && x.equipoId) {
+            if (!await confirmar(`${esc(x.nombre)} dirige ${esc(d.nombreEquipo(x.equipoId))}. Si le bloqueas, el equipo vuelve a la IA. ¿Seguir?`, { peligro: true })) return;
+            ops.push({ op: 'merge', path: `usuarios/${x.id}`, data: { equipoId: null } }, { op: 'merge', path: `equipos/${x.equipoId}`, data: { ownerId: null, ownerNombre: null } });
+        }
+        await store().batch(ops);
+        if (ops.length > 1) await reconstruirCatalogo(store(), cfg);
+        toast(b.dataset.estado === 'aprobado' ? `${x.nombre} aprobado` : `${x.nombre} denegado`);
+        pintarUsuarios();
+    }));
     $$('[data-admin]', el).forEach(c => c.addEventListener('change', async () => {
         await store().merge(`usuarios/${c.dataset.admin}`, { isAdmin: c.checked });
         toast(c.checked ? 'Ahora es administrador' : 'Ya no es administrador');
@@ -354,7 +381,7 @@ async function pintarNoticias() {
     const el = $('#p-noticias');
     const lista = await store().list('noticias', [], { orden: ['publishAt', 'desc'], limit: 40 });
     el.innerHTML = `<div class="rejilla rejilla-lado"><div class="tarjeta"><div class="tarjeta-titulo"><h2>Noticias publicadas</h2></div>
-      ${lista.map(n => `<div class="noticia fila-entre"><div><h4>${esc(n.titulo)}</h4><p>${esc(n.texto)}</p><div class="meta">${n.liga ? banderaLiga(n.liga, { ancho: 14 }) : '🌍'} ${fecha(n.publishAt)} · ${esc(n.tipo)}${n.publishAt > ahora() ? ' · <span class="aviso">programada</span>' : ''}</div></div><button class="btn btn-peligro btn-peq" data-del="${esc(n.id)}">✕</button></div>`).join('') || vacio('Sin noticias.')}</div>
+      ${lista.map(n => `<div class="noticia fila-entre"><div><h4>${esc(n.titulo)}</h4><p>${esc(n.texto)}</p><div class="meta">${n.liga ? banderaLiga(n.liga, { ancho: 14 }) : ''} ${fecha(n.publishAt)} · ${esc(n.tipo)}${n.publishAt > ahora() ? ' · <span class="aviso">programada</span>' : ''}</div></div><button class="btn btn-peligro btn-peq" data-del="${esc(n.id)}">✕</button></div>`).join('') || vacio('Sin noticias.')}</div>
       <form class="tarjeta" id="f-not"><div class="tarjeta-titulo"><h3>Nueva noticia</h3></div>
         <label>Título<input name="titulo" required></label><label style="margin-top:8px">Texto<textarea name="texto" rows="4"></textarea></label>
         <label style="margin-top:8px">Liga<select name="liga"><option value="">Todas</option>${[...LIGAS_NACIONALES, 'INT'].map(l => `<option value="${l}">${esc(LIGAS[l].nombre)}</option>`).join('')}</select></label>

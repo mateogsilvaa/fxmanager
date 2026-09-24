@@ -10,7 +10,7 @@ const modo = new URLSearchParams(location.search).get('modo') === 'registro' ? '
 main.innerHTML = `<div class="caja-auth tarjeta">
   <div class="pestanas"><button data-m="entrar">Entrar</button><button data-m="registro">Crear cuenta</button></div>
   <form id="f-entrar"><label>Email<input type="email" name="email" required autocomplete="email"></label><label>Contraseña<input type="password" name="pass" required autocomplete="current-password"></label><button class="btn">Entrar</button><button type="button" class="btn btn-sec btn-peq" id="olvido">He olvidado mi contraseña</button></form>
-  <form id="f-registro" hidden><label>Tu nombre (se verá en las clasificaciones)<input name="nombre" required maxlength="24"></label><label>Email<input type="email" name="email" required autocomplete="email"></label><label>Contraseña (mínimo 6 caracteres)<input type="password" name="pass" required minlength="6" autocomplete="new-password"></label><button class="btn">Crear cuenta</button></form>
+  <form id="f-registro" hidden><label>Tu nombre (se verá en las clasificaciones)<input name="nombre" required maxlength="24"></label><label>Email<input type="email" name="email" required autocomplete="email"></label><label>Contraseña (mínimo 6 caracteres)<input type="password" name="pass" required minlength="6" autocomplete="new-password"></label><p class="muted peq" style="margin:0">La organización revisará tu cuenta antes de que puedas elegir escudería.</p><button class="btn">Crear cuenta</button></form>
   <p class="muted" id="msg" style="margin-top:12px;font-size:.9rem"></p>
 </div>`;
 

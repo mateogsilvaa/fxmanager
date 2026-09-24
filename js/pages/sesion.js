@@ -16,7 +16,7 @@ const d = await cargarDatos();
 barraDirecto(d);
 const ev = d.evento(evId);
 if (!ev || !ev.sesiones?.[tipo]) {
-    main.innerHTML = vacio('Sesión no encontrada.', '❓');
+    main.innerHTML = vacio('Sesión no encontrada.');
     throw new Error('sesion no encontrada');
 }
 const ses = ev.sesiones[tipo];
@@ -39,7 +39,7 @@ if (t0 < ses.publishAt) antesDePublicar();
 else {
     const r = await resultado(sid).catch(() => null);
     if (!r) {
-        cont.innerHTML = `<div class="tarjeta">${vacio('La FIA está verificando los resultados. Esta página se actualizará sola.', '⏳')}</div>`;
+        cont.innerHTML = `<div class="tarjeta">${vacio('La FIA está verificando los resultados. Esta página se actualizará sola.')}</div>`;
         setTimeout(() => location.reload(), 20_000);
     }
     else if (ahora() < ses.revealAt) directo(r);
@@ -52,9 +52,9 @@ function antesDePublicar() {
     cont.innerHTML = `<div class="rejilla rejilla-2">
       <div class="tarjeta tarjeta-acento"><div class="etiqueta">La sesión empieza en</div><div class="cuenta" data-cuenta="${ses.publishAt}">${cuentaAtras(ses.publishAt)}</div>
         <p class="muted" style="margin-top:8px">${abierta ? `Las estrategias se cierran en <b data-cuenta="${ses.lockAt}"></b>. Después la FIA simula la sesión y la retransmite en directo a esta hora exacta.` : 'Estrategias cerradas. La sesión se retransmitirá en directo aquí mismo.'}</p>
-        <div class="fila">${miEq && abierta ? '<a class="btn" href="escuderia.html?tab=estrategia">Preparar estrategia</a>' : ''}${abierta && tipo !== 'FP' ? '<a class="btn btn-sec" href="pronosticos.html">🎯 Hacer pronóstico</a>' : ''}</div>
+        <div class="fila">${miEq && abierta ? '<a class="btn" href="escuderia.html?tab=carrera">Preparar estrategia</a>' : ''}</div>
       </div>
-      <div class="tarjeta"><div class="etiqueta">Previsión meteorológica</div><div class="cuenta">${lluvia >= 50 ? '🌧️' : lluvia >= 25 ? '🌦️' : '☀️'} ${lluvia}%</div><p class="muted">Probabilidad de lluvia. Con lluvia el reglaje importa menos y la habilidad del piloto en mojado mucho más.</p>
+      <div class="tarjeta"><div class="etiqueta">Previsión meteorológica</div><div class="cuenta">${lluvia}%</div><p class="muted">Probabilidad de lluvia. Con lluvia el reglaje importa menos y la habilidad del piloto en mojado mucho más.</p>
         <div class="etiqueta" style="margin-top:12px">Circuito</div><p class="muted">${ev.circuito?.km} km · referencia ${formatoTiempo(ev.circuito?.tiempoBase)} · Adelantar: ${nivelTxt(ev.circuito?.adelantar)} · Desgaste: ${nivelTxt(ev.circuito?.desgaste)}</p></div>
     </div>`;
     setTimeout(() => location.reload(), Math.max(5000, ses.publishAt - ahora() + 1500));
@@ -68,7 +68,7 @@ function directo(r, { repeticion = false, velocidad = 1 } = {}) {
     const n = esCarrera(tipo) ? info.vueltas : Math.max(...r.filas.map(f => f.laps.length));
     cont.innerHTML = `<div class="rejilla rejilla-lado">
       <div class="tarjeta"><div class="tarjeta-titulo"><h2><span class="en-vivo">${repeticion ? 'REPETICIÓN' : 'EN DIRECTO'}</span></h2><span class="progreso-carrera" id="prog"></span></div>
-        ${r.lluvia ? '<div class="info-caja" style="margin-bottom:10px">🌧️ Sesión en mojado</div>' : ''}
+        ${r.lluvia ? '<div class="info-caja" style="margin-bottom:10px">Sesión en mojado</div>' : ''}
         <div class="torre" id="torre"></div>
         <div class="fila-botones"><button class="btn btn-sec btn-peq" id="spoiler">Saltar al resultado final</button></div></div>
       <div class="tarjeta"><div class="tarjeta-titulo"><h3>Lo que está pasando</h3></div><div class="feed" id="feed"></div></div>
@@ -126,7 +126,7 @@ function directo(r, { repeticion = false, velocidad = 1 } = {}) {
 function textoEvento(e) {
     const n = (pid) => `<b>${esc(d.apellido(pid))}</b>`;
     if (e.tipo === 'adelantamiento') return `<div class="adel">V${e.v} · ${n(e.pid)} adelanta a ${n(e.pid2)}</div>`;
-    if (e.tipo === 'abandono') return `<div class="aband">V${e.v} · 🚩 Abandono de ${n(e.pid)}${e.motivo ? ` (${esc(e.motivo.toLowerCase())})` : ''}</div>`;
+    if (e.tipo === 'abandono') return `<div class="aband">V${e.v} · Abandono de ${n(e.pid)}${e.motivo ? ` (${esc(e.motivo.toLowerCase())})` : ''}</div>`;
     if (e.tipo === 'error') return `<div class="err">V${e.v} · ${n(e.pid)} se sale y pierde ${(e.ms / 1000).toFixed(1)} s</div>`;
     if (e.tipo === 'toque') return `<div class="err">V${e.v} · Toque${e.pid2 ? ` entre ${n(e.pid)} y ${n(e.pid2)}` : ` de ${n(e.pid)}`}${e.perjudicado ? `: el peor parado es ${n(e.perjudicado)}` : ''}</div>`;
     if (e.tipo === 'accidente') return `<div class="aband">${n(e.pid)} se va contra las protecciones</div>`;
@@ -139,19 +139,19 @@ function final(r) {
     const vr = r.vr?.pid;
     const lider = r.filas[0];
     cont.innerHTML = `
-    ${r.lluvia ? '<div class="info-caja" style="margin-bottom:12px">🌧️ Sesión disputada en mojado</div>' : ''}
+    ${r.lluvia ? '<div class="info-caja" style="margin-bottom:12px">Sesión disputada en mojado</div>' : ''}
     <div class="podio" style="margin-bottom:16px">${[1, 0, 2].map(i => r.filas[i]).map((f, k) => f ? `<div class="p${[2, 1, 3][k]}"><div class="muted">${[2, 1, 3][k]}º</div>${bandera(d.piloto(f.pid)?.nac, { ancho: 24 })}<b>${esc(d.apellido(f.pid))}</b><div class="muted" style="font-size:.85rem">${esc(d.equipo(f.eq)?.nombre || '')}</div></div>` : '<div></div>').join('')}</div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h2>Clasificación</h2>${carrera || esQualy(tipo) ? '<button class="btn btn-sec btn-peq" id="repetir">▶ Ver repetición</button>' : ''}</div>
-    <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Piloto</th><th>Escudería</th>
-      ${carrera ? '<th class="cen">Salida</th><th class="cen">+/−</th><th class="cen">Vueltas</th><th class="der">Tiempo</th><th class="der">Mejor vuelta</th><th class="cen">Adel.</th>' : '<th class="der">Mejor vuelta</th><th class="der">Dif.</th><th class="cen">Vueltas</th>'}
+    <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Piloto</th><th class="ancho">Escudería</th>
+      ${carrera ? '<th class="cen ancho">Salida</th><th class="cen">+/−</th><th class="cen ancho">Vueltas</th><th class="der">Tiempo</th><th class="der ancho">Mejor vuelta</th><th class="cen ancho">Adel.</th>' : '<th class="der">Mejor vuelta</th><th class="der">Dif.</th><th class="cen ancho">Vueltas</th>'}
       <th class="der">Pts</th></tr></thead><tbody>
       ${r.filas.map(f => {
         const dif = f.parrilla && f.estado === 'FIN' ? f.parrilla - f.pos : null;
-        return `<tr class="${f.eq === miEq ? 'yo' : ''}"><td>${pos(f.pos)}</td><td>${celdaPiloto(d, f.pid)} ${vr === f.pid && carrera ? '<span class="insignia vr" title="Vuelta rápida +3">VR</span>' : ''}</td><td>${celdaEquipo(d, f.eq)}</td>
-        ${carrera ? `<td class="cen">${f.parrilla ?? '—'}</td><td class="cen ${dif > 0 ? 'ok' : dif < 0 ? 'mal' : 'muted'}">${dif == null ? '' : dif > 0 ? `▲${dif}` : dif < 0 ? `▼${-dif}` : '='}</td><td class="cen">${f.vueltas}</td>
+        return `<tr class="${f.eq === miEq ? 'yo' : ''}"><td>${pos(f.pos)}</td><td>${celdaPiloto(d, f.pid)} ${vr === f.pid && carrera ? '<span class="insignia vr" title="Vuelta rápida +3">VR</span>' : ''}</td><td class="ancho">${celdaEquipo(d, f.eq)}</td>
+        ${carrera ? `<td class="cen ancho">${f.parrilla ?? '—'}</td><td class="cen ${dif > 0 ? 'ok' : dif < 0 ? 'mal' : 'muted'}">${dif == null ? '' : dif > 0 ? `▲${dif}` : dif < 0 ? `▼${-dif}` : '='}</td><td class="cen ancho">${f.vueltas}</td>
           <td class="der mono">${f.estado === 'DNF' ? `<span class="insignia dnf">DNF</span> <span class="muted" style="font-size:.8rem">${esc(f.motivo || '')}</span>` : f.pos === 1 ? formatoTiempo(f.tiempo) : formatoTiempo(f.gap, true)}</td>
-          <td class="der mono">${formatoTiempo(f.mejor)}</td><td class="cen">${f.adel || 0}</td>`
-            : `<td class="der mono">${f.mejor ? formatoTiempo(f.mejor) : '<span class="muted">Sin tiempo</span>'}</td><td class="der mono muted">${f.mejor && f !== lider ? formatoTiempo(f.mejor - lider.mejor, true) : ''}</td><td class="cen">${f.laps.length}</td>`}
+          <td class="der mono ancho">${formatoTiempo(f.mejor)}</td><td class="cen ancho">${f.adel || 0}</td>`
+            : `<td class="der mono">${f.mejor ? formatoTiempo(f.mejor) : '<span class="muted">Sin tiempo</span>'}</td><td class="der mono muted">${f.mejor && f !== lider ? formatoTiempo(f.mejor - lider.mejor, true) : ''}</td><td class="cen ancho">${f.laps.length}</td>`}
         <td class="pts">${f.pts || ''}</td></tr>`;
     }).join('')}
     </tbody></table></div>

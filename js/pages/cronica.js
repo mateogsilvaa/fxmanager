@@ -13,10 +13,10 @@ const main = document.getElementById('main');
 const d = await cargarDatos();
 barraDirecto(d);
 const ev = d.evento(evId);
-if (!ev) { main.innerHTML = vacio('Evento no encontrado.', '❓'); throw new Error('no encontrado'); }
+if (!ev) { main.innerHTML = vacio('Evento no encontrado.'); throw new Error('no encontrado'); }
 const ultima = SESIONES.filter(t => ev.sesiones[t]).pop();
 if (d.estadoSesion(ev.sesiones[ultima]) !== 'final') {
-    main.innerHTML = `<div class="tarjeta">${vacio(`La crónica se publica al terminar la ${SESION_INFO[ultima].nombre} (${fecha(ev.sesiones[ultima].revealAt)}).`, '📰')}</div>`;
+    main.innerHTML = `<div class="tarjeta">${vacio(`La crónica se publica al terminar la ${SESION_INFO[ultima].nombre} (${fecha(ev.sesiones[ultima].revealAt)}).`, '')}</div>`;
     throw new Error('pendiente');
 }
 const S = {};
@@ -38,7 +38,7 @@ main.innerHTML = `
   <aside class="pila">
     ${c.mvp ? `<div class="tarjeta tarjeta-acento"><div class="etiqueta">Piloto del fin de semana</div><div style="margin-top:8px">${celdaPiloto(d, c.mvp.pid, { equipo: true })}</div><div class="cuenta">${c.mvp.pts} pts</div></div>` : ''}
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Podios</h3></div>
-      ${['Q1', 'R1', 'Q2', 'R2', 'R3'].filter(t => S[t]).map(t => `<div style="margin-bottom:10px"><div class="etiqueta">${esc(SESION_INFO[t].nombre)}${S[t].lluvia ? ' 🌧️' : ''}</div>${S[t].filas.slice(0, 3).map(f => `<div class="fila" style="margin:4px 0">${pos(f.pos)} ${celdaPiloto(d, f.pid)}</div>`).join('')}</div>`).join('')}
+      ${['Q1', 'R1', 'Q2', 'R2', 'R3'].filter(t => S[t]).map(t => `<div style="margin-bottom:10px"><div class="etiqueta">${esc(SESION_INFO[t].nombre)}${S[t].lluvia ? ' ' : ''}</div>${S[t].filas.slice(0, 3).map(f => `<div class="fila" style="margin:4px 0">${pos(f.pos)} ${celdaPiloto(d, f.pid)}</div>`).join('')}</div>`).join('')}
     </div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>General tras la ronda</h3></div>
       <ul class="lista">${despues.clasPilotos.slice(0, 10).map((p, i) => { const a = antes.pilotos[p.pid]?.posicion; const dlt = a ? a - (i + 1) : 0; return `<li class="fila-entre"><span>${pos(i + 1)} ${esc(d.nombre(p.pid))} ${dlt > 0 ? `<span class="ok">▲${dlt}</span>` : dlt < 0 ? `<span class="mal">▼${-dlt}</span>` : ''}</span><b class="num">${p.pts}</b></li>`; }).join('')}</ul>

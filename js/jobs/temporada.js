@@ -140,7 +140,8 @@ export async function prepararMercado(ctx) {
     const pilotos = Object.values(pilotosMap).filter(p => p.equipoId);
     const inmunes = new Set(ctx.cfg.mundial?.participantes || []);
     const rng = crearRng(`${ctx.secreto}|mercado|${temporada}`);
-    const plan = planMercado({ tablas, pilotos, inmunes, rng });
+    const ofrecidos = new Set(Object.values(equipos).map(e => e.escaparate).filter(Boolean));
+    const plan = planMercado({ tablas, pilotos, inmunes, rng, ofrecidos });
     const usados = new Set(Object.values(pilotosMap).map(p => `${p.nombre} ${p.apellido}`));
     const rookies = generarRookies({ temporada, vacantes: plan.vacantes, rng, usados });
     const posEquipo = {};
@@ -232,9 +233,10 @@ export async function cerrarMercado(ctx) {
     for (const [eq, lista] of Object.entries(porEquipo)) {
         for (const r of asignarRoles(lista, equipos[eq]?.liga)) {
             if (pilotos[r.id].rol !== r.rol) { pilotos[r.id].rol = r.rol; ctx.sucios.pilotos.add(r.id); }
-            if (!r.cumpleCuota) ctx.nota(`⚠️ ${equipos[eq]?.nombre} no tiene piloto local para el asiento de Piloto 1`);
+            if (!r.cumpleCuota) ctx.nota(`${equipos[eq]?.nombre} no tiene piloto local para el asiento de Piloto 1`);
         }
     }
+    for (const id of Object.keys(equipos)) if (equipos[id].escaparate) { equipos[id].escaparate = null; ctx.sucios.equipos.add(id); }
     await store.merge(`mercado/T${temporada}`, { estado: 'cerrado', elegidos, cerrado: ctx.ahora });
     await store.merge('config/juego', { fase: 'cerrada' });
     ctx.cfg.fase = 'cerrada';

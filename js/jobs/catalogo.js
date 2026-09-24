@@ -8,7 +8,7 @@ export async function reconstruirCatalogo(store, cfg) {
         temporada, actualizado: Date.now(),
         equipos: Object.fromEntries(equipos.map(e => [e.id, {
             nombre: e.nombre, corto: e.corto || e.nombre, liga: e.liga, grupo: e.grupo || null, color: e.color || '#888',
-            ownerId: e.ownerId || null, ownerNombre: e.ownerNombre || null, fans: e.fans || 0,
+            ownerId: e.ownerId || null, ownerNombre: e.ownerNombre || null, fans: e.fans || 0, escaparate: e.escaparate || null,
         }])),
         pilotos: Object.fromEntries(pilotos.filter(p => p.equipoId || p.estado === 'activo').map(p => [p.id, {
             nombre: p.nombre, apellido: p.apellido, nac: p.nac, numero: p.numero ?? null, equipoId: p.equipoId || null,

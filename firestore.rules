@@ -17,7 +17,6 @@ service cloud.firestore {
     match /config/juego { allow read: if true; allow write: if esAdmin(); }
     match /catalogo/{id} { allow read: if true; allow write: if esAdmin(); }
     match /resumen/{id} { allow read: if true; allow write: if esAdmin(); }
-    match /ranking/{id} { allow read: if true; allow write: if esAdmin(); }
     match /eventos/{id} { allow read: if true; allow write: if esAdmin(); }
     match /pilotos/{id} { allow read: if true; allow write: if esAdmin(); }
     match /mercado/{id} { allow read: if true; allow write: if esAdmin(); }
@@ -41,6 +40,7 @@ service cloud.firestore {
         && request.resource.data.ownerId == uid()
         && soloCambian(['ownerId', 'ownerNombre'])
         && config().inscripcion == true
+        && (perfil().get('estado', '') == 'aprobado' || perfil().isAdmin == true)
         && perfil().equipoId == null
         && getAfter(/databases/$(database)/documents/usuarios/$(uid())).data.equipoId == equipoId
       );
@@ -62,7 +62,8 @@ service cloud.firestore {
       allow read: if autenticado() && (uid() == userId || esAdmin());
       allow create: if autenticado() && uid() == userId
         && request.resource.data.isAdmin == false
-        && request.resource.data.equipoId == null;
+        && request.resource.data.equipoId == null
+        && request.resource.data.estado == 'pendiente';
       allow update: if esAdmin() || (
         autenticado() && uid() == userId && (
           soloCambian(['nombre'])
@@ -118,17 +119,18 @@ service cloud.firestore {
       allow create, delete: if esAdmin();
     }
 
-    // Pronósticos: cualquiera con cuenta, antes del cierre de la sesión
-    match /pronosticos/{id} {
-      allow read: if esAdmin() || (resource != null && resource.data.uid == uid());
-      allow create, update: if autenticado()
+    // Paddock: declaraciones públicas de los mánagers (una al día)
+    match /paddock/{id} {
+      allow read: if true;
+      allow create: if autenticado()
         && request.resource.data.uid == uid()
-        && id == request.resource.data.sesionId + '_' + uid()
-        && request.resource.data.sesionId == request.resource.data.eventoId + '_' + request.resource.data.tipo
-        && get(/databases/$(database)/documents/eventos/$(request.resource.data.eventoId)).data.sesiones[request.resource.data.tipo].lockAt > ahora()
-        && (resource == null || resource.data.get('puntuado', false) == false)
-        && !request.resource.data.keys().hasAny(['puntuado', 'puntos']);
-      allow delete: if esAdmin();
+        && duenoDe(request.resource.data.equipoId)
+        && id == request.resource.data.dia + '_' + uid()
+        && request.resource.data.texto is string
+        && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 240
+        && request.resource.data.fecha > ahora() - 600000 && request.resource.data.fecha < ahora() + 600000
+        && request.resource.data.keys().hasOnly(['uid', 'nombre', 'equipoId', 'liga', 'texto', 'fecha', 'dia']);
+      allow delete: if esAdmin() || (autenticado() && resource.data.uid == uid());
     }
 
     // Solo servidor / admin
