@@ -1,0 +1,1206 @@
+{
+ "equipos": [
+  {
+   "id": "valcor-es",
+   "nombre": "Valcor Iberia",
+   "corto": "Valcor",
+   "liga": "ESP",
+   "grupo": "Valcor",
+   "color": "#c1121f"
+  },
+  {
+   "id": "stellari-es",
+   "nombre": "Stellari Hispania",
+   "corto": "Stellari",
+   "liga": "ESP",
+   "grupo": "Stellari",
+   "color": "#1d3557"
+  },
+  {
+   "id": "altair-es",
+   "nombre": "Altair Iberia",
+   "corto": "Altair",
+   "liga": "ESP",
+   "grupo": "Altair",
+   "color": "#06d6a0"
+  },
+  {
+   "id": "montjuic",
+   "nombre": "Escudería Montjuïc",
+   "corto": "Montjuïc",
+   "liga": "ESP",
+   "grupo": null,
+   "color": "#ffb703"
+  },
+  {
+   "id": "guadarrama",
+   "nombre": "Guadarrama Racing",
+   "corto": "Guadarrama",
+   "liga": "ESP",
+   "grupo": null,
+   "color": "#8ecae6"
+  },
+  {
+   "id": "brava",
+   "nombre": "Brava Motorsport",
+   "corto": "Brava",
+   "liga": "ESP",
+   "grupo": null,
+   "color": "#fb8500"
+  },
+  {
+   "id": "tramontana",
+   "nombre": "Tramontana Racing",
+   "corto": "Tramontana",
+   "liga": "ESP",
+   "grupo": null,
+   "color": "#adb5bd"
+  },
+  {
+   "id": "sierra-norte",
+   "nombre": "Sierra Norte Competición",
+   "corto": "Sierra Norte",
+   "liga": "ESP",
+   "grupo": null,
+   "color": "#2a9d8f"
+  },
+  {
+   "id": "cantabrico",
+   "nombre": "Cantábrico Racing",
+   "corto": "Cantábrico",
+   "liga": "ESP",
+   "grupo": null,
+   "color": "#0077b6"
+  },
+  {
+   "id": "alhambra",
+   "nombre": "Alhambra Motorsport",
+   "corto": "Alhambra",
+   "liga": "ESP",
+   "grupo": null,
+   "color": "#9d4edd"
+  },
+  {
+   "id": "stellari-it",
+   "nombre": "Stellari Corse",
+   "corto": "Stellari",
+   "liga": "ITA",
+   "grupo": "Stellari",
+   "color": "#1d3557"
+  },
+  {
+   "id": "valcor-it",
+   "nombre": "Valcor Italia",
+   "corto": "Valcor",
+   "liga": "ITA",
+   "grupo": "Valcor",
+   "color": "#c1121f"
+  },
+  {
+   "id": "lario",
+   "nombre": "Scuderia Lario",
+   "corto": "Lario",
+   "liga": "ITA",
+   "grupo": null,
+   "color": "#48cae4"
+  },
+  {
+   "id": "apennino",
+   "nombre": "Apennino Racing",
+   "corto": "Apennino",
+   "liga": "ITA",
+   "grupo": null,
+   "color": "#6a994e"
+  },
+  {
+   "id": "brenta",
+   "nombre": "Officine Brenta",
+   "corto": "Brenta",
+   "liga": "ITA",
+   "grupo": null,
+   "color": "#f4a261"
+  },
+  {
+   "id": "torretta",
+   "nombre": "Scuderia Torretta",
+   "corto": "Torretta",
+   "liga": "ITA",
+   "grupo": null,
+   "color": "#e5383b"
+  },
+  {
+   "id": "vesuvio",
+   "nombre": "Vesuvio Corse",
+   "corto": "Vesuvio",
+   "liga": "ITA",
+   "grupo": null,
+   "color": "#343a40"
+  },
+  {
+   "id": "dolomiti",
+   "nombre": "Dolomiti Racing",
+   "corto": "Dolomiti",
+   "liga": "ITA",
+   "grupo": null,
+   "color": "#dee2e6"
+  },
+  {
+   "id": "adriatica",
+   "nombre": "Squadra Adriatica",
+   "corto": "Adriatica",
+   "liga": "ITA",
+   "grupo": null,
+   "color": "#00b4d8"
+  },
+  {
+   "id": "borghi",
+   "nombre": "Borghi Motorsport",
+   "corto": "Borghi",
+   "liga": "ITA",
+   "grupo": null,
+   "color": "#bc6c25"
+  },
+  {
+   "id": "northline-uk",
+   "nombre": "Northline Motorsport",
+   "corto": "Northline",
+   "liga": "GBR",
+   "grupo": "Northline",
+   "color": "#003049"
+  },
+  {
+   "id": "kessler-uk",
+   "nombre": "Kessler Racing UK",
+   "corto": "Kessler",
+   "liga": "GBR",
+   "grupo": "Kessler",
+   "color": "#ffd166"
+  },
+  {
+   "id": "altair-uk",
+   "nombre": "Altair Britannia",
+   "corto": "Altair",
+   "liga": "GBR",
+   "grupo": "Altair",
+   "color": "#06d6a0"
+  },
+  {
+   "id": "ashcombe",
+   "nombre": "Ashcombe Racing",
+   "corto": "Ashcombe",
+   "liga": "GBR",
+   "grupo": null,
+   "color": "#2b9348"
+  },
+  {
+   "id": "pennine",
+   "nombre": "Pennine Motorsport",
+   "corto": "Pennine",
+   "liga": "GBR",
+   "grupo": null,
+   "color": "#9a8c98"
+  },
+  {
+   "id": "blackmoor",
+   "nombre": "Blackmoor Engineering",
+   "corto": "Blackmoor",
+   "liga": "GBR",
+   "grupo": null,
+   "color": "#212529"
+  },
+  {
+   "id": "hartwell",
+   "nombre": "Hartwell Racing",
+   "corto": "Hartwell",
+   "liga": "GBR",
+   "grupo": null,
+   "color": "#d62828"
+  },
+  {
+   "id": "thames",
+   "nombre": "Thames Valley Racing",
+   "corto": "Thames Valley",
+   "liga": "GBR",
+   "grupo": null,
+   "color": "#4895ef"
+  },
+  {
+   "id": "highland",
+   "nombre": "Highland Motorsport",
+   "corto": "Highland",
+   "liga": "GBR",
+   "grupo": null,
+   "color": "#7209b7"
+  },
+  {
+   "id": "solent",
+   "nombre": "Solent Racing",
+   "corto": "Solent",
+   "liga": "GBR",
+   "grupo": null,
+   "color": "#f77f00"
+  },
+  {
+   "id": "kessler-de",
+   "nombre": "Kessler Werks",
+   "corto": "Kessler",
+   "liga": "GER",
+   "grupo": "Kessler",
+   "color": "#ffd166"
+  },
+  {
+   "id": "valcor-de",
+   "nombre": "Valcor Deutschland",
+   "corto": "Valcor",
+   "liga": "GER",
+   "grupo": "Valcor",
+   "color": "#c1121f"
+  },
+  {
+   "id": "rheinwerk",
+   "nombre": "Rheinwerk Racing",
+   "corto": "Rheinwerk",
+   "liga": "GER",
+   "grupo": null,
+   "color": "#4361ee"
+  },
+  {
+   "id": "schwarzwald",
+   "nombre": "Schwarzwald Motorsport",
+   "corto": "Schwarzwald",
+   "liga": "GER",
+   "grupo": null,
+   "color": "#2d6a4f"
+  },
+  {
+   "id": "elbe",
+   "nombre": "Team Elbe",
+   "corto": "Elbe",
+   "liga": "GER",
+   "grupo": null,
+   "color": "#90e0ef"
+  },
+  {
+   "id": "harz",
+   "nombre": "Harz Racing",
+   "corto": "Harz",
+   "liga": "GER",
+   "grupo": null,
+   "color": "#6c757d"
+  },
+  {
+   "id": "isar",
+   "nombre": "Isar Motorsport",
+   "corto": "Isar",
+   "liga": "GER",
+   "grupo": null,
+   "color": "#e76f51"
+  },
+  {
+   "id": "nordring",
+   "nombre": "Nordring Racing",
+   "corto": "Nordring",
+   "liga": "GER",
+   "grupo": null,
+   "color": "#f1faee"
+  },
+  {
+   "id": "weser",
+   "nombre": "Weser Engineering",
+   "corto": "Weser",
+   "liga": "GER",
+   "grupo": null,
+   "color": "#a4133c"
+  },
+  {
+   "id": "alpenblick",
+   "nombre": "Alpenblick Racing",
+   "corto": "Alpenblick",
+   "liga": "GER",
+   "grupo": null,
+   "color": "#80b918"
+  },
+  {
+   "id": "northline-au",
+   "nombre": "Northline Oceania",
+   "corto": "Northline",
+   "liga": "AUS",
+   "grupo": "Northline",
+   "color": "#003049"
+  },
+  {
+   "id": "kessler-au",
+   "nombre": "Kessler Pacific",
+   "corto": "Kessler",
+   "liga": "AUS",
+   "grupo": "Kessler",
+   "color": "#ffd166"
+  },
+  {
+   "id": "altair-au",
+   "nombre": "Altair Pacific",
+   "corto": "Altair",
+   "liga": "AUS",
+   "grupo": "Altair",
+   "color": "#06d6a0"
+  },
+  {
+   "id": "southern-cross",
+   "nombre": "Southern Cross Racing",
+   "corto": "Southern Cross",
+   "liga": "AUS",
+   "grupo": null,
+   "color": "#023e8a"
+  },
+  {
+   "id": "coral-coast",
+   "nombre": "Coral Coast Motorsport",
+   "corto": "Coral Coast",
+   "liga": "AUS",
+   "grupo": null,
+   "color": "#ff006e"
+  },
+  {
+   "id": "red-centre",
+   "nombre": "Red Centre Racing",
+   "corto": "Red Centre",
+   "liga": "AUS",
+   "grupo": null,
+   "color": "#9b2226"
+  },
+  {
+   "id": "tasman",
+   "nombre": "Tasman Racing",
+   "corto": "Tasman",
+   "liga": "AUS",
+   "grupo": null,
+   "color": "#0096c7"
+  },
+  {
+   "id": "murray",
+   "nombre": "Murray River Motorsport",
+   "corto": "Murray River",
+   "liga": "AUS",
+   "grupo": null,
+   "color": "#ca6702"
+  },
+  {
+   "id": "blue-mountains",
+   "nombre": "Blue Mountains Racing",
+   "corto": "Blue Mountains",
+   "liga": "AUS",
+   "grupo": null,
+   "color": "#5e60ce"
+  },
+  {
+   "id": "kimberley",
+   "nombre": "Kimberley Racing",
+   "corto": "Kimberley",
+   "liga": "AUS",
+   "grupo": null,
+   "color": "#e9d8a6"
+  }
+ ],
+ "pilotos": [
+  {
+   "nombre": "Sergio",
+   "apellido": "Sanz",
+   "nac": "es",
+   "equipo": "valcor-es",
+   "rol": "P1",
+   "edad": 23
+  },
+  {
+   "nombre": "Marcos",
+   "apellido": "Serrano",
+   "nac": "es",
+   "equipo": "valcor-es",
+   "rol": "P2",
+   "edad": 24
+  },
+  {
+   "nombre": "Iker",
+   "apellido": "Beltrán",
+   "nac": "es",
+   "equipo": "stellari-es",
+   "rol": "P1",
+   "edad": 23
+  },
+  {
+   "nombre": "Unai",
+   "apellido": "Quintana",
+   "nac": "es",
+   "equipo": "stellari-es",
+   "rol": "P2",
+   "edad": 20
+  },
+  {
+   "nombre": "Íñigo",
+   "apellido": "Ferrer",
+   "nac": "es",
+   "equipo": "altair-es",
+   "rol": "P1",
+   "edad": 23
+  },
+  {
+   "nombre": "Jaime",
+   "apellido": "Galán",
+   "nac": "es",
+   "equipo": "altair-es",
+   "rol": "P2",
+   "edad": 25
+  },
+  {
+   "nombre": "Raúl",
+   "apellido": "Llorente",
+   "nac": "es",
+   "equipo": "montjuic",
+   "rol": "P1",
+   "edad": 30
+  },
+  {
+   "nombre": "Samuel",
+   "apellido": "Restrepo",
+   "nac": "co",
+   "equipo": "montjuic",
+   "rol": "P2",
+   "edad": 31
+  },
+  {
+   "nombre": "Pablo",
+   "apellido": "Vidal",
+   "nac": "es",
+   "equipo": "guadarrama",
+   "rol": "P1",
+   "edad": 26
+  },
+  {
+   "nombre": "Rodrigo",
+   "apellido": "Pereira",
+   "nac": "pt",
+   "equipo": "guadarrama",
+   "rol": "P2",
+   "edad": 27
+  },
+  {
+   "nombre": "Lucas",
+   "apellido": "Molina",
+   "nac": "es",
+   "equipo": "brava",
+   "rol": "P1",
+   "edad": 28
+  },
+  {
+   "nombre": "Samuel",
+   "apellido": "Sinclair",
+   "nac": "gb",
+   "equipo": "brava",
+   "rol": "P2",
+   "edad": 20
+  },
+  {
+   "nombre": "Aitor",
+   "apellido": "Montero",
+   "nac": "es",
+   "equipo": "tramontana",
+   "rol": "P1",
+   "edad": 29
+  },
+  {
+   "nombre": "Gabriel",
+   "apellido": "Rezende",
+   "nac": "br",
+   "equipo": "tramontana",
+   "rol": "P2",
+   "edad": 18
+  },
+  {
+   "nombre": "Diego",
+   "apellido": "Salcedo",
+   "nac": "es",
+   "equipo": "sierra-norte",
+   "rol": "P1",
+   "edad": 23
+  },
+  {
+   "nombre": "Sebastián",
+   "apellido": "Ospina",
+   "nac": "co",
+   "equipo": "sierra-norte",
+   "rol": "P2",
+   "edad": 22
+  },
+  {
+   "nombre": "Óscar",
+   "apellido": "Roldán",
+   "nac": "es",
+   "equipo": "cantabrico",
+   "rol": "P1",
+   "edad": 23
+  },
+  {
+   "nombre": "Javier",
+   "apellido": "Aranda",
+   "nac": "es",
+   "equipo": "cantabrico",
+   "rol": "P2",
+   "edad": 21
+  },
+  {
+   "nombre": "Adrián",
+   "apellido": "Garrido",
+   "nac": "es",
+   "equipo": "alhambra",
+   "rol": "P1",
+   "edad": 24
+  },
+  {
+   "nombre": "Valentino",
+   "apellido": "Bianchi",
+   "nac": "ar",
+   "equipo": "alhambra",
+   "rol": "P2",
+   "edad": 22
+  },
+  {
+   "nombre": "Gabriele",
+   "apellido": "Galli",
+   "nac": "it",
+   "equipo": "stellari-it",
+   "rol": "P1",
+   "edad": 28
+  },
+  {
+   "nombre": "Stefano",
+   "apellido": "Grimaldi",
+   "nac": "mc",
+   "equipo": "stellari-it",
+   "rol": "P2",
+   "edad": 18
+  },
+  {
+   "nombre": "Andrea",
+   "apellido": "Bellandi",
+   "nac": "it",
+   "equipo": "valcor-it",
+   "rol": "P1",
+   "edad": 25
+  },
+  {
+   "nombre": "Lorenzo",
+   "apellido": "Serra",
+   "nac": "it",
+   "equipo": "valcor-it",
+   "rol": "P2",
+   "edad": 19
+  },
+  {
+   "nombre": "Riccardo",
+   "apellido": "Conti",
+   "nac": "it",
+   "equipo": "lario",
+   "rol": "P1",
+   "edad": 21
+  },
+  {
+   "nombre": "Máté",
+   "apellido": "Kovács",
+   "nac": "hu",
+   "equipo": "lario",
+   "rol": "P2",
+   "edad": 18
+  },
+  {
+   "nombre": "Luca",
+   "apellido": "Fontana",
+   "nac": "it",
+   "equipo": "apennino",
+   "rol": "P1",
+   "edad": 25
+  },
+  {
+   "nombre": "Louis",
+   "apellido": "Pastor",
+   "nac": "mc",
+   "equipo": "apennino",
+   "rol": "P2",
+   "edad": 31
+  },
+  {
+   "nombre": "Edoardo",
+   "apellido": "De Luca",
+   "nac": "it",
+   "equipo": "brenta",
+   "rol": "P1",
+   "edad": 20
+  },
+  {
+   "nombre": "Davide",
+   "apellido": "Moretti",
+   "nac": "it",
+   "equipo": "brenta",
+   "rol": "P2",
+   "edad": 30
+  },
+  {
+   "nombre": "Matteo",
+   "apellido": "Marchetti",
+   "nac": "it",
+   "equipo": "torretta",
+   "rol": "P1",
+   "edad": 21
+  },
+  {
+   "nombre": "Nicolò",
+   "apellido": "Barbieri",
+   "nac": "it",
+   "equipo": "torretta",
+   "rol": "P2",
+   "edad": 29
+  },
+  {
+   "nombre": "Marco",
+   "apellido": "Santoro",
+   "nac": "it",
+   "equipo": "vesuvio",
+   "rol": "P1",
+   "edad": 20
+  },
+  {
+   "nombre": "Giacomo",
+   "apellido": "Longo",
+   "nac": "it",
+   "equipo": "vesuvio",
+   "rol": "P2",
+   "edad": 19
+  },
+  {
+   "nombre": "Leonardo",
+   "apellido": "Rinaldi",
+   "nac": "it",
+   "equipo": "dolomiti",
+   "rol": "P1",
+   "edad": 20
+  },
+  {
+   "nombre": "Hugo",
+   "apellido": "Laurent",
+   "nac": "fr",
+   "equipo": "dolomiti",
+   "rol": "P2",
+   "edad": 30
+  },
+  {
+   "nombre": "Federico",
+   "apellido": "Pellegrini",
+   "nac": "it",
+   "equipo": "adriatica",
+   "rol": "P1",
+   "edad": 30
+  },
+  {
+   "nombre": "Bruno",
+   "apellido": "Prieto",
+   "nac": "es",
+   "equipo": "adriatica",
+   "rol": "P2",
+   "edad": 26
+  },
+  {
+   "nombre": "Alessio",
+   "apellido": "Ferraresi",
+   "nac": "it",
+   "equipo": "borghi",
+   "rol": "P1",
+   "edad": 20
+  },
+  {
+   "nombre": "Hugo",
+   "apellido": "Soler",
+   "nac": "es",
+   "equipo": "borghi",
+   "rol": "P2",
+   "edad": 25
+  },
+  {
+   "nombre": "Lewis",
+   "apellido": "Marsh",
+   "nac": "gb",
+   "equipo": "northline-uk",
+   "rol": "P1",
+   "edad": 26
+  },
+  {
+   "nombre": "Daniel",
+   "apellido": "Fairbairn",
+   "nac": "gb",
+   "equipo": "northline-uk",
+   "rol": "P2",
+   "edad": 24
+  },
+  {
+   "nombre": "Charlie",
+   "apellido": "Walsh",
+   "nac": "gb",
+   "equipo": "kessler-uk",
+   "rol": "P1",
+   "edad": 20
+  },
+  {
+   "nombre": "Conor",
+   "apellido": "Kavanagh",
+   "nac": "ie",
+   "equipo": "kessler-uk",
+   "rol": "P2",
+   "edad": 23
+  },
+  {
+   "nombre": "Callum",
+   "apellido": "Everett",
+   "nac": "gb",
+   "equipo": "altair-uk",
+   "rol": "P1",
+   "edad": 29
+  },
+  {
+   "nombre": "Mason",
+   "apellido": "Brooks",
+   "nac": "us",
+   "equipo": "altair-uk",
+   "rol": "P2",
+   "edad": 28
+  },
+  {
+   "nombre": "Jack",
+   "apellido": "Holloway",
+   "nac": "gb",
+   "equipo": "ashcombe",
+   "rol": "P1",
+   "edad": 21
+  },
+  {
+   "nombre": "Thabo",
+   "apellido": "Nkosi",
+   "nac": "za",
+   "equipo": "ashcombe",
+   "rol": "P2",
+   "edad": 31
+  },
+  {
+   "nombre": "Alfie",
+   "apellido": "Harker",
+   "nac": "gb",
+   "equipo": "pennine",
+   "rol": "P1",
+   "edad": 29
+  },
+  {
+   "nombre": "Thomas",
+   "apellido": "Bennett",
+   "nac": "gb",
+   "equipo": "pennine",
+   "rol": "P2",
+   "edad": 31
+  },
+  {
+   "nombre": "Rory",
+   "apellido": "Coleman",
+   "nac": "gb",
+   "equipo": "blackmoor",
+   "rol": "P1",
+   "edad": 30
+  },
+  {
+   "nombre": "Jens",
+   "apellido": "Claes",
+   "nac": "be",
+   "equipo": "blackmoor",
+   "rol": "P2",
+   "edad": 29
+  },
+  {
+   "nombre": "Ethan",
+   "apellido": "Kendrick",
+   "nac": "gb",
+   "equipo": "hartwell",
+   "rol": "P1",
+   "edad": 27
+  },
+  {
+   "nombre": "Oliver",
+   "apellido": "Thornton",
+   "nac": "gb",
+   "equipo": "hartwell",
+   "rol": "P2",
+   "edad": 27
+  },
+  {
+   "nombre": "Harry",
+   "apellido": "Whitmore",
+   "nac": "gb",
+   "equipo": "thames",
+   "rol": "P1",
+   "edad": 22
+  },
+  {
+   "nombre": "Ryan",
+   "apellido": "McKenzie",
+   "nac": "nz",
+   "equipo": "thames",
+   "rol": "P2",
+   "edad": 22
+  },
+  {
+   "nombre": "Joseph",
+   "apellido": "Lister",
+   "nac": "gb",
+   "equipo": "highland",
+   "rol": "P1",
+   "edad": 33
+  },
+  {
+   "nombre": "George",
+   "apellido": "Blackwood",
+   "nac": "gb",
+   "equipo": "highland",
+   "rol": "P2",
+   "edad": 32
+  },
+  {
+   "nombre": "Owen",
+   "apellido": "Rowe",
+   "nac": "gb",
+   "equipo": "solent",
+   "rol": "P1",
+   "edad": 31
+  },
+  {
+   "nombre": "Arne",
+   "apellido": "Peeters",
+   "nac": "be",
+   "equipo": "solent",
+   "rol": "P2",
+   "edad": 28
+  },
+  {
+   "nombre": "Julian",
+   "apellido": "Graf",
+   "nac": "de",
+   "equipo": "kessler-de",
+   "rol": "P1",
+   "edad": 28
+  },
+  {
+   "nombre": "Jan",
+   "apellido": "Dvořák",
+   "nac": "cz",
+   "equipo": "kessler-de",
+   "rol": "P2",
+   "edad": 23
+  },
+  {
+   "nombre": "Anton",
+   "apellido": "Vogt",
+   "nac": "de",
+   "equipo": "valcor-de",
+   "rol": "P1",
+   "edad": 20
+  },
+  {
+   "nombre": "Tim",
+   "apellido": "Franke",
+   "nac": "de",
+   "equipo": "valcor-de",
+   "rol": "P2",
+   "edad": 26
+  },
+  {
+   "nombre": "Maximilian",
+   "apellido": "Lindner",
+   "nac": "de",
+   "equipo": "rheinwerk",
+   "rol": "P1",
+   "edad": 28
+  },
+  {
+   "nombre": "Maxime",
+   "apellido": "Wouters",
+   "nac": "be",
+   "equipo": "rheinwerk",
+   "rol": "P2",
+   "edad": 27
+  },
+  {
+   "nombre": "Lukas",
+   "apellido": "Seidel",
+   "nac": "de",
+   "equipo": "schwarzwald",
+   "rol": "P1",
+   "edad": 27
+  },
+  {
+   "nombre": "Gian",
+   "apellido": "Meier",
+   "nac": "ch",
+   "equipo": "schwarzwald",
+   "rol": "P2",
+   "edad": 29
+  },
+  {
+   "nombre": "Tobias",
+   "apellido": "Baumann",
+   "nac": "de",
+   "equipo": "elbe",
+   "rol": "P1",
+   "edad": 25
+  },
+  {
+   "nombre": "Magnus",
+   "apellido": "Haugen",
+   "nac": "no",
+   "equipo": "elbe",
+   "rol": "P2",
+   "edad": 29
+  },
+  {
+   "nombre": "Philipp",
+   "apellido": "Haas",
+   "nac": "de",
+   "equipo": "harz",
+   "rol": "P1",
+   "edad": 22
+  },
+  {
+   "nombre": "Felix",
+   "apellido": "Lorenz",
+   "nac": "de",
+   "equipo": "harz",
+   "rol": "P2",
+   "edad": 26
+  },
+  {
+   "nombre": "Paul",
+   "apellido": "Hartmann",
+   "nac": "de",
+   "equipo": "isar",
+   "rol": "P1",
+   "edad": 22
+  },
+  {
+   "nombre": "Erik",
+   "apellido": "Sommer",
+   "nac": "de",
+   "equipo": "isar",
+   "rol": "P2",
+   "edad": 21
+  },
+  {
+   "nombre": "Niklas",
+   "apellido": "Keller",
+   "nac": "de",
+   "equipo": "nordring",
+   "rol": "P1",
+   "edad": 21
+  },
+  {
+   "nombre": "Jakub",
+   "apellido": "Nowak",
+   "nac": "pl",
+   "equipo": "nordring",
+   "rol": "P2",
+   "edad": 23
+  },
+  {
+   "nombre": "Jannik",
+   "apellido": "Kaiser",
+   "nac": "de",
+   "equipo": "weser",
+   "rol": "P1",
+   "edad": 28
+  },
+  {
+   "nombre": "Emil",
+   "apellido": "Nørgaard",
+   "nac": "dk",
+   "equipo": "weser",
+   "rol": "P2",
+   "edad": 26
+  },
+  {
+   "nombre": "Jonas",
+   "apellido": "Krüger",
+   "nac": "de",
+   "equipo": "alpenblick",
+   "rol": "P1",
+   "edad": 22
+  },
+  {
+   "nombre": "Moritz",
+   "apellido": "Busch",
+   "nac": "de",
+   "equipo": "alpenblick",
+   "rol": "P2",
+   "edad": 30
+  },
+  {
+   "nombre": "Nathan",
+   "apellido": "Kemp",
+   "nac": "au",
+   "equipo": "northline-au",
+   "rol": "P1",
+   "edad": 26
+  },
+  {
+   "nombre": "Carter",
+   "apellido": "Hayes",
+   "nac": "us",
+   "equipo": "northline-au",
+   "rol": "P2",
+   "edad": 32
+  },
+  {
+   "nombre": "Mitchell",
+   "apellido": "Turnbull",
+   "nac": "au",
+   "equipo": "kessler-au",
+   "rol": "P1",
+   "edad": 23
+  },
+  {
+   "nombre": "William",
+   "apellido": "Doyle",
+   "nac": "gb",
+   "equipo": "kessler-au",
+   "rol": "P2",
+   "edad": 26
+  },
+  {
+   "nombre": "Cooper",
+   "apellido": "Stokes",
+   "nac": "au",
+   "equipo": "altair-au",
+   "rol": "P1",
+   "edad": 22
+  },
+  {
+   "nombre": "Blake",
+   "apellido": "Dawson",
+   "nac": "au",
+   "equipo": "altair-au",
+   "rol": "P2",
+   "edad": 21
+  },
+  {
+   "nombre": "Liam",
+   "apellido": "Finch",
+   "nac": "au",
+   "equipo": "southern-cross",
+   "rol": "P1",
+   "edad": 21
+  },
+  {
+   "nombre": "Oliver",
+   "apellido": "Tamm",
+   "nac": "ee",
+   "equipo": "southern-cross",
+   "rol": "P2",
+   "edad": 18
+  },
+  {
+   "nombre": "Declan",
+   "apellido": "Quinlan",
+   "nac": "au",
+   "equipo": "coral-coast",
+   "rol": "P1",
+   "edad": 22
+  },
+  {
+   "nombre": "Angus",
+   "apellido": "Reid",
+   "nac": "au",
+   "equipo": "coral-coast",
+   "rol": "P2",
+   "edad": 27
+  },
+  {
+   "nombre": "Brodie",
+   "apellido": "Doherty",
+   "nac": "au",
+   "equipo": "red-centre",
+   "rol": "P1",
+   "edad": 27
+  },
+  {
+   "nombre": "Toby",
+   "apellido": "Brennan",
+   "nac": "au",
+   "equipo": "red-centre",
+   "rol": "P2",
+   "edad": 25
+  },
+  {
+   "nombre": "Riley",
+   "apellido": "Lawson",
+   "nac": "au",
+   "equipo": "tasman",
+   "rol": "P1",
+   "edad": 26
+  },
+  {
+   "nombre": "Karl",
+   "apellido": "Kask",
+   "nac": "ee",
+   "equipo": "tasman",
+   "rol": "P2",
+   "edad": 20
+  },
+  {
+   "nombre": "Hayden",
+   "apellido": "Walker",
+   "nac": "au",
+   "equipo": "murray",
+   "rol": "P1",
+   "edad": 28
+  },
+  {
+   "nombre": "Harrison",
+   "apellido": "Ellis",
+   "nac": "au",
+   "equipo": "murray",
+   "rol": "P2",
+   "edad": 27
+  },
+  {
+   "nombre": "Jordan",
+   "apellido": "Carmody",
+   "nac": "au",
+   "equipo": "blue-mountains",
+   "rol": "P1",
+   "edad": 31
+  },
+  {
+   "nombre": "Samuel",
+   "apellido": "Hale",
+   "nac": "gb",
+   "equipo": "blue-mountains",
+   "rol": "P2",
+   "edad": 26
+  },
+  {
+   "nombre": "Kai",
+   "apellido": "Fraser",
+   "nac": "au",
+   "equipo": "kimberley",
+   "rol": "P1",
+   "edad": 20
+  },
+  {
+   "nombre": "Rasmus",
+   "apellido": "Rebane",
+   "nac": "ee",
+   "equipo": "kimberley",
+   "rol": "P2",
+   "edad": 24
+  }
+ ]
+}

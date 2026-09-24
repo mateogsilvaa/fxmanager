@@ -1,0 +1,33 @@
+name: Ciclo del juego
+
+on:
+  schedule:
+    # Cada 10 minutos (repositorio público: minutos de Actions gratis e ilimitados)
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: 'Ignorar el bloqueo de ciclo en curso'
+        type: boolean
+        default: false
+
+concurrency:
+  group: ciclo-juego
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      - name: Ejecutar ciclo
+        env:
+          BOT_EMAIL: ${{ secrets.BOT_EMAIL }}
+          BOT_PASSWORD: ${{ secrets.BOT_PASSWORD }}
+        run: node worker/run.mjs ${{ inputs.forzar && '--forzar' || '' }}

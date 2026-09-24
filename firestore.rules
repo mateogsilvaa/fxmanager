@@ -1,0 +1,144 @@
+rules_version = '2';
+// FX Manager · Hyper Race X1
+// Pega este archivo en Firebase Console > Firestore Database > Reglas > Publicar
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function perfil() { return get(/databases/$(database)/documents/usuarios/$(uid())).data; }
+    function esAdmin() { return autenticado() && exists(/databases/$(database)/documents/usuarios/$(uid())) && perfil().isAdmin == true; }
+    function ahora() { return request.time.toMillis(); }
+    function config() { return get(/databases/$(database)/documents/config/juego).data; }
+    function duenoDe(equipoId) { return autenticado() && get(/databases/$(database)/documents/equipos/$(equipoId)).data.ownerId == uid(); }
+    function soloCambian(campos) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos); }
+
+    // ---------- Público ----------
+    match /config/juego { allow read: if true; allow write: if esAdmin(); }
+    match /catalogo/{id} { allow read: if true; allow write: if esAdmin(); }
+    match /resumen/{id} { allow read: if true; allow write: if esAdmin(); }
+    match /ranking/{id} { allow read: if true; allow write: if esAdmin(); }
+    match /eventos/{id} { allow read: if true; allow write: if esAdmin(); }
+    match /pilotos/{id} { allow read: if true; allow write: if esAdmin(); }
+    match /mercado/{id} { allow read: if true; allow write: if esAdmin(); }
+
+    // Resultados: se guardan antes y solo se pueden leer a partir de su hora de publicación
+    match /resultados/{id} {
+      allow read: if esAdmin() || (resource != null && resource.data.publishAt <= ahora());
+      allow write: if esAdmin();
+    }
+    match /noticias/{id} {
+      allow read: if esAdmin() || resource.data.publishAt <= ahora();
+      allow write: if esAdmin();
+    }
+
+    // Equipos: públicos. Un usuario sin equipo puede reclamar uno libre si la inscripción está abierta.
+    match /equipos/{equipoId} {
+      allow read: if true;
+      allow update: if esAdmin() || (
+        autenticado()
+        && resource.data.ownerId == null
+        && request.resource.data.ownerId == uid()
+        && soloCambian(['ownerId', 'ownerNombre'])
+        && config().inscripcion == true
+        && perfil().equipoId == null
+        && getAfter(/databases/$(database)/documents/usuarios/$(uid())).data.equipoId == equipoId
+      );
+      allow create, delete: if esAdmin();
+    }
+
+    // Privado del equipo: solo su mánager lo lee; solo el servidor lo escribe
+    match /equipos_priv/{equipoId} {
+      allow read: if esAdmin() || duenoDe(equipoId);
+      allow write: if esAdmin();
+    }
+    match /pilotos_priv/{pilotoId} {
+      allow read: if esAdmin() || (resource != null && duenoDe(resource.data.equipoId));
+      allow write: if esAdmin();
+    }
+
+    // Usuarios
+    match /usuarios/{userId} {
+      allow read: if autenticado() && (uid() == userId || esAdmin());
+      allow create: if autenticado() && uid() == userId
+        && request.resource.data.isAdmin == false
+        && request.resource.data.equipoId == null;
+      allow update: if esAdmin() || (
+        autenticado() && uid() == userId && (
+          soloCambian(['nombre'])
+          || (soloCambian(['equipoId']) && resource.data.equipoId == null
+              && getAfter(/databases/$(database)/documents/equipos/$(request.resource.data.equipoId)).data.ownerId == uid())
+        )
+      );
+      allow delete: if esAdmin();
+    }
+
+    // Estrategia de una sesión: solo el mánager y solo antes del cierre
+    match /estrategias/{id} {
+      allow read: if esAdmin() || (resource != null && resource.data.uid == uid());
+      allow create, update: if esAdmin() || (
+        autenticado()
+        && request.resource.data.uid == uid()
+        && duenoDe(request.resource.data.equipoId)
+        && id == request.resource.data.eventoId + '_' + request.resource.data.tipo + '_' + request.resource.data.equipoId
+        && get(/databases/$(database)/documents/eventos/$(request.resource.data.eventoId)).data.sesiones[request.resource.data.tipo].lockAt > ahora()
+      );
+      allow delete: if esAdmin();
+    }
+
+    // Cola de acciones: el mánager las crea, el servidor las procesa
+    match /acciones/{id} {
+      allow read: if esAdmin() || (resource != null && resource.data.uid == uid());
+      allow create: if autenticado()
+        && request.resource.data.uid == uid()
+        && request.resource.data.estado == 'pendiente'
+        && request.resource.data.tipo is string
+        && duenoDe(request.resource.data.equipoId)
+        && request.resource.data.keys().hasOnly(['uid', 'equipoId', 'tipo', 'params', 'creado', 'estado']);
+      allow update, delete: if esAdmin();
+    }
+
+    match /notificaciones/{id} {
+      allow read: if esAdmin() || (resource != null && resource.data.uid == uid());
+      allow update: if autenticado() && resource.data.uid == uid() && soloCambian(['leida']);
+      allow create, delete: if esAdmin();
+    }
+
+    // Decisión del día: el mánager solo puede elegir una opción antes de que caduque
+    match /decisiones/{id} {
+      // resource == null: poder escuchar la decisión de hoy aunque todavía no se haya generado
+      allow read: if esAdmin() || resource == null || resource.data.uid == uid();
+      allow update: if esAdmin() || (
+        autenticado() && resource.data.uid == uid()
+        && resource.data.aplicada == false
+        && resource.data.expira > ahora()
+        && soloCambian(['eleccion'])
+        && request.resource.data.eleccion is string
+      );
+      allow create, delete: if esAdmin();
+    }
+
+    // Pronósticos: cualquiera con cuenta, antes del cierre de la sesión
+    match /pronosticos/{id} {
+      allow read: if esAdmin() || (resource != null && resource.data.uid == uid());
+      allow create, update: if autenticado()
+        && request.resource.data.uid == uid()
+        && id == request.resource.data.sesionId + '_' + uid()
+        && request.resource.data.sesionId == request.resource.data.eventoId + '_' + request.resource.data.tipo
+        && get(/databases/$(database)/documents/eventos/$(request.resource.data.eventoId)).data.sesiones[request.resource.data.tipo].lockAt > ahora()
+        && (resource == null || resource.data.get('puntuado', false) == false)
+        && !request.resource.data.keys().hasAny(['puntuado', 'puntos']);
+      allow delete: if esAdmin();
+    }
+
+    // Solo servidor / admin
+    match /secreto/{id} { allow read, write: if esAdmin(); }
+    match /mercado_priv/{id} { allow read, write: if esAdmin(); }
+    match /logs/{id} { allow read, write: if esAdmin(); }
+
+    // Restos de la temporada anterior (para poder borrarlos desde el panel)
+    match /{coleccion}/{id} {
+      allow read, write: if esAdmin();
+    }
+  }
+}

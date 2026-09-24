@@ -1,0 +1,12 @@
+{
+  "name": "fxmanager",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tick": "node worker/run.mjs",
+    "prueba": "node worker/prueba-temporada.mjs"
+  },
+  "dependencies": {
+    "firebase": "^10.12.2"
+  }
+}

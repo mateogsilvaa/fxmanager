@@ -6,3 +6,5 @@ firebase-debug.log
 # Archivos del sistema operativo
 .DS_Store
 Thumbs.db
+# Node
+node_modules/

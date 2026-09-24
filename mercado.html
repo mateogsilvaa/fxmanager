@@ -2,49 +2,25 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercado de Agentes - FXManager</title>
-    <link rel="stylesheet" href="modern.css">
-    <link rel="stylesheet" href="mobile-responsive.css">
-    <link rel="stylesheet" href="hamburger.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mercado · Hyper Race X1</title>
+    <meta name="description" content="Hyper Race X1: campeonato global de gestión de escuderías con BAC Mono.">
+    <meta name="theme-color" content="#0a0c11">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23ff4d2e%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-family%3D%22Arial%20Black%2CArial%22%20font-weight%3D%22900%22%20font-size%3D%2230%22%20text-anchor%3D%22middle%22%20fill%3D%22%23fff%22%3EX1%3C%2Ftext%3E%3C%2Fsvg%3E">
+    <link rel="stylesheet" href="css/app.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+            "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+            "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+        }
+    }
+    </script>
 </head>
 <body>
-
-    <nav class="navbar thin-navbar">
-        <div class="nav-brand"><strong>⚡ FXMANAGER</strong></div>
-        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menú"><span></span><span></span><span></span></button>
-        <ul class="nav-links" id="nav-links">
-            <li><a href="index.html">Inicio</a></li>
-            <li><a href="equipos.html">Equipos</a></li>
-            <li><a href="calendario.html">Calendario</a></li>
-            <li><a href="clasificacion.html">Clasificación</a></li>
-            <li><a href="media.html">Media</a></li>
-            <li><a href="mercado.html" class="active">Mercado</a></li>
-            <li><a href="dashboard.html">Mi Equipo</a></li>
-        </ul>
-    </nav>
-
-    <main class="container" style="padding: 40px 20px;">
-        <header style="text-align: center; margin-bottom: 40px;">
-            <h1 style="margin-bottom: 10px; font-size: 2.5rem; text-transform: uppercase;">🛒 Mercado de Agentes Libres</h1>
-            <p style="color: var(--text-secondary); font-size: 1.1rem; max-width: 600px; margin: 0 auto;">
-                Puja por Pilotos, Juniors e Ingenieros. El mercado se renueva cada 24 horas. El ganador de la subasta obtendrá los derechos exclusivos para negociar su contrato.
-            </p>
-            <div style="margin-top: 20px; display: inline-block; background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 8px; border: 1px solid var(--accent);">
-                💰 Tu Presupuesto: <strong id="mi-presupuesto" style="color: #4CAF50; font-size: 1.2rem;">Cargando...</strong>
-            </div>
-        </header>
-
-        <div id="mercado-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px;">
-            <p style="text-align:center; color: var(--text-secondary); grid-column: 1/-1;">Cargando subastas activas...</p>
-        </div>
-    </main>
-
-    <footer style="text-align: center; padding: 30px 20px; border-top: 1px solid var(--border-color); color: var(--text-secondary); margin-top: 60px;">
-        <p>&copy; FX Manager. Todos los derechos reservados.</p>
-    </footer>
-
-    <script src="nav.js" defer></script>
-    <script type="module" src="mercado.js"></script>
+    <header id="cabecera"></header>
+    <main id="main"><div class="cargando"><span class="spinner"></span>Cargando…</div></main>
+    <script type="module" src="js/pages/mercado.js"></script>
 </body>
 </html>
