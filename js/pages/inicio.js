@@ -64,7 +64,7 @@ ${siguiente ? `<a class="tarjeta fila-entre" href="liga.html?l=${siguiente.ev.li
     </section>
 
     <section class="tarjeta"><div class="tarjeta-titulo"><h2>Mejores mánagers</h2><a class="muted peq" href="paddock.html">Ranking</a></div>
-      ${managers.length ? `<ul class="lista">${managers.map((m, i) => `<li class="fila-entre"><span>${pos(i + 1)} ${esc(m.nombre)} <span class="muted peq">${esc(d.nombreEquipo(m.eq))}</span></span><b class="num">${m.indice}</b></li>`).join('')}</ul>` : vacio('Aún no hay mánagers.')}
+      ${managers.length ? managers.map((m, i) => `<div class="ranking-fila"><span class="n">${String(i + 1).padStart(2, '0')}</span><span>${esc(m.nombre)} <span class="muted peq">${esc(d.nombreEquipo(m.eq))}</span></span><span class="v">${m.indice}</span><div class="barra"><div class="barra-relleno" style="width:${Math.min(100, m.indice / Math.max(...managers.map(x => x.indice)) * 100)}%"></div></div></div>`).join('') : vacio('Aún no hay mánagers.')}
     </section>
 
   </aside>

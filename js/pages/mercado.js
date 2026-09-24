@@ -13,7 +13,7 @@ barraDirecto(d);
 const m = await store().get(`mercado/T${d.temporada}`).catch(() => null);
 const miEq = u?.perfil?.equipoId;
 
-main.innerHTML = `<div class="cabecera-pagina"><div><h1>Mercado</h1><p class="sub">Retención mínima del 70%: traspasos internacionales obligatorios, despidos por rendimiento frente al compañero y draft de rookies.</p></div></div><div id="cuerpo"></div>`;
+main.innerHTML = `<div class="cabecera-pagina"><div><div class="etiqueta">Fin de temporada</div><h1>Mercado</h1><p class="sub">Retención mínima del 70%: traspasos internacionales obligatorios, despidos por rendimiento frente al compañero y draft de rookies.</p></div></div><div id="cuerpo"></div>`;
 const cuerpo = $('#cuerpo');
 if (m) mercadoReal(); else proyeccion();
 

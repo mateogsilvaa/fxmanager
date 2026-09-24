@@ -12,16 +12,16 @@ const d = await cargarDatos();
 barraDirecto(d);
 
 main.innerHTML = `
-<div class="cabecera-pagina"><div><h1>Estadísticas</h1><p class="sub">Temporada ${d.temporada}. Pulsa cualquier récord para ver el ranking completo.</p></div></div>
-<div class="sub-pestanas" id="filtro">
-  <button data-l="TODAS" class="activa">Todas las ligas</button>
-  ${[...LIGAS_NACIONALES, 'INT'].map(l => `<button data-l="${l}">${banderaLiga(l, { ancho: 16 })} ${esc(LIGAS[l].nombre)}</button>`).join('')}
-  <button data-l="PALMARES">Palmarés</button>
+<div class="cabecera-pagina"><div><div class="etiqueta">Temporada ${d.temporada}</div><h1>Estadísticas</h1><p class="sub">Temporada ${d.temporada}. Pulsa cualquier récord para ver el ranking completo.</p></div></div>
+<div class="barra-opciones">
+  <div class="sub-pestanas" style="margin:0"><button data-modo="temporada" class="activa">Temporada</button><button data-modo="palmares">Palmarés</button></div>
+  <select id="filtro"><option value="TODAS">Todas las ligas</option><optgroup label="Ligas nacionales">${LIGAS_NACIONALES.map(l => `<option value="${l}">${esc(LIGAS[l].nombre)}</option>`).join('')}</optgroup><optgroup label="Final"><option value="INT">Intercontinental</option></optgroup></select>
 </div>
 <div id="cuerpo"></div>`;
 
 const pintar = (l) => {
-    $$('#filtro button').forEach(b => b.classList.toggle('activa', b.dataset.l === l));
+    $$('[data-modo]').forEach(b => b.classList.toggle('activa', b.dataset.modo === (l === 'PALMARES' ? 'palmares' : 'temporada')));
+    $('#filtro').hidden = l === 'PALMARES';
     const cuerpo = $('#cuerpo');
     if (l === 'PALMARES') return palmares(cuerpo);
     const t = l === 'TODAS' ? d.tablaTodas() : d.tabla(l);
@@ -47,7 +47,8 @@ const pintar = (l) => {
     activarRecords($('#re1'), d, CATEGORIAS_EQUIPO, eqs, { tipo: 'equipo', titulo });
     activarRecords($('#re2'), d, CATEGORIAS_EQUIPO, eqs, { tipo: 'equipo', titulo });
 };
-$$('#filtro button').forEach(b => b.addEventListener('click', () => pintar(b.dataset.l)));
+$('#filtro').addEventListener('change', (e) => pintar(e.target.value));
+$$('[data-modo]').forEach(b => b.addEventListener('click', () => pintar(b.dataset.modo === 'palmares' ? 'PALMARES' : $('#filtro').value)));
 pintar('TODAS');
 
 function destacado(t, nombre, v) {

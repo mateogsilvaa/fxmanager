@@ -4,7 +4,7 @@ import { dinero } from '../core/ui.js';
 
 await montar({ activo: 'reglamento' });
 document.getElementById('main').innerHTML = `
-<div class="cabecera-pagina"><div><h1>Reglamento</h1><p class="sub">Campeonato Global Hyper Race X1 · Vehículo oficial: BAC Mono (580 kg, 304 bhp, tracción trasera, dirección a 540°, sin ayudas electrónicas).</p></div></div>
+<div class="cabecera-pagina"><div><div class="etiqueta">Hyper Race X1</div><h1>Reglamento</h1><p class="sub">Campeonato Global Hyper Race X1 · Vehículo oficial: BAC Mono (580 kg, 304 bhp, tracción trasera, dirección a 540°, sin ayudas electrónicas).</p></div></div>
 <div class="rejilla rejilla-2">
 <section class="tarjeta"><h2>1. La competición</h2>
 <p><b>Fase 1 · Ligas nacionales.</b> España, Italia, Reino Unido, Alemania y Australia. 20 pilotos y 10 escuderías por país, 5 fines de semana por liga.</p>

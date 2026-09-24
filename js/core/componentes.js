@@ -81,7 +81,7 @@ export function tarjetaEvento(d, ev, { mostrarLiga = false } = {}) {
 
 export function listaNoticias(noticias, { liga = false } = {}) {
     if (!noticias.length) return vacio('Todavía no hay noticias.');
-    return noticias.map(n => `<div class="noticia"><h4>${esc(n.titulo)}</h4>${n.texto ? `<p>${esc(n.texto)}</p>` : ''}<div class="meta">${liga && n.liga ? `${banderaLiga(n.liga, { ancho: 14 })} ` : ''}${{ rumor: 'Rumor · ', mercado: 'Mercado · ', cronica: 'Crónica · ' }[n.tipo] || ''}${fecha(n.publishAt)}</div></div>`).join('');
+    return noticias.map(n => `<div class="noticia"><div class="meta">${liga && n.liga ? `${banderaLiga(n.liga, { ancho: 14 })} ` : ''}${{ rumor: 'Rumor', mercado: 'Mercado', cronica: 'Crónica', fase: 'Liga' }[n.tipo] || 'Noticia'}<br>${fecha(n.publishAt)}</div><div><h4>${esc(n.titulo)}</h4>${n.texto ? `<p>${esc(n.texto)}</p>` : ''}</div></div>`).join('');
 }
 
 // Tarjetas de récords: al pulsar se abre el ranking completo
@@ -92,7 +92,7 @@ export function tarjetasRecords(d, categorias, lista, { tipo = 'piloto' } = {}) 
         return `<div class="tarjeta record-tarjeta" data-cat="${esc(c.id)}" tabindex="0" role="button">
           <div class="etiqueta">${esc(c.nombre)}</div>
           <div class="top">${r.map(x => `<div><span>${x.pos}. ${esc(tipo === 'piloto' ? d.nombre(x.x.pid) : d.nombreEquipo(x.x.eq))}</span><span class="num">${fmtValor(x.v)}${c.sufijo || ''}</span></div>`).join('')}</div>
-          <div class="ver">Ver ranking completo</div></div>`;
+          <div class="ver">Ranking completo</div></div>`;
     }).join('');
 }
 

@@ -48,7 +48,7 @@ main.innerHTML = `
 <div class="cabecera-pagina">
   <div><div class="etiqueta">${banderaLiga(liga, { ancho: 16 })} ${esc(LIGAS[liga].nombre)} · ${esc(u.perfil.nombre)}</div><h1 style="margin-top:2px">${esc(eq.nombre)}</h1></div>
 </div>
-<div class="tarjeta" style="margin-bottom:14px"><div class="datos" id="cab-datos" style="grid-template-columns:repeat(4,minmax(0,1fr))"></div></div>
+<div class="tarjeta" style="margin-bottom:14px"><div class="datos datos-4" id="cab-datos"></div></div>
 <div class="pestanas" id="tabs">
   <button data-tab="hoy">Hoy</button>
   <button data-tab="carrera">Carrera</button>
@@ -230,10 +230,10 @@ function pintarCarrera() {
         ${Object.entries(SETUP_PARAMS).map(([k, p]) => `<div class="setup-param" style="margin:10px 0"><span>${esc(p.nombre)}</span><input type="range" min="1" max="10" name="${k}" value="${setup[k]}" oninput="this.nextElementSibling.value=this.value"><output>${setup[k]}</output></div>`).join('')}
         <div class="fila-botones"><button class="btn btn-sec" id="probar" ${libres ? '' : 'disabled'}>${libres ? 'Probar en el simulador' : 'Sin pruebas hasta mañana'}</button></div>
         ${tandas.length ? `<div style="margin-top:12px">${tandas.slice(0, 3).map(a => {
-            if (a.estado === 'pendiente') return `<div class="fila-entre peq" style="padding:6px 0;border-top:1px solid #f0f0f2"><span>${a.params.setup.ala} · ${a.params.setup.susp} · ${a.params.setup.marchas}</span><span class="muted">en pista…</span></div>`;
-            if (a.estado === 'error') return `<div class="peq mal" style="padding:6px 0;border-top:1px solid #f0f0f2">${esc(a.resultado?.error)}</div>`;
+            if (a.estado === 'pendiente') return `<div class="fila-entre peq" style="padding:6px 0;border-top:1px solid var(--hair2)"><span>${a.params.setup.ala} · ${a.params.setup.susp} · ${a.params.setup.marchas}</span><span class="muted">en pista…</span></div>`;
+            if (a.estado === 'error') return `<div class="peq mal" style="padding:6px 0;border-top:1px solid var(--hair2)">${esc(a.resultado?.error)}</div>`;
             const r = a.resultado;
-            return `<div class="fila-entre peq" style="padding:6px 0;border-top:1px solid #f0f0f2"><span>${[['ala', 'Ala'], ['susp', 'Susp.'], ['marchas', 'Marchas']].map(([k, n]) => `<span class="muted">${n}</span> ${r.setup[k]} ${lectura(r.informe[k])}`).join(' &nbsp;')}</span><button class="btn btn-sec btn-peq" data-usar='${esc(JSON.stringify(r.setup))}'>Usar</button></div>`;
+            return `<div class="fila-entre peq" style="padding:6px 0;border-top:1px solid var(--hair2)"><span>${[['ala', 'Ala'], ['susp', 'Susp.'], ['marchas', 'Marchas']].map(([k, n]) => `<span class="muted">${n}</span> ${r.setup[k]} ${lectura(r.informe[k])}`).join(' &nbsp;')}</span><button class="btn btn-sec btn-peq" data-usar='${esc(JSON.stringify(r.setup))}'>Usar</button></div>`;
         }).join('')}</div>` : ''}
         <p class="muted peq" style="margin:10px 0 0">Simulador nivel ${nivelSim}: ${nivelSim >= 2 ? 'te dice cuánto te pasas' : 'solo dice si vas alto o bajo'}. El informe llega ${proximoCiclo()}.</p>
       </div>
@@ -308,7 +308,7 @@ function pintarCoche() {
           const activo = proyectos.find(p => p.tipo === 'area' && p.clave === k) || pendID.find(p => p.params?.area === k);
           const desc = priv.descuentos?.[k] || 0;
           const coste = Math.round(costeMejora(n) * (1 - desc));
-          return `<div style="padding:12px 0;border-top:1px solid #f0f0f2">
+          return `<div style="padding:12px 0;border-top:1px solid var(--hair2)">
             <div class="fila-entre"><b>${esc(a.nombre)}</b><span class="muted peq">nivel ${n}/10</span></div>
             <div class="area-nivel" style="margin:8px 0">${Array.from({ length: 10 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>
             ${activo ? proyectoHtml(activo) : n >= NIVEL_MAX_AREA ? '<span class="ok peq">Al máximo</span>' : `
@@ -323,7 +323,7 @@ function pintarCoche() {
       ${Object.entries(INSTALACIONES).map(([k, a]) => {
           const n = priv.inst?.[k] || 0;
           const activo = proyectos.find(p => p.tipo === 'inst' && p.clave === k) || pendInst.find(p => p.params?.inst === k);
-          return `<div style="padding:12px 0;border-top:1px solid #f0f0f2">
+          return `<div style="padding:12px 0;border-top:1px solid var(--hair2)">
             <div class="fila-entre"><div><b>${esc(a.nombre)}</b> <span class="muted peq">nivel ${n}/${NIVEL_MAX_INST}</span><div class="muted peq">${esc(a.desc)}${k === 'simulador' ? ` Ahora: ${tandasSimulador(n)} pruebas al día.` : ''}</div></div>
             ${activo ? '' : n >= NIVEL_MAX_INST ? '<span class="ok peq">Al máximo</span>' : `<button class="btn btn-sec btn-peq" data-inst="${k}" ${obra || priv.presupuesto < costeInstalacion(n) ? 'disabled' : ''}>Ampliar · ${dinero(costeInstalacion(n))}</button>`}</div>
             ${activo ? `<div style="margin-top:8px">${proyectoHtml(activo)}</div>` : ''}
@@ -387,7 +387,7 @@ function pintarEquipo() {
       </div>
       <div class="tarjeta">
         <div class="tarjeta-titulo"><h2>Movimientos</h2><span class="muted peq">${dinero(priv.presupuesto)}</span></div>
-        ${priv.finanzas?.length ? priv.finanzas.slice(0, 12).map(f => `<div class="fila-entre peq" style="padding:7px 0;border-top:1px solid #f0f0f2"><span>${esc(f.c)}<div class="tenue">${hace(f.t)}</div></span><b class="${f.v >= 0 ? 'ok' : 'mal'}">${dinero(f.v, { signo: true })}</b></div>`).join('') : vacio('Sin movimientos todavía.')}
+        ${priv.finanzas?.length ? priv.finanzas.slice(0, 12).map(f => `<div class="fila-entre peq" style="padding:7px 0;border-top:1px solid var(--hair2)"><span>${esc(f.c)}<div class="tenue">${hace(f.t)}</div></span><b class="${f.v >= 0 ? 'ok' : 'mal'}">${dinero(f.v, { signo: true })}</b></div>`).join('') : vacio('Sin movimientos todavía.')}
       </div>
     </div>`;
     $$('[data-sp]', el).forEach(b => b.addEventListener('click', async () => {
@@ -454,12 +454,12 @@ function elegirEquipo() {
     let ligaSel = LIGAS_NACIONALES.find(l => libres.some(([, e]) => e.liga === l)) || 'ESP';
     const pintar = () => {
         const eqs = libres.filter(([, e]) => e.liga === ligaSel);
-        main.innerHTML = `<div class="cabecera-pagina"><div><h1>Elige tu escudería</h1><p class="sub">Las escuderías sin mánager las lleva la IA.</p></div></div>
+        main.innerHTML = `<div class="cabecera-pagina"><div><div class="etiqueta">Inscripción</div><h1>Elige tu escudería</h1><p class="sub">Las escuderías sin mánager las lleva la IA.</p></div></div>
         ${!abierta ? '<div class="aviso-caja" style="margin-bottom:12px">La inscripción está cerrada ahora mismo.</div>' : ''}
         <div class="selector-ligas">${LIGAS_NACIONALES.map(l => `<a href="#" data-liga="${l}" class="${l === ligaSel ? 'activo' : ''}">${banderaLiga(l, { ancho: 18, titulo: false })}${esc(LIGAS[l].nombre)} <span class="tenue">${libres.filter(([, e]) => e.liga === l).length}</span></a>`).join('')}</div>
         <div class="tarjeta">${eqs.length ? eqs.map(([id, e]) => {
             const ps = Object.values(d.cat.pilotos).filter(p => p.equipoId === id);
-            return `<div class="fila-entre" style="padding:12px 0;border-top:1px solid #f0f0f2">
+            return `<div class="fila-entre" style="padding:12px 0;border-top:1px solid var(--hair2)">
               <div><div class="chip-equipo" style="color:var(--texto)"><i style="background:${esc(e.color)}"></i><b>${esc(e.nombre)}</b></div><div class="muted peq" style="margin-top:3px">${ps.map(p => `${bandera(p.nac, { ancho: 14 })} ${esc(p.apellido)}`).join(' · ')}</div></div>
               <button class="btn btn-peq" data-reclamar="${esc(id)}" ${abierta ? '' : 'disabled'}>Elegir</button></div>`;
         }).join('') : vacio('No quedan escuderías libres en esta liga.')}</div>`;

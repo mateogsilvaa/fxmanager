@@ -25,7 +25,7 @@ const clasP = d.clasificacionPilotos(liga);
 main.innerHTML = `
 ${selectorLigas(liga)}
 <div class="cabecera-pagina">
-  <div><h1>${banderaLiga(liga, { ancho: 26 })} ${esc(esInt ? 'Liga Intercontinental' : L.nombre)}</h1>
+  <div><div class="etiqueta">${esInt ? 'Fase final' : 'Liga nacional'} · T${d.temporada}</div><h1>${banderaLiga(liga, { ancho: 26 })} ${esc(esInt ? 'Liga Intercontinental' : L.nombre)}</h1>
   <p class="sub">${esInt ? `${d.cfg.mundial?.nombre ? `Sede: ${esc(d.cfg.mundial.nombre)} · ` : ''}top 3 de cada liga + 5 mejores del resto` : `Temporada ${d.temporada} · 10 escuderías · 5 fines de semana`}</p></div>
 </div>
 <div class="pestanas" id="tabs">
@@ -218,7 +218,7 @@ function pilotos() {
     if (!lista.length) { el.innerHTML = vacio(esInt ? 'Los participantes se conocerán al terminar las ligas nacionales.' : 'Sin pilotos.'); return; }
     el.innerHTML = `<div class="rejilla rejilla-auto">${lista.map(p => {
         const eq = d.equipo(p.equipoId);
-        return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}" style="border-left:4px solid ${esc(eq?.color || '#555')}">
+        return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}" style="border-left:4px solid ${esc(eq?.color || 'var(--hair)')}">
           <div class="fila-entre"><span class="dorsal" style="font-size:18px">${p.numero ?? ''}</span>${p.st ? pos(p.st.posicion) : ''}</div>
           <div class="fila" style="margin-top:4px">${bandera(p.nac, { ancho: 24 })}<div><div>${esc(p.nombre)}</div><b style="font-size:16px">${esc(p.apellido)}</b></div></div>
           <div class="fila-entre" style="margin-top:8px">${chipEquipo(eq)}<span>${p.rol === 'P1' ? '<span class="insignia p1">Piloto 1</span>' : ''} ${p.rookie ? '<span class="insignia rookie">Rookie</span>' : ''}</span></div>

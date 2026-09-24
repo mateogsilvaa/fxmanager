@@ -32,7 +32,7 @@ main.innerHTML = `
     <div class="etiqueta">${banderaLiga(ev.liga)} ${esc(LIGAS[ev.liga].nombre)} · Ronda ${ev.ronda} · ${bandera(ev.circuito?.pais)} ${esc(ev.circuito?.nombre)}</div>
     <h2 style="margin-top:10px">${esc(c.titulo)}</h2>
     <p class="entradilla">${esc(c.entradilla)}</p>
-    ${c.parrafos.map(p => `<p>${esc(p)}</p>`).join('')}
+    <div class="cuerpo">${c.parrafos.map(p => `<p>${esc(p)}</p>`).join('')}</div>
     <div class="fila" style="margin-top:14px">${SESIONES.filter(t => S[t]).map(t => `<a class="btn btn-sec btn-peq" href="sesion.html?id=${esc(evId)}_${t}">${esc(SESION_INFO[t].corto)}</a>`).join('')}</div>
   </div>
   <aside class="pila">

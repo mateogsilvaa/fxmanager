@@ -22,7 +22,7 @@ if (!ev || !ev.sesiones?.[tipo]) {
 const ses = ev.sesiones[tipo];
 const info = SESION_INFO[tipo];
 const miEq = usuario()?.perfil?.equipoId;
-const colorEq = (eq) => d.equipo(eq)?.color || '#888';
+const colorEq = (eq) => d.equipo(eq)?.color || 'var(--dim)';
 
 main.innerHTML = `
 <div class="cabecera-pagina">
@@ -141,7 +141,7 @@ function final(r) {
     cont.innerHTML = `
     ${r.lluvia ? '<div class="info-caja" style="margin-bottom:12px">Sesión disputada en mojado</div>' : ''}
     <div class="podio" style="margin-bottom:16px">${[1, 0, 2].map(i => r.filas[i]).map((f, k) => f ? `<div class="p${[2, 1, 3][k]}"><div class="muted">${[2, 1, 3][k]}º</div>${bandera(d.piloto(f.pid)?.nac, { ancho: 24 })}<b>${esc(d.apellido(f.pid))}</b><div class="muted" style="font-size:.85rem">${esc(d.equipo(f.eq)?.nombre || '')}</div></div>` : '<div></div>').join('')}</div>
-    <div class="tarjeta"><div class="tarjeta-titulo"><h2>Clasificación</h2>${carrera || esQualy(tipo) ? '<button class="btn btn-sec btn-peq" id="repetir">▶ Ver repetición</button>' : ''}</div>
+    <div class="tarjeta"><div class="tarjeta-titulo"><h2>Clasificación</h2>${carrera || esQualy(tipo) ? '<button class="btn btn-sec btn-peq" id="repetir">Ver repetición</button>' : ''}</div>
     <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Piloto</th><th class="ancho">Escudería</th>
       ${carrera ? '<th class="cen ancho">Salida</th><th class="cen">+/−</th><th class="cen ancho">Vueltas</th><th class="der">Tiempo</th><th class="der ancho">Mejor vuelta</th><th class="cen ancho">Adel.</th>' : '<th class="der">Mejor vuelta</th><th class="der">Dif.</th><th class="cen ancho">Vueltas</th>'}
       <th class="der">Pts</th></tr></thead><tbody>

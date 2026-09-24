@@ -22,7 +22,7 @@ let d = await cargarDatos();
 let cfg = (await store().get('config/juego')) || null;
 
 main.innerHTML = `
-<div class="cabecera-pagina"><div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div></div>
+<div class="cabecera-pagina"><div><div class="etiqueta">Organización</div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div></div>
 <div class="pestanas" id="tabs">
   <button data-tab="estado">Estado y ciclo</button><button data-tab="calendario">Calendario</button><button data-tab="parrilla">Parrilla</button>
   <button data-tab="usuarios">Usuarios</button><button data-tab="noticias">Noticias</button><button data-tab="temporada">Temporada</button>
@@ -66,7 +66,7 @@ async function pintarEstado() {
           </div>
           ${retraso > (cfg.cadenciaMin || 10) * 2.5 * 60000 ? `<div class="aviso-caja" style="margin-top:12px">El worker de GitHub Actions no se ejecuta desde hace ${hace(tick.ultimo)}. Revisa la pestaña Actions del repositorio o pulsa "Ejecutar ciclo ahora".</div>` : ''}
           ${tick.errores?.length ? `<div class="aviso-caja" style="margin-top:12px">Errores: ${tick.errores.map(esc).join('<br>')}</div>` : ''}
-          <pre id="salida" class="mono" style="white-space:pre-wrap;font-size:.8rem;max-height:240px;overflow:auto;background:var(--panel-2);padding:10px;border-radius:8px;margin-top:12px">${esc((tick.notas || []).join('\n') || 'Sin notas.')}</pre>
+          <pre id="salida" class="mono" style="white-space:pre-wrap;font-size:.8rem;max-height:240px;overflow:auto;background:var(--panel-2);padding:10px;border-radius:2px;margin-top:12px">${esc((tick.notas || []).join('\n') || 'Sin notas.')}</pre>
         </div>
         <div class="tarjeta"><div class="tarjeta-titulo"><h3>Historial de ciclos</h3></div>
           ${logs.length ? `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Cuándo</th><th>Origen</th><th>Duración</th><th>Qué hizo</th></tr></thead><tbody>${logs.map(l => `<tr><td class="muted" style="white-space:nowrap">${fecha(l.ultimo)}</td><td>${esc(l.origen)}</td><td>${(l.duracionMs / 1000).toFixed(1)} s</td><td style="font-size:.82rem">${esc((l.notas || []).slice(-4).join(' · ') || '—')}${l.errores?.length ? `<span class="mal"> ${esc(l.errores.join(' | '))}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>` : vacio('Sin registros.')}
