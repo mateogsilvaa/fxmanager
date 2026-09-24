@@ -7,7 +7,7 @@ service cloud.firestore {
     function autenticado() { return request.auth != null; }
     function uid() { return request.auth.uid; }
     function perfil() { return get(/databases/$(database)/documents/usuarios/$(uid())).data; }
-    function esAdmin() { return autenticado() && exists(/databases/$(database)/documents/usuarios/$(uid())) && perfil().isAdmin == true; }
+    function esAdmin() { return autenticado() && exists(/databases/$(database)/documents/usuarios/$(uid())) && perfil().get('isAdmin', false) == true; }
     function ahora() { return request.time.toMillis(); }
     function config() { return get(/databases/$(database)/documents/config/juego).data; }
     function duenoDe(equipoId) { return autenticado() && get(/databases/$(database)/documents/equipos/$(equipoId)).data.ownerId == uid(); }
@@ -37,12 +37,12 @@ service cloud.firestore {
       allow read: if true;
       allow update: if esAdmin() || (
         autenticado()
-        && resource.data.ownerId == null
+        && resource.data.get('ownerId', null) == null
         && request.resource.data.ownerId == uid()
         && soloCambian(['ownerId', 'ownerNombre'])
         && config().inscripcion == true
-        && (perfil().get('estado', '') == 'aprobado' || perfil().isAdmin == true)
-        && perfil().equipoId == null
+        && (perfil().get('estado', '') == 'aprobado' || perfil().get('isAdmin', false) == true)
+        && perfil().get('equipoId', null) == null
         && getAfter(/databases/$(database)/documents/usuarios/$(uid())).data.equipoId == equipoId
       );
       allow create, delete: if esAdmin();
@@ -68,7 +68,7 @@ service cloud.firestore {
       allow update: if esAdmin() || (
         autenticado() && uid() == userId && (
           soloCambian(['nombre'])
-          || (soloCambian(['equipoId']) && resource.data.equipoId == null
+          || (soloCambian(['equipoId']) && resource.data.get('equipoId', null) == null
               && getAfter(/databases/$(database)/documents/equipos/$(request.resource.data.equipoId)).data.ownerId == uid())
         )
       );

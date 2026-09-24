@@ -511,7 +511,7 @@ function elegirEquipo() {
                 limpiarCache();
                 toast('¡Bienvenido a la parrilla!');
                 setTimeout(() => location.reload(), 800);
-            } catch (err) { console.error(err); toast('No se pudo: quizá otro mánager se te adelantó.', 'error'); }
+            } catch (err) { console.error(err); toast(err.message || 'No se pudo elegir la escudería.', 'error'); }
         }));
     };
     pintar();

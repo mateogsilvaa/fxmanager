@@ -99,10 +99,17 @@ export async function reclamarEquipo(equipoId, nombreManager) {
     if (DEMO) { u.perfil.equipoId = equipoId; return; }
     const { writeBatch, doc } = _fb;
     const db = _store.db;
+    // Si de verdad está cogida, avisamos antes de intentarlo
+    const actual = await _store.get(`equipos/${equipoId}`);
+    if (actual?.ownerId && actual.ownerId !== u.uid) throw Object.assign(new Error('Esa escudería ya tiene mánager.'), { code: 'ocupada' });
     const b = writeBatch(db);
-    b.update(doc(db, `equipos/${equipoId}`), { ownerId: u.uid, ownerNombre: nombreManager });
+    b.update(doc(db, `equipos/${equipoId}`), { ownerId: u.uid, ownerNombre: nombreManager || u.email.split('@')[0] });
     b.update(doc(db, `usuarios/${u.uid}`), { equipoId });
-    await b.commit();
+    try { await b.commit(); }
+    catch (e) {
+        if (e.code === 'permission-denied') throw Object.assign(new Error('Firebase no ha dejado guardar el cambio. Comprueba que tu cuenta está aprobada, que la inscripción está abierta y que las reglas de Firestore están actualizadas.'), { code: e.code });
+        throw e;
+    }
     u.perfil.equipoId = equipoId;
     await _store.set(`acciones/${_store.nuevoId('acciones')}`, { uid: u.uid, equipoId, tipo: 'reclamar', params: {}, creado: Date.now(), estado: 'pendiente' });
 }
