@@ -99,7 +99,7 @@ function pintarPie() {
     if (document.getElementById('pie')) return;
     const pie = document.createElement('footer');
     pie.id = 'pie';
-    pie.textContent = 'Hyper Race X1 · FX Manager · BAC Mono · resultados publicados automáticamente a su hora';
+    pie.innerHTML = 'Hyper Race X1 · FX Manager · resultados publicados automáticamente a su hora<br>Trazados: bacinger/f1-circuits (MIT) y © <a href="https://www.openstreetmap.org/copyright" style="text-decoration:underline">OpenStreetMap</a> contributors';
     document.body.appendChild(pie);
 }
 

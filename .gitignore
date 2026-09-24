@@ -8,3 +8,4 @@ firebase-debug.log
 Thumbs.db
 # Node
 node_modules/
+.cache-trazados/

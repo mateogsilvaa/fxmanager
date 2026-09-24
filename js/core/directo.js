@@ -5,14 +5,16 @@ import { ahora } from './app.js';
 import { SESION_INFO, esCarrera } from '../engine/constants.js';
 import { formatoTiempo } from '../engine/sim.js';
 import { crearRng, hash32 } from '../engine/rng.js';
+import { TRAZADOS } from '../engine/trazados.js';
 
 const LUCES_MS = 5200;       // duración de la secuencia de semáforos
 const COLA_MS = 9000;        // tiempo tras la bandera a cuadros
 const FILA = 30;             // alto de fila de la torre (px)
 
 // ---------------------------------------------------------------- Circuito
-// Silueta propia de cada circuito (curva cerrada suave generada a partir de su id)
+// Trazado real del circuito; si es un circuito personalizado sin trazado, se genera una silueta
 function trazado(id) {
+    if (TRAZADOS[id]) return TRAZADOS[id];
     const rng = crearRng(`pista|${id}`);
     const n = 9 + rng.int(0, 4);
     const cx = 300, cy = 185, pts = [];

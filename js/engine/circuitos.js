@@ -14,6 +14,7 @@ export const CIRCUITOS = [
     C('valencia', 'Circuit Ricardo Tormo', 'es', 4.005, 146, 0.25, 0.3, 0.45, 0.4, 0.55, 0.1, 'valencia'),
     C('jerez', 'Circuito de Jerez - Ángel Nieto', 'es', 4.428, 158, 0.3, 0.4, 0.3, 0.45, 0.6, 0.12, 'jerez'),
     C('aragon', 'MotorLand Aragón', 'es', 5.345, 165, 0.45, 0.3, 0.25, 0.55, 0.55, 0.1, 'motorland_aragon'),
+    C('madring', 'Madring (Madrid)', 'es', 5.47, 150, 0.3, 0.35, 0.35, 0.35, 0.55, 0.1, 'madring'),
     C('navarra', 'Circuito de Navarra', 'es', 3.933, 152, 0.3, 0.35, 0.35, 0.4, 0.5, 0.2, 'navarra'),
     C('portimao', 'Autódromo do Algarve', 'pt', 4.653, 160, 0.35, 0.4, 0.25, 0.4, 0.65, 0.1, 'portimao'),
     // Italia
