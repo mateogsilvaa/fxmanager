@@ -14,8 +14,9 @@ import {
 } from '../engine/juego.js';
 import {
     crearContexto, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, cargarEventos, sesionesOrdenadas,
-    notificar, noticia, movimiento, nombrePiloto, volcar, idResultado, idEstrategia, idResumen,
+    notificar, noticia, movimiento, nombrePiloto, volcar, idResultado, idEstrategia, idResumen, duenoReal,
 } from './comun.js';
+import { nombreManagerIA, noticiaManagerIA, conIA } from '../engine/prensa-ia.js';
 import { reconstruirCatalogo } from './catalogo.js';
 import { prepararMercado, cerrarMercado } from './temporada.js';
 import { noticiasSesion, previaJornada } from '../engine/cronica.js';
@@ -41,6 +42,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
     }
     const ctx = crearContexto(store, { ahora, log });
     ctx.cfg = cfg; ctx.secreto = secreto; ctx.temporada = cfg.temporada || 1;
+    ctx.sombra = await store.get('secreto/sombra');
     if (precarga) {
         const copia = (v) => structuredClone(v);
         if (precarga.eventos) ctx.eventos = precarga.eventos.filter(e => e.temporada === ctx.temporada).map(copia);
@@ -48,7 +50,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
         if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
     }
 
-    const pasos = [sanearInscripciones, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, diario, transicionesFase];
+    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, diario, transicionesFase];
     const errores = [];
     for (const paso of pasos) {
         try { await paso(ctx); await volcar(ctx); }
@@ -150,6 +152,57 @@ async function deshacerManager(ctx, eqId, eq) {
     ctx.nota(`Inscripción anulada: ${manager || uid} en ${nombre}`);
 }
 
+// Mánagers ficticios de las escuderías de la IA (se muestran como "Nombre (IA)").
+// Al empezar cada temporada alguno cambia, y sale en la prensa.
+async function managersIA(ctx) {
+    const equipos = await cargarEquipos(ctx);
+    const pendientes = Object.entries(equipos).filter(([, e]) => !e.managerIA || e.managerIAT !== ctx.temporada);
+    if (!pendientes.length) return;
+    const usados = new Set(Object.values(equipos).map(e => e.managerIA).filter(Boolean));
+    for (const [id, e] of pendientes) {
+        const rng = crearRng(`${ctx.secreto}|manager|${ctx.temporada}|${id}`);
+        const cambios = { managerIAT: ctx.temporada };
+        if (!e.managerIA) cambios.managerIA = nombreManagerIA(rng, e.liga, usados);
+        else if (!duenoReal(ctx, id) && rng.chance(0.2)) {
+            cambios.managerIA = nombreManagerIA(rng, e.liga, usados);
+            noticia(ctx, { titulo: `${e.nombre} cambia de mánager`, texto: `${conIA(e.managerIA)} deja el cargo. Su sustituto es ${conIA(cambios.managerIA)}.`, liga: e.liga, tipo: 'mercado' });
+        }
+        Object.assign(e, cambios);
+        ctx.ops.push({ op: 'merge', path: `equipos/${id}`, data: cambios });
+    }
+    ctx.catalogoSucio = true;
+}
+
+// Prensa del día sobre los mánagers de la IA (declaraciones, piques, espionaje…)
+async function prensaManagersIA(ctx, dia) {
+    const equipos = ctx.equipos;
+    const pilotos = await cargarPilotos(ctx);
+    const resumenDoc = await ctx.store.get(`resumen/${idResumen(ctx.temporada)}`);
+    const sesiones = resumenDoc?.json ? JSON.parse(resumenDoc.json).sesiones.map(descompactar) : [];
+    for (const liga of LIGAS_NACIONALES) {
+        const rng = crearRng(`${ctx.secreto}|prensaIA|${dia}|${liga}`);
+        if (!rng.chance(0.45)) continue;
+        const deLiga = Object.entries(equipos).filter(([, e]) => e.liga === liga);
+        const ia = deLiga.filter(([id, e]) => !duenoReal(ctx, id) && e.managerIA);
+        if (!ia.length) continue;
+        const [id, eq] = rng.pick(ia);
+        const tabla = construirTemporada(sesiones.filter(s => s.liga === liga));
+        const fila = tabla.clasEquipos.find(x => x.eq === id);
+        const [rid, r] = rng.pick(deLiga.filter(([x]) => x !== id)) || [];
+        const rival = rid ? { id: rid, nombre: r.nombre, manager: r.ownerNombre || (r.managerIA ? conIA(r.managerIA) : null) } : null;
+        const suyos = Object.values(pilotos).filter(p => p.equipoId === id);
+        const n = rng.pick(suyos);
+        const nt = noticiaManagerIA(rng, { eq: { id, ...eq }, pos: fila?.posicion ?? null, n: deLiga.length, rival, piloto: n ? nombrePiloto(n) : null, carreras: tabla.clasEquipos.some(x => x.pts > 0) });
+        // la noticia sale a lo largo del día, no a medianoche
+        noticia(ctx, { titulo: nt.titulo, texto: nt.texto, liga, tipo: nt.tipo, publishAt: ctx.ahora + rng.int(8, 21) * 3600_000 });
+        if (nt.espia) {
+            eq.fans = Math.max(0, (eq.fans || 0) - 150);
+            ctx.sucios.equipos.add(id);
+            notificar(ctx, nt.espia, { remitente: 'Seguridad', tipo: 'espia', titulo: 'Hemos detectado espías', texto: `Hemos pillado a gente de ${eq.nombre} husmeando en nuestras instalaciones. Su mánager, ${conIA(eq.managerIA)}, lo niega.` });
+        }
+    }
+}
+
 // ======================================================================
 // 1. Simular sesiones cuyo plazo de estrategia ya ha cerrado
 // ======================================================================
@@ -202,7 +255,7 @@ export async function simularUna(ctx, ev, tipo) {
         const ideal = setupIdeal(ctx.secreto, ev.id, p.equipoId, circuito);
         let setup, estr;
         const e = estrategiaDe(p.equipoId);
-        if (!eq.ownerId) {
+        if (!duenoReal(ctx, p.equipoId)) {
             setup = setupIA(ideal, crearRng(`${ctx.secreto}|iasetup|${ev.id}|${p.equipoId}`), 1);
             estr = { riesgo: rngAI.pick([1, 2, 2, 3]), ritmo: rngAI.pick(['conservador', 'equilibrado', 'equilibrado', 'ataque']), actitud: rngAI.pick(['defensiva', 'normal', 'normal', 'agresiva']) };
         } else {
@@ -412,7 +465,7 @@ async function procesarAcciones(ctx) {
         let resultado;
         try {
             if (porEquipo[a.equipoId] > 25) throw new Error('Demasiadas acciones seguidas. Inténtalo en el próximo ciclo.');
-            if (!equipos[a.equipoId] || equipos[a.equipoId].ownerId !== a.uid) throw new Error('No diriges este equipo.');
+            if (!equipos[a.equipoId] || duenoReal(ctx, a.equipoId) !== a.uid) throw new Error('No diriges este equipo.');
             const fn = ACCIONES[a.tipo];
             if (!fn) throw new Error(`Acción desconocida: ${a.tipo}`);
             resultado = await fn(ctx, a);
@@ -577,7 +630,7 @@ const ACCIONES = {
         ofertas[a.equipoId] = { pid: g.id, tactico: t.id, importe, fecha: ctx.ahora };
         await ctx.store.set(ref, { ofertas });
         notificar(ctx, g.equipoId, { remitente: 'Mercado', tipo: 'mercado', titulo: `${eq.nombre} pregunta por ${nombrePiloto(g)}`, texto: `Ha ofrecido ${M(importe)} y a ${nombrePiloto(t)}. Si ${g.apellido} acaba en el top 5 y es el Galáctico de tu liga, recibirías eso a cambio.` });
-        noticia(ctx, { titulo: `${eq.nombre} quiere a ${nombrePiloto(g)}`, texto: `Oferta de ${M(importe)} más ${nombrePiloto(t)} para el mercado de fin de temporada.`, liga: g.liga, tipo: 'rumor' });
+        if (eq.ownerId) noticia(ctx, { titulo: `${eq.nombre} quiere a ${nombrePiloto(g)}`, texto: `Oferta de ${M(importe)} más ${nombrePiloto(t)} para el mercado de fin de temporada.`, liga: g.liga, tipo: 'rumor' });
         return { ok: true };
     },
 
@@ -863,19 +916,20 @@ async function diario(ctx) {
             ctx.sucios.privs.add(eqId);
         }
         const misPilotos = Object.values(pilotos).filter(p => p.equipoId === eqId).sort((a, b) => (a.rol === 'P1' ? -1 : 1) - (b.rol === 'P1' ? -1 : 1));
-        if (eq.ownerId && activos) {
+        const dueno = duenoReal(ctx, eqId);
+        if (dueno && activos) {
             const carta = cartaDelDia(ctx.secreto, dia, eqId);
             const rivales = Object.values(equipos).filter(e => e.liga === eq.liga && e.id !== eqId);
             const rival = crearRng(`${ctx.secreto}|rival|${dia}|${eqId}`).pick(rivales)?.nombre || 'un rival';
             const nombres = { p1: nombrePiloto(misPilotos[0]), p2: nombrePiloto(misPilotos[1] || misPilotos[0]), rival, equipo: eq.nombre };
             ctx.ops.push({
                 op: 'set', path: `decisiones/${dia}_${eqId}`, data: {
-                    uid: eq.ownerId, equipoId: eqId, dia, cartaId: carta.id, texto: rellenarTexto(carta.texto, nombres),
+                    uid: dueno, equipoId: eqId, dia, cartaId: carta.id, texto: rellenarTexto(carta.texto, nombres),
                     opciones: carta.opciones.map(o => ({ id: o.id, texto: rellenarTexto(o.texto, nombres) })),
                     eleccion: null, expira, aplicada: false, nombres, ctx: { p1Id: misPilotos[0]?.id || null, p2Id: misPilotos[1]?.id || misPilotos[0]?.id || null },
                 },
             });
-        } else if (!eq.ownerId) {
+        } else if (!dueno) {
             // IA: ingreso diario equivalente a una racha media y gestión automática
             movimiento(priv, 'Ingresos diarios', ECO.checkinBase + 3 * ECO.checkinPorRacha, ctx.ahora);
             // Filial: paga dividendos a su matriz si la dirige un mánager
@@ -903,6 +957,7 @@ async function diario(ctx) {
             ctx.sucios.privs.add(eqId);
         }
     }
+    if (activos) await prensaManagersIA(ctx, dia);
     // Moral y forma vuelven poco a poco a la normalidad
     const pp = await cargarPilotosPriv(ctx, Object.values(pilotos).filter(p => p.equipoId).map(p => p.id));
     for (const [id, p] of Object.entries(pp)) {

@@ -40,6 +40,7 @@ ${seccion('formato', 'El campeonato', `
 <li><b>Los pilotos son de la liga, no de las escuderías.</b> No se fichan: la liga los asigna y los mueve según las normas del mercado.</li>
 <li><b>Cuota nacional:</b> el Piloto 1 de cada escudería es siempre de la nacionalidad de la liga, y cada liga tiene al menos 11 pilotos locales.</li>
 <li>Algunas marcas (Valcor, Kessler, Altair, Stellari, Northline) tienen escuderías en varios países. Cuando una mejora un área del coche, sus hermanas la desarrollan un 25% más barata. Esas escuderías no se pueden elegir al inscribirse: solo se llega a ellas por una oferta.</li>
+<li>Las escuderías sin mánager las dirige la IA, cada una con su propio mánager ficticio (lo verás como «Nombre (IA)», también en la prensa).</li>
 <li>Al terminar las ligas se juega la <b>Liga Intercontinental</b> (el Mundial) en una sede neutral.</li>
 </ul>`)}
 

@@ -2,7 +2,7 @@ import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos } from '../core/datos.js';
 import { store, usuario } from '../core/app.js';
 import { esc, bandera, banderaLiga, vacio } from '../core/ui.js';
-import { celdaPiloto, celdaEquipo, pos, fmtValor } from '../core/componentes.js';
+import { celdaPiloto, celdaEquipo, pos, fmtValor, managerDe } from '../core/componentes.js';
 import { LIGAS, PAISES } from '../engine/constants.js';
 
 const eqId = new URLSearchParams(location.search).get('id');
@@ -34,7 +34,7 @@ main.innerHTML = `
 <section class="hero">
   <div class="etiqueta">${banderaLiga(liga)} ${esc(LIGAS[liga]?.nombre)}${e.grupo ? ` · Grupo ${esc(e.grupo)}` : ''}</div>
   <h1 style="margin:6px 0">${esc(e.nombre)}</h1>
-  <p>${e.ownerNombre ? `Mánager: <b style="color:var(--texto)">${esc(e.ownerNombre)}</b>${esMio ? ' (tú) · <a href="escuderia.html">Ir al panel</a>' : ''}` : 'Sin mánager: la dirige la IA. <a href="escuderia.html">¿La quieres?</a>'} · ${e.fans || 0} fans</p>
+  <p>Mánager: <b style="color:var(--texto)">${managerDe(e)}</b>${esMio ? ' (tú) · <a href="escuderia.html">Ir al panel</a>' : !e.ownerNombre && e.inscribible !== false ? ' · <a href="escuderia.html">¿La quieres?</a>' : ''} · ${e.fans || 0} fans</p>
 </section>
 <div class="rejilla rejilla-lado">
   <div class="pila">

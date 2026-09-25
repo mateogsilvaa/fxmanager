@@ -15,6 +15,7 @@ const PAGINAS = {
     entrar: ['Entrar · Hyper Race X1', 'entrar'],
     escuderia: ['Mi escudería · Hyper Race X1', 'escuderia'],
     control: ['Control · Hyper Race X1', 'control'],
+    sombra: ['Mi escudería · Hyper Race X1', 'sombra'],
 };
 const icono = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#ff4d2e"/><text x="32" y="44" font-family="Arial Black,Arial" font-weight="900" font-size="30" text-anchor="middle" fill="#fff">X1</text></svg>')}`;
 for (const [archivo, [titulo, js]] of Object.entries(PAGINAS)) {

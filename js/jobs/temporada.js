@@ -204,7 +204,7 @@ export async function prepararMercado(ctx) {
     for (const o of plan.operaciones) {
         noticia(ctx, {
             titulo: `${nombre(o.pid)} ficha por ${equipos[o.eq]?.nombre}`,
-            texto: `El Galáctico de ${LIGAS[o.de].nombre} (${o.pos || '?'}º) se va a ${LIGAS[o.a].nombre}. ${equipos[o.eqVendedor]?.nombre} recibe a cambio a ${nombre(o.tactico)} y ${M(o.importe)}.${o.humano ? '' : ' Operación decidida por la liga.'}`,
+            texto: `El Galáctico de ${LIGAS[o.de].nombre} (${o.pos || '?'}º) se va a ${LIGAS[o.a].nombre}. ${equipos[o.eqVendedor]?.nombre} recibe a cambio a ${nombre(o.tactico)} y ${M(o.importe)}.${equipos[o.eq]?.ownerId ? '' : ' Operación decidida por la liga.'}`,
             liga: o.de, tipo: 'mercado',
         });
     }

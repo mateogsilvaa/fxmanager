@@ -11,6 +11,8 @@ service cloud.firestore {
     function ahora() { return request.time.toMillis(); }
     function config() { return get(/databases/$(database)/documents/config/juego).data; }
     function duenoDe(equipoId) { return autenticado() && get(/databases/$(database)/documents/equipos/$(equipoId)).data.ownerId == uid(); }
+    // Escudería que el admin dirige en secreto (modo sombra): nadie más la puede reclamar
+    function esSombra(equipoId) { return exists(/databases/$(database)/documents/secreto/sombra) && get(/databases/$(database)/documents/secreto/sombra).data.get('equipoId', '') == equipoId; }
     function soloCambian(campos) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos); }
 
     // ---------- Público ----------
@@ -40,6 +42,7 @@ service cloud.firestore {
         && resource.data.get('ownerId', null) == null
         && resource.data.get('grupo', null) == null
         && resource.data.get('filialDe', null) == null
+        && !esSombra(equipoId)
         && request.resource.data.ownerId == uid()
         && soloCambian(['ownerId', 'ownerNombre'])
         && config().inscripcion == true
@@ -97,7 +100,7 @@ service cloud.firestore {
         && request.resource.data.uid == uid()
         && request.resource.data.estado == 'pendiente'
         && request.resource.data.tipo is string
-        && duenoDe(request.resource.data.equipoId)
+        && (duenoDe(request.resource.data.equipoId) || esAdmin())
         && request.resource.data.keys().hasOnly(['uid', 'equipoId', 'tipo', 'params', 'creado', 'estado']);
       allow update, delete: if esAdmin();
     }

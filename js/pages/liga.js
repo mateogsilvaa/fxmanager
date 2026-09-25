@@ -4,8 +4,7 @@ import { usuario } from '../core/app.js';
 import { esc, banderaLiga, bandera, vacio, pestanas, $, $$, fecha, chipEquipo } from '../core/ui.js';
 import {
     celdaPiloto, celdaEquipo, pos, tablaClasificacionPilotos, tablaClasificacionEquipos, tarjetaEvento, listaNoticias,
-    tarjetasRecords, activarRecords, fmtValor,
-} from '../core/componentes.js';
+    tarjetasRecords, activarRecords, fmtValor, managerDe } from '../core/componentes.js';
 import { LIGAS, LIGAS_NACIONALES, SESION_INFO, PAISES } from '../engine/constants.js';
 import { CATEGORIAS_PILOTO, CATEGORIAS_EQUIPO, calcularRiesgo, construirTemporada } from '../engine/stats.js';
 import { generarCronica } from '../engine/cronica.js';
@@ -241,7 +240,7 @@ function equipos() {
         const suyos = Object.entries(d.cat.pilotos).filter(([, p]) => p.equipoId === s.eq).map(([id, p]) => ({ id, ...p })).sort((a, b) => (a.rol === 'P1' ? -1 : 1));
         return `<a class="tarjeta ${s.eq === miEq ? 'resaltada' : ''}" href="equipo.html?id=${esc(s.eq)}" style="border-top:4px solid ${esc(e?.color)}">
           <div class="fila-entre"><h3 style="margin:0">${esc(e?.nombre)}</h3>${pos(i + 1)}</div>
-          <div class="muted" style="font-size:.85rem">${e?.grupo ? `Grupo ${esc(e.grupo)} · ` : ''}${e?.ownerNombre ? `Mánager: <b style="color:var(--texto)">${esc(e.ownerNombre)}</b>` : 'Sin mánager (IA)'}</div>
+          <div class="muted" style="font-size:.85rem">${e?.grupo ? `Grupo ${esc(e.grupo)} · ` : ''}Mánager: <b style="color:var(--texto)">${managerDe(e)}</b></div>
           <ul class="lista" style="margin-top:8px">${suyos.map(p => `<li class="fila">${bandera(p.nac)} ${esc(p.nombre)} <b>${esc(p.apellido)}</b> ${p.rol === 'P1' ? '<span class="insignia p1">P1</span>' : ''}</li>`).join('')}</ul>
           <div class="datos" style="margin-top:8px"><div class="dato"><b>${s.pts}</b><span>Puntos</span></div><div class="dato"><b>${s.victorias || 0}</b><span>Victorias</span></div><div class="dato"><b>${e?.fans ?? 0}</b><span>Fans</span></div></div></a>`;
     }).join('')}</div>`;

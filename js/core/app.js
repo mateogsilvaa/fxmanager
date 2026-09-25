@@ -71,8 +71,17 @@ export const esAdmin = () => !!_usuario?.perfil?.isAdmin;
 export async function refrescarPerfil() {
     if (!_usuario || DEMO) return _usuario;
     _usuario.perfil = await _store.get(`usuarios/${_usuario.uid}`);
+    if (_sombra) _usuario.perfil = { ..._usuario.perfil, equipoId: _sombra };
     return _usuario;
 }
+
+// Modo sombra (solo admin): dirigir en secreto una escudería que los demás ven como de la IA
+let _sombra = null;
+export function fijarSombra(equipoId) {
+    _sombra = equipoId;
+    if (_usuario?.perfil) _usuario.perfil = { ..._usuario.perfil, equipoId };
+}
+export const enSombra = () => !!_sombra;
 
 export async function entrar(email, password) {
     if (DEMO) return;

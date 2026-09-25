@@ -53,10 +53,18 @@ export function horarioSesion(tipo, publishAt, minutosCierre = 60) {
     return { publishAt, lockAt: publishAt - minutosCierre * 60_000, revealAt: publishAt + duracionDirecto(tipo), estado: 'programada' };
 }
 
-export function notificar(ctx, equipoId, { remitente = 'FIA', titulo, texto, tipo = 'info' }) {
+// Quién dirige de verdad una escudería: su mánager público o el admin que la lleva en sombra
+export function duenoReal(ctx, equipoId) {
     const eq = ctx.equipos?.[equipoId];
-    if (!eq?.ownerId) return;
-    ctx.ops.push({ op: 'set', path: `notificaciones/${ctx.store.nuevoId('notificaciones')}`, data: { uid: eq.ownerId, equipoId, remitente, titulo, texto: texto || '', tipo, fecha: ctx.ahora, leida: false } });
+    if (eq?.ownerId) return eq.ownerId;
+    if (ctx.sombra?.equipoId && ctx.sombra.equipoId === equipoId) return ctx.sombra.uid || null;
+    return null;
+}
+
+export function notificar(ctx, equipoId, { remitente = 'FIA', titulo, texto, tipo = 'info' }) {
+    const uid = duenoReal(ctx, equipoId);
+    if (!uid) return;
+    ctx.ops.push({ op: 'set', path: `notificaciones/${ctx.store.nuevoId('notificaciones')}`, data: { uid, equipoId, remitente, titulo, texto: texto || '', tipo, fecha: ctx.ahora, leida: false } });
 }
 
 export function noticia(ctx, { titulo, texto, liga = null, tipo = 'noticia', publishAt = null }) {

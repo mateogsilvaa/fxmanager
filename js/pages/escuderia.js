@@ -1,6 +1,7 @@
 import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, limpiarCache } from '../core/datos.js';
-import { store, ahora, encolar, escuchar, escucharConsulta, reclamarEquipo, refrescarPerfil } from '../core/app.js';
+import { store, ahora, encolar, escuchar, escucharConsulta, reclamarEquipo, refrescarPerfil, enSombra } from '../core/app.js';
+import { reconstruirCatalogo } from '../jobs/catalogo.js';
 import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal, pestanas, $, $$, dinero, barra, cuentaAtras } from '../core/ui.js';
 import {
     LIGAS, LIGAS_NACIONALES, SESIONES, SESION_INFO, esCarrera, esQualy, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST,
@@ -47,7 +48,9 @@ const ev = misEventos
     .filter(x => x.cierre > ahora()).sort((a, b) => a.cierre - b.cierre)[0]?.e || null;
 const pilotosEv = ev?.liga === 'INT' ? misPilotosInt : misPilotos;
 
+const SOMBRA = enSombra();
 main.innerHTML = `
+${SOMBRA ? `<div class="aviso-caja" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><span><b>Modo sombra.</b> Para los demás esta escudería es de la IA${eq.managerIA ? ` y la dirige ${esc(eq.managerIA)} (IA)` : ''}. Tus acciones no salen en la prensa con tu nombre.</span><button class="btn btn-sec btn-peq" id="dejar-sombra">Dejar la escudería</button></div>` : ''}
 <div class="cabecera-pagina">
   <div><div class="etiqueta">${banderaLiga(liga, { ancho: 16 })} ${esc(LIGAS[liga].nombre)} · ${esc(u.perfil.nombre)}</div><h1 style="margin-top:2px">${esc(eq.nombre)}</h1></div>
 </div>
@@ -60,6 +63,14 @@ main.innerHTML = `
   <button data-tab="rivales">Rivales</button>
 </div>
 ${['hoy', 'carrera', 'coche', 'equipo', 'rivales'].map(t => `<section data-panel="${t}" id="p-${t}"><div class="cargando"><span class="spinner"></span>Cargando…</div></section>`).join('')}`;
+
+document.getElementById('dejar-sombra')?.addEventListener('click', async () => {
+    if (!await confirmar(`¿Dejar <b>${esc(eq.nombre)}</b>? Volverá a llevarla la IA.`, { peligro: true })) return;
+    await store().del('secreto/sombra');
+    await reconstruirCatalogo(store(), d.cfg).catch(() => { });
+    limpiarCache();
+    location.href = 'sombra.html';
+});
 
 let tabActual = 'hoy';
 const PINTAR = { hoy: pintarHoy, carrera: pintarCarrera, coche: pintarCoche, equipo: pintarEquipo, rivales: pintarRivales };
@@ -392,7 +403,7 @@ function pintarEquipo() {
             : '<p class="muted">Las ofertas llegan con el próximo ciclo.</p>'}
         </div>
         ${mercadoHtml()}
-        ${identidadHtml()}
+        ${SOMBRA ? '' : identidadHtml()}
       </div>
       <div class="tarjeta">
         <div class="tarjeta-titulo"><h2>Movimientos</h2><span class="muted peq">${dinero(priv.presupuesto)}</span></div>
@@ -613,7 +624,7 @@ function elegirEquipo() {
     }
     const abierta = d.cfg.inscripcion !== false;
     // Las escuderías de un grupo (con hermanas en otros países) no se pueden elegir
-    const libres = Object.entries(d.cat.equipos).filter(([, e]) => !e.ownerId && !e.grupo && !e.filialDe);
+    const libres = Object.entries(d.cat.equipos).filter(([, e]) => !e.ownerId && e.inscribible !== false && !e.grupo && !e.filialDe);
     let ligaSel = LIGAS_NACIONALES.find(l => libres.some(([, e]) => e.liga === l)) || 'ESP';
     const pintar = () => {
         const eqs = libres.filter(([, e]) => e.liga === ligaSel);

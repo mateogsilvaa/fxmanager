@@ -22,7 +22,7 @@ let d = await cargarDatos();
 let cfg = (await store().get('config/juego')) || null;
 
 main.innerHTML = `
-<div class="cabecera-pagina"><div><div class="etiqueta">Organización</div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div></div>
+<div class="cabecera-pagina"><div><div class="etiqueta">Organización</div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div><a class="btn btn-sec" href="sombra.html" target="_blank" rel="noopener">Jugar en modo sombra</a></div>
 <div class="pestanas" id="tabs">
   <button data-tab="estado">Estado y ciclo</button><button data-tab="calendario">Calendario</button><button data-tab="parrilla">Parrilla</button>
   <button data-tab="usuarios">Usuarios</button><button data-tab="noticias">Noticias</button><button data-tab="temporada">Temporada</button>
