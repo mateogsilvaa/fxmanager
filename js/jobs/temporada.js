@@ -374,6 +374,7 @@ export function ofertasDePlaza(ctx, { tablas, equipos, privs, rng }) {
         if (!nuevas.length) continue;
         privs[eqId].ofertasPlaza = nuevas;
         ctx.sucios.privs.add(eqId);
+        for (const o of nuevas) noticia(ctx, { titulo: `${o.nombre} tienta al mánager de ${eq.nombre}`, texto: `Tras su gran temporada, ${eq.ownerNombre || 'el mánager'} de ${eq.nombre} tiene sobre la mesa una oferta para dirigir ${o.nombre}. Tiene ${ECO.diasOfertaPlaza} días para responder.`, liga: o.liga, tipo: 'rumor' });
         ctx.nota(`Oferta de plaza para ${eq.nombre}: ${nuevas.map(o => o.nombre).join(', ')}`);
     }
 }

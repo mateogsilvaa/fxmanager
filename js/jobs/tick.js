@@ -542,7 +542,13 @@ const ACCIONES = {
             }
         }
         ctx.catalogoSucio = true;
-        if (cambios.nombre) noticia(ctx, { titulo: `${antes} pasa a llamarse ${cambios.nombre}`, texto: 'Nueva imagen para la próxima temporada.', liga: eq.liga, tipo: 'noticia' });
+        // Prensa: todo cambio de imagen sale publicado
+        const partes = [];
+        if (cambios.corto && !cambios.nombre) partes.push(`cambia su nombre corto a ${cambios.corto}`);
+        if (cambios.color) partes.push('estrena colores');
+        const filialTxt = objetivo !== a.equipoId ? ` La decisión viene de su matriz, ${ctx.equipos[a.equipoId].nombre}.` : '';
+        if (cambios.nombre) noticia(ctx, { titulo: `${antes} pasa a llamarse ${cambios.nombre}`, texto: `Nueva imagen para la próxima temporada${partes.length ? `: además ${partes.join(' y ')}` : ''}.${filialTxt}`, liga: eq.liga, tipo: 'noticia' });
+        else noticia(ctx, { titulo: `${eq.nombre} ${cambios.color && !cambios.corto ? 'estrena colores' : 'renueva su imagen'}`, texto: `${eq.nombre} ${partes.join(' y ')} de cara a la próxima temporada.${filialTxt}`, liga: eq.liga, tipo: 'noticia' });
         return { ok: true, coste, cambios };
     },
 
@@ -570,7 +576,7 @@ const ACCIONES = {
         ctx.ops.push({ op: 'merge', path: `equipos/${objId}`, data: { grupo: mio.grupo, filialDe: a.equipoId } });
         ctx.catalogoSucio = true;
         notificar(ctx, a.equipoId, { remitente: 'Consejo de administración', tipo: 'grupo', titulo: `${obj.nombre} ya es tuya`, texto: `Compartís tecnología (−25% en I+D cuando una de las dos mejora un área) y te paga ${M(ECO.dividendoFilial)} al día en dividendos.` });
-        noticia(ctx, { titulo: `${mio.nombre} compra ${obj.nombre}`, texto: `El grupo ${mio.grupo} ya tiene equipos en ${[mio.liga, ...filiales.map(f => f.liga), obj.liga].map(l => LIGAS[l]?.nombre || l).join(', ')}.`, liga: obj.liga, tipo: 'mercado' });
+        noticia(ctx, { titulo: `${mio.nombre} compra ${obj.nombre}`, texto: `El grupo ${mio.grupo} ya tiene equipos en ${[mio.liga, ...filiales.map(f => f.liga), obj.liga].map(l => LIGAS[l]?.nombre || l).join(', ').replace(/, ([^,]*)$/, ' y $1')}.`, liga: obj.liga, tipo: 'mercado' });
         return { ok: true, coste: ECO.compraFilial };
     },
 
@@ -580,7 +586,11 @@ const ACCIONES = {
         const oferta = (priv.ofertasPlaza || []).find(o => o.id === a.params?.ofertaId);
         if (!oferta) throw new Error('Oferta no encontrada.');
         priv.ofertasPlaza = priv.ofertasPlaza.filter(o => o.id !== oferta.id);
-        if (!a.params?.aceptar) return { ok: true, rechazada: true };
+        if (!a.params?.aceptar) {
+            const eq = ctx.equipos[a.equipoId];
+            noticia(ctx, { titulo: `${eq.ownerNombre || 'El mánager'} rechaza a ${oferta.nombre}`, texto: `El mánager de ${eq.nombre} dice no a la oferta de ${oferta.nombre} y seguirá al frente de su escudería.`, liga: eq.liga, tipo: 'mercado' });
+            return { ok: true, rechazada: true };
+        }
         if (oferta.expira <= ctx.ahora || !identidadAbierta(ctx.cfg.fase)) throw new Error('La oferta ha caducado.');
         const viejo = ctx.equipos[a.equipoId];
         const nuevo = ctx.equipos[oferta.equipoId];
