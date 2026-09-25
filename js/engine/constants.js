@@ -92,8 +92,31 @@ export const INSTALACIONES = {
     fabrica: { nombre: 'Fábrica', desc: 'Proyectos de I+D más rápidos y con más éxito.' },
     simulador: { nombre: 'Simulador', desc: 'Más tandas diarias y lecturas más precisas del reglaje.' },
     marketing: { nombre: 'Marketing', desc: 'Más fans e ingresos diarios.' },
+    tunel: { nombre: 'Túnel de viento', desc: 'Mejoras de aerodinámica y chasis un 6% más baratas y un 2% más fiables por nivel.' },
+    boxes: { nombre: 'Taller y mecánicos', desc: 'Un 8% menos de averías por nivel.' },
+    academia: { nombre: 'Academia de pilotos', desc: 'Entrenamientos más eficaces y la moral de tus pilotos cae menos.' },
+    comunicacion: { nombre: 'Comunicación', desc: 'Las ruedas de prensa te dan un 15% más de fans por nivel y las polémicas restan menos.' },
 };
 export const NIVEL_MAX_INST = 5;
+// Túnel de viento: descuento y bonus de éxito en I+D de aero y chasis
+export const AREAS_TUNEL = ['aero', 'chasis'];
+export const descuentoTunel = (area, tunel) => AREAS_TUNEL.includes(area) ? 0.06 * (tunel || 0) : 0;
+export const bonusExitoTunel = (area, tunel) => AREAS_TUNEL.includes(area) ? 0.02 * (tunel || 0) : 0;
+// Coste real de una mejora de I+D (grupo + túnel de viento + urgencia)
+export function costeMejoraFinal(area, nivel, priv, urgente = false) {
+    const desc = (priv?.descuentos?.[area] || 0) + descuentoTunel(area, priv?.inst?.tunel);
+    return Math.round(costeMejora(nivel) * (urgente ? RECARGO_URGENTE : 1) * (1 - Math.min(0.6, desc)));
+}
+
+// Entrenamiento de pilotos
+export const ENTRENO = {
+    coste: 350_000,
+    diasEspera: 3,       // por piloto
+    maxAtributo: 95,
+    attrs: { ritmo: 'Ritmo', consistencia: 'Consistencia', adelantamiento: 'Adelantamiento', defensa: 'Defensa', lluvia: 'Lluvia', experiencia: 'Experiencia' },
+};
+// probabilidad de mejorar (+1) y de mejorar el doble (+2) según la academia
+export const probEntreno = (academia) => ({ exito: Math.min(0.95, 0.7 + 0.05 * (academia || 0)), doble: 0.06 * (academia || 0) });
 
 export const SLOTS_ID = 2;
 
@@ -115,8 +138,10 @@ export const SETUP_PARAMS = {
     susp: { nombre: 'Suspensión', bajo: 'blanda', alto: 'dura' },
     marchas: { nombre: 'Desarrollo de marchas', bajo: 'corto', alto: 'largo' },
     presion: { nombre: 'Presión de neumáticos', bajo: 'baja', alto: 'alta' },
+    frenos: { nombre: 'Reparto de frenada', bajo: 'atrás', alto: 'delante' },
+    altura: { nombre: 'Altura de suelo', bajo: 'baja', alto: 'alta' },
 };
-export const SETUP_BASE = { ala: 5, susp: 5, marchas: 5, presion: 5 };
+export const SETUP_BASE = { ala: 5, susp: 5, marchas: 5, presion: 5, frenos: 5, altura: 5 };
 // Lectura del ingeniero por ajuste según la distancia al ideal
 export const NIVELES_LECTURA = ['Excelente', 'Bueno', 'Medio', 'Malo', 'Súper malo'];
 export function nivelLectura(distancia) { return distancia === 0 ? 0 : distancia === 1 ? 1 : distancia === 2 ? 2 : distancia <= 4 ? 3 : 4; }
@@ -125,6 +150,13 @@ export const ESTRATEGIA_DEF = {
     riesgo: 2,          // qualy 1..3
     ritmo: 'equilibrado', // conservador | equilibrado | ataque
     actitud: 'normal',  // defensiva | normal | agresiva
+    neumatico: 'medio', // blando | medio | duro (carreras)
+};
+// Neumáticos: ritmo (multiplica el tiempo por vuelta) y desgaste (multiplica la degradación)
+export const NEUMATICOS = {
+    blando: { nombre: 'Blando', ritmo: 0.9975, desgaste: 2.0 },
+    medio: { nombre: 'Medio', ritmo: 1, desgaste: 1 },
+    duro: { nombre: 'Duro', ritmo: 1.0015, desgaste: 0.45 },
 };
 
 export const TZ = 'Europe/Madrid';

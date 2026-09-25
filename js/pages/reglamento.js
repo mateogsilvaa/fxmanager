@@ -1,6 +1,7 @@
 import { montar } from '../core/layout.js';
 import {
     PUNTOS_CARRERA, PUNTOS_QUALY, PUNTOS_VR, ECO, costeMejora, tandasSimulador, SLOTS_ID, RECARGO_URGENTE,
+    costeInstalacion, INSTALACIONES, ENTRENO,
 } from '../engine/constants.js';
 import { MERCADO } from '../engine/mercado.js';
 import { dinero } from '../core/ui.js';
@@ -100,20 +101,25 @@ ${tablaTexto(['Entra dinero por', 'Cuánto'], [
 ${tablaTexto(['Sale dinero por', 'Cuánto'], [
     ['Salarios de los pilotos', 'Al terminar cada jornada de liga'],
     ['Mejorar un área del coche', `De ${dinero(costeMejora(0))} (nivel 1) a ${dinero(costeMejora(9))} (nivel 10). Urgente: ×${RECARGO_URGENTE} el precio y menos de la mitad de tiempo`],
-    ['Instalaciones', 'Fábrica, simulador y marketing: 2 M€ por nivel'],
+    ['Instalaciones', `${Object.values(INSTALACIONES).length} tipos: 2 M€ el primer nivel, 4 M€ el segundo…`],
+    ['Entrenar a un piloto', `${dinero(ENTRENO.coste)} cada vez`],
     ['Espionaje', `De ${dinero(ECO.costeInvestigacion.piloto)} a ${dinero(ECO.costeInvestigacion.estrategia)} por misión`],
     ['Pedir un Galáctico', 'Lo que ofrezcas, solo si la operación se hace'],
     ['Nombre / colores / filial', `${dinero(ECO.cambioNombre)} / ${dinero(ECO.cambioColor)} / ${dinero(ECO.compraFilial)} (solo fuera del periodo de carreras)`],
 ])}
 <p>El coche tiene cuatro áreas (motor, aerodinámica, chasis y fiabilidad) con 10 niveles. Puedes tener ${SLOTS_ID} mejoras en marcha a la vez; tardan horas y pueden fallar (si fallan recuperas la mitad). Cada circuito premia más unas áreas que otras.</p>
+<p>Instalaciones (${dinero(costeInstalacion(0))} el primer nivel, hasta 5): ${Object.values(INSTALACIONES).map(i => `<b>${i.nombre}</b> (${i.desc.replace(/[.]$/, '').toLowerCase()})`).join('; ')}.</p>
+<p>Al acabar la temporada recibes un resumen con tu posición, puntos, victorias, podios, tus pilotos, el Mundial y el dinero.</p>
 <p>Al empezar una temporada nueva cada área baja 2 niveles por el cambio de reglamento, y el presupuesto se queda en la mitad más 8 M€.</p>`)}
 
 ${seccion('cada-dia', 'Qué hacer cada día', `
 <ol>
 <li><b>Recoge la recompensa diaria.</b> Si fallas un día, la racha vuelve a 1.</li>
 <li><b>Responde la decisión del día</b> antes de medianoche. Si no, se aplica la opción por defecto (normalmente la peor).</li>
-<li><b>Prueba reglajes en el simulador</b> (${tandasSimulador(0)} pruebas al día, más si lo mejoras). Cada coche tiene un reglaje ideal secreto en cada circuito (ala, suspensión, marchas y presión de neumáticos). El ingeniero califica cada ajuste de Súper malo a Excelente; con el simulador mejorado (nivel 2) además te dice si subir o bajar.</li>
-<li><b>Guarda la estrategia</b> de la próxima jornada antes de que cierre.</li>
+<li><b>Prueba reglajes en el simulador</b> (${tandasSimulador(0)} pruebas al día, más si lo mejoras). Cada coche tiene un reglaje ideal secreto en cada circuito (ala, suspensión, marchas, presión de neumáticos, reparto de frenada y altura de suelo). El ingeniero califica cada ajuste de Súper malo a Excelente; con el simulador mejorado (nivel 2) además te dice si subir o bajar.</li>
+<li><b>Guarda la estrategia</b> de la próxima jornada antes de que cierre: riesgo en qualy; ritmo, actitud y neumático (blando, medio o duro) en cada carrera.</li>
+<li><b>Atiende a la prensa.</b> Tras las carreras (2 o 3 preguntas por jornada) y de vez en cuando entre jornadas te preguntan por accidentes, toques, averías, victorias, rivales o la actualidad. Lo que respondes sale publicado y te hace ganar o perder fans; algunas respuestas cambian la moral de tus pilotos. Si no contestas en 24 h, pierdes fans.</li>
+<li><b>Entrena a tus pilotos</b> (${dinero(ENTRENO.coste)}, cada ${ENTRENO.diasEspera} días por piloto): puede subir un punto un atributo.</li>
 <li><b>Ten el coche siempre en desarrollo.</b></li>
 </ol>
 <p>Todo lo que pides (mejoras, simulador, espionaje…) lo procesa el servidor en unos segundos.</p>`)}
@@ -131,7 +137,8 @@ ${seccion('carrera', 'Cómo se decide una carrera', `
 <ul>
 <li><b>El piloto:</b> ritmo, regularidad, agresividad, defensa, lluvia, experiencia, moral y forma.</li>
 <li><b>El coche:</b> los niveles de motor, aero y chasis según lo que pida el circuito, y la fiabilidad para las averías.</li>
-<li><b>El reglaje</b> (4 ajustes): cuanto más cerca del ideal, más rápido (hasta un 0,8% por vuelta).</li>
+<li><b>El reglaje</b> (6 ajustes): cuanto más cerca del ideal, más rápido (hasta un 0,8% por vuelta).</li>
+<li><b>Los neumáticos:</b> el blando es más rápido pero se degrada el doble; el duro es más lento y casi no se gasta. En carreras cortas y circuitos que desgastan poco compensa el blando; en los que desgastan mucho, el duro.</li>
 <li><b>La estrategia:</b> riesgo en clasificación, y ritmo y actitud en carrera.</li>
 <li><b>El azar:</b> errores, toques, averías, tráfico y lluvia (que se anuncia antes como probabilidad).</li>
 </ul>

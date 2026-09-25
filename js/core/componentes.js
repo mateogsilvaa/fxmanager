@@ -88,7 +88,7 @@ export function tarjetaEvento(d, ev, { mostrarLiga = false } = {}) {
 
 export function listaNoticias(noticias, { liga = false } = {}) {
     if (!noticias.length) return vacio('Todavía no hay noticias.');
-    return noticias.map(n => `<div class="noticia"><div class="meta">${liga && n.liga ? `${banderaLiga(n.liga, { ancho: 14 })} ` : ''}${{ rumor: 'Rumor', mercado: 'Mercado', cronica: 'Crónica', fase: 'Liga' }[n.tipo] || 'Noticia'}<br>${fecha(n.publishAt)}</div><div><h4>${esc(n.titulo)}</h4>${n.texto ? `<p>${esc(n.texto)}</p>` : ''}</div></div>`).join('');
+    return noticias.map(n => `<div class="noticia"><div class="meta">${liga && n.liga ? `${banderaLiga(n.liga, { ancho: 14 })} ` : ''}${{ rumor: 'Rumor', mercado: 'Mercado', cronica: 'Crónica', fase: 'Liga', prensa: 'Prensa' }[n.tipo] || 'Noticia'}<br>${fecha(n.publishAt)}</div><div><h4>${esc(n.titulo)}</h4>${n.texto ? `<p>${esc(n.texto)}</p>` : ''}</div></div>`).join('');
 }
 
 // Tarjetas de récords: al pulsar se abre el ranking completo

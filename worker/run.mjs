@@ -60,7 +60,7 @@ const REPOSO_MAX = 15 * 60_000;   // aunque no pase nada, un ciclo cada 15 min (
 const HUECO_MIN = 4_000;          // entre dos ciclos seguidos
 const log = (m) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${m}`);
 
-const vivo = { cfg: null, eventos: [], equipos: [], privs: [], acciones: [], decisiones: [] };
+const vivo = { cfg: null, eventos: [], equipos: [], privs: [], acciones: [], decisiones: [], prensa: [] };
 const listos = new Set();
 const lista = (snap) => snap.docs.map(d => ({ id: d.id, ...d.data() }));
 let despertar = null;
@@ -83,6 +83,7 @@ escuchar('equipos', collection(db, 'equipos'), (s) => { vivo.equipos = lista(s);
 escuchar('privs', collection(db, 'equipos_priv'), (s) => { vivo.privs = lista(s); });
 escuchar('acciones', query(collection(db, 'acciones'), where('estado', '==', 'pendiente')), (s) => { vivo.acciones = lista(s); });
 escuchar('decisiones', query(collection(db, 'decisiones'), where('aplicada', '==', false)), (s) => { vivo.decisiones = lista(s); });
+escuchar('prensa', query(collection(db, 'prensa'), where('aplicada', '==', false)), (s) => { vivo.prensa = lista(s); });
 
 // Próximo instante en el que el ciclo tiene trabajo por horario
 function proximoVencimiento(ahora) {
@@ -93,11 +94,13 @@ function proximoVencimiento(ahora) {
     }
     for (const p of vivo.privs) for (const pr of p.proyectos || []) t = Math.min(t, pr.fin);
     for (const d of vivo.decisiones) t = Math.min(t, d.expira);
+    for (const d of vivo.prensa) t = Math.min(t, d.expira);
     return t;
 }
 function motivo(ahora, ultimo) {
     if (vivo.acciones.length) return `${vivo.acciones.length} acción(es)`;
     if (vivo.decisiones.some(d => d.eleccion)) return 'decisión elegida';
+    if (vivo.prensa.some(d => d.eleccion)) return 'respuesta a la prensa';
     const venc = proximoVencimiento(ahora);
     // si algo vencido no se resuelve (p. ej. un error), no insistir más de una vez por minuto
     if (venc <= ahora && !(venc === atasco.venc && ahora - atasco.t < 60_000)) { atasco.venc = venc; atasco.t = ahora; return 'vencimiento'; }
@@ -110,7 +113,7 @@ const atasco = { venc: null, t: 0 };
 log(`Worker continuo durante ${minutos} min`);
 while (Date.now() < hasta) {
     const ahora = Date.now();
-    const listosTodos = ['cfg', 'eventos', 'equipos', 'privs', 'acciones', 'decisiones'].every(n => listos.has(n));
+    const listosTodos = ['cfg', 'eventos', 'equipos', 'privs', 'acciones', 'decisiones', 'prensa'].every(n => listos.has(n));
     const m = listosTodos && ahora - ultimo >= HUECO_MIN ? motivo(ahora, ultimo) : null;
     if (m) {
         ultimo = ahora;

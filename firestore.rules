@@ -125,6 +125,18 @@ service cloud.firestore {
       allow create, delete: if esAdmin();
     }
 
+    // Ruedas de prensa: el mánager elige una respuesta cuando la pregunta ya está disponible y antes de que caduque
+    match /prensa/{id} {
+      allow read: if esAdmin() || (resource != null && resource.data.uid == uid());
+      allow update: if autenticado() && resource.data.uid == uid()
+        && resource.data.aplicada == false
+        && resource.data.disponible <= ahora()
+        && resource.data.expira > ahora()
+        && soloCambian(['eleccion'])
+        && request.resource.data.eleccion is string;
+      allow create, delete: if esAdmin();
+    }
+
     // Paddock: declaraciones públicas de los mánagers (una al día)
     match /paddock/{id} {
       allow read: if true;

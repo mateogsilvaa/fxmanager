@@ -7,11 +7,11 @@ import { planMercado, generarRookies, estrellasRookie, asignarRoles } from '../e
 import { normalizarCircuito } from '../engine/circuitos.js';
 import {
     crearContexto, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, horarioSesion, noticia, notificar,
-    nombrePiloto, volcar, idResumen, sinId, movimiento,
+    nombrePiloto, volcar, idResumen, sinId, movimiento, duenoReal,
 } from './comun.js';
 import { reconstruirCatalogo } from './catalogo.js';
 
-export const COLECCIONES_JUEGO = ['equipos', 'equipos_priv', 'pilotos', 'pilotos_priv', 'eventos', 'resultados', 'resumen', 'estrategias', 'acciones', 'notificaciones', 'decisiones', 'pronosticos', 'ranking', 'noticias', 'mercado', 'mercado_priv', 'mercado_ofertas', 'paddock', 'logs', 'catalogo'];
+export const COLECCIONES_JUEGO = ['equipos', 'equipos_priv', 'pilotos', 'pilotos_priv', 'eventos', 'resultados', 'resumen', 'estrategias', 'acciones', 'notificaciones', 'decisiones', 'pronosticos', 'ranking', 'noticias', 'mercado', 'mercado_priv', 'mercado_ofertas', 'paddock', 'prensa', 'logs', 'catalogo'];
 // Colecciones de la temporada pasada (versión anterior de FX Manager)
 export const COLECCIONES_ANTIGUAS = ['actividad_equipos', 'carreras', 'comunicados', 'ingenieros_equipos', 'mensajes_aprobacion', 'mercado_agentes', 'ofertas', 'publicaciones', 'respuestas_mensajes', 'solicitudes_admin', 'configuracion'];
 
@@ -185,6 +185,7 @@ export async function prepararMercado(ctx) {
         ctx.sucios.privs.add(campeon.eq);
     }
     ofertasDePlaza(ctx, { tablas, equipos, privs, rng: crearRng(`${ctx.secreto}|plaza|${temporada}`) });
+    resumenesTemporada(ctx, { tablas, equipos, privs, pilotos: pilotosMap });
 
     const conNombre = (x) => ({ ...x, nombre: nombre(x.pid) });
     await store.set(`mercado/T${temporada}`, {
@@ -376,5 +377,46 @@ export function ofertasDePlaza(ctx, { tablas, equipos, privs, rng }) {
         ctx.sucios.privs.add(eqId);
         for (const o of nuevas) noticia(ctx, { titulo: `${o.nombre} tienta al mánager de ${eq.nombre}`, texto: `Tras su gran temporada, ${eq.ownerNombre || 'el mánager'} de ${eq.nombre} tiene sobre la mesa una oferta para dirigir ${o.nombre}. Tiene ${ECO.diasOfertaPlaza} días para responder.`, liga: o.liga, tipo: 'rumor' });
         ctx.nota(`Oferta de plaza para ${eq.nombre}: ${nuevas.map(o => o.nombre).join(', ')}`);
+    }
+}
+
+// ---------- Resumen de la temporada de cada mánager ----------
+export function resumenesTemporada(ctx, { tablas, equipos, privs, pilotos }) {
+    const temporada = ctx.cfg.temporada;
+    const nombre = (pid) => nombrePiloto(pilotos[pid]);
+    const int = tablas.INT;
+    for (const [eqId, eq] of Object.entries(equipos)) {
+        const priv = privs[eqId];
+        if (!priv || !duenoReal(ctx, eqId)) continue;
+        const t = tablas[eq.liga];
+        if (!t) continue;
+        const fila = t.clasEquipos.find(e => e.eq === eqId);
+        const pos = fila?.posicion ?? null;
+        const suyos = t.clasPilotos.filter(p => p.eq === eqId);
+        const mundial = int?.clasPilotos?.filter(p => p.eq === eqId) || [];
+        const mundialEq = int?.clasEquipos?.find(e => e.eq === eqId);
+        const premioLiga = pos ? ECO.premiosLiga[pos - 1] || 0 : 0;
+        const r = {
+            temporada, liga: eq.liga, equipo: eq.nombre, pos, n: t.clasEquipos.length, pts: fila?.pts || 0,
+            victorias: fila?.victorias || 0, podios: fila?.podios || 0, dobletes: fila?.dobletes || 0,
+            pilotos: suyos.map(p => ({ pid: p.pid, nombre: nombre(p.pid), pos: p.posicion, pts: p.pts, victorias: p.victorias, podios: p.podios, dnf: p.dnf })),
+            mundial: mundial.map(p => ({ pid: p.pid, nombre: nombre(p.pid), pos: p.posicion, pts: p.pts })),
+            posMundial: mundialEq?.posicion ?? null, premioLiga, fans: eq.fans || 0, presupuesto: priv.presupuesto || 0,
+            coche: { ...(priv.coche || {}) }, inst: { ...(priv.inst || {}) },
+        };
+        const mejor = suyos.slice().sort((a, b) => a.posicion - b.posicion)[0];
+        r.titular = pos === 1 ? `¡Campeones de ${LIGAS[eq.liga].nombre}!` : pos <= 3 ? `Podio en ${LIGAS[eq.liga].nombre}: ${pos}º` : pos <= 5 ? `Temporada sólida: ${pos}º` : pos >= r.n - 1 ? `Temporada para olvidar: ${pos}º` : `Temporada de transición: ${pos}º`;
+        priv.resumenes = [...(priv.resumenes || []).filter(x => x.temporada !== temporada), r].slice(-10);
+        ctx.sucios.privs.add(eqId);
+        notificar(ctx, eqId, {
+            remitente: 'Dirección de la liga', tipo: 'resumen', titulo: `Tu temporada ${temporada}: ${r.titular}`,
+            texto: `${eq.nombre} termina ${pos}º de ${r.n} con ${r.pts} puntos, ${r.victorias} victorias y ${r.podios} podios.${mejor ? ` Tu mejor piloto: ${nombre(mejor.pid)} (${mejor.posicion}º).` : ''}${mundial.length ? ` En el Mundial: ${mundial.map(p => `${nombre(p.pid)} ${p.posicion}º`).join(', ')}.` : ''} Premio de liga: ${(premioLiga / 1e6).toFixed(1).replace('.', ',')} M€. Tienes el resumen completo en Mi escudería.`,
+        });
+        // Balance público (solo mánagers visibles; la sombra no sale como tal)
+        if (eq.ownerId) noticia(ctx, {
+            titulo: `Balance de ${eq.ownerNombre}: ${eq.nombre} acaba ${pos}º en ${LIGAS[eq.liga].nombre}`,
+            texto: `${r.pts} puntos, ${r.victorias} victorias y ${r.podios} podios.${mejor ? ` ${nombre(mejor.pid)} fue su mejor piloto (${mejor.posicion}º).` : ''}`,
+            liga: eq.liga, tipo: 'cronica',
+        });
     }
 }

@@ -1,5 +1,5 @@
 // Simulador de sesiones Hyper Race X1 (BAC Mono)
-import { SESION_INFO, PUNTOS_QUALY, PUNTOS_CARRERA, PUNTOS_VR, esCarrera, esQualy } from './constants.js';
+import { SESION_INFO, PUNTOS_QUALY, PUNTOS_CARRERA, PUNTOS_VR, esCarrera, esQualy, NEUMATICOS } from './constants.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -96,8 +96,9 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng) {
         const pr = perfil(p, circuito, lluvia);
         const ritmo = p.estr?.ritmo || 'equilibrado';
         const actitud = p.estr?.actitud || 'normal';
-        pr.pace *= ritmo === 'conservador' ? 1.0015 : ritmo === 'ataque' ? 0.998 : 1;
-        pr.deg = circuito.desgaste * 0.0007 * (ritmo === 'conservador' ? 0.7 : ritmo === 'ataque' ? 1.45 : 1) * (lluvia ? 0.6 : 1);
+        const neu = NEUMATICOS[p.estr?.neumatico] || NEUMATICOS.medio;
+        pr.pace *= (ritmo === 'conservador' ? 1.0015 : ritmo === 'ataque' ? 0.998 : 1) * (lluvia ? 1 : neu.ritmo);
+        pr.deg = circuito.desgaste * 0.0007 * (ritmo === 'conservador' ? 0.7 : ritmo === 'ataque' ? 1.45 : 1) * (lluvia ? 0.6 : neu.desgaste);
         pr.pErr *= ritmo === 'conservador' ? 0.6 : ritmo === 'ataque' ? 1.5 : 1;
         const fiab = p.coche?.fiabilidad || 0;
         pr.pFallo = 0.05 * (1 - fiab / 12) * (ritmo === 'ataque' ? 1.3 : ritmo === 'conservador' ? 0.7 : 1) * (p.riesgoFiab || 1);

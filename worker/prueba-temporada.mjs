@@ -70,6 +70,9 @@ while (t < FIN) {
         await accion(humanos[0], 'espiar', { tipo: 'coche', objetivo: 'stellari-es' }, t);
         const dec = await store.get(`decisiones/${diaMadrid(t)}_tramontana`);
         if (dec && !dec.aplicada) await store.update(`decisiones/${dec.id}`, { eleccion: dec.opciones[0].id });
+        // Ana contesta a la prensa (la segunda opción, para variar)
+        for (const pr of await store.list('prensa', [['uid', '==', 'u_ana'], ['aplicada', '==', false]])) if (pr.disponible <= t && !pr.eleccion) await store.update(`prensa/${pr.id}`, { eleccion: pr.opciones[1 % pr.opciones.length].id });
+        if (n % 4 === 1) await accion(humanos[0], 'entrenar', { pid: (await store.list('pilotos')).find(p => p.equipoId === 'tramontana')?.id, attr: 'ritmo' }, t);
         // estrategia + pronóstico para la próxima carrera
         if (prox) {
             for (const tipo of ['FP', 'Q1', 'R1']) {
@@ -170,6 +173,12 @@ console.log('Acciones:', acciones.length, 'errores:', errs.length, [...new Set(e
 ok(acciones.every(a => a.estado !== 'pendiente'), 'Quedan acciones pendientes');
 const notifs = await store.list('notificaciones', [['uid', '==', 'u_ana']]);
 console.log('Notificaciones Ana:', notifs.length, '| tipos:', [...new Set(notifs.map(x => x.tipo))].join(','));
+const prensa = await store.list('prensa');
+const noticiasPrensa = (await store.list('noticias')).filter(x => x.tipo === 'prensa');
+console.log('Prensa:', prensa.length, 'preguntas ·', noticiasPrensa.length, 'declaraciones/plantones · ej:', noticiasPrensa.slice(0, 2).map(x => x.titulo).join(' | '));
+ok(prensa.every(p => p.aplicada || p.expira > FIN), 'Hay preguntas de prensa sin procesar');
+ok((await store.get('equipos_priv/tramontana')).resumenes?.length === 1, 'Falta el resumen de temporada de Ana');
+console.log('Resumen Ana:', (await store.get('equipos_priv/tramontana')).resumenes?.[0]?.titular);
 const decis = await store.list('decisiones');
 ok(decis.every(d => d.aplicada), 'Hay decisiones sin aplicar');
 console.log('Noticias:', (await store.list('noticias')).length, '| lecturas', store.lecturas, 'escrituras', store.escrituras);

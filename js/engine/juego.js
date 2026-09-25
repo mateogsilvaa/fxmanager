@@ -12,8 +12,11 @@ export function setupIdeal(secreto, eventoId, equipoId, circuito) {
     const baseSusp = 3 + (1 - circuito.chasis) * 5;
     const baseMarchas = 2 + circuito.motor * 9;
     const basePresion = 7 - (circuito.desgaste ?? 0.5) * 5;
+    const baseFrenos = 4 + (circuito.chasis ?? 0.33) * 6;
+    const baseAltura = 3 + (1 - (circuito.aero ?? 0.33)) * 4 + (circuito.lluvia ?? 0.15) * 4;
     const f = (b) => clamp(Math.round(b + rng.gauss(0, 1.8)), 1, 10);
-    return { ala: f(baseAla), susp: f(baseSusp), marchas: f(baseMarchas), presion: f(basePresion) };
+    // (el orden importa: los ajustes nuevos van al final para no cambiar los ideales ya calculados)
+    return { ala: f(baseAla), susp: f(baseSusp), marchas: f(baseMarchas), presion: f(basePresion), frenos: f(baseFrenos), altura: f(baseAltura) };
 }
 
 export function calidadSetup(setup, ideal) {

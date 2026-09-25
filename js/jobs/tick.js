@@ -3,7 +3,9 @@ import {
     SESION_INFO, esCarrera, esQualy, ECO, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST, SLOTS_ID,
     costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion,
     ESTRATEGIA_DEF, diaMadrid, finDiaMadrid, LIGAS, LIGAS_NACIONALES, SETUP_PARAMS, SETUP_BASE, identidadAbierta,
+    costeMejoraFinal, bonusExitoTunel, ENTRENO, probEntreno,
 } from '../engine/constants.js';
+import { preguntaTrasCarrera, preguntaOpinion, efectosRespuesta, MAX_PREGUNTAS_JORNADA } from '../engine/rueda-prensa.js';
 import { validarNombreEscuderia } from '../engine/badwords.js';
 import { crearRng } from '../engine/rng.js';
 import { simularSesion } from '../engine/sim.js';
@@ -50,7 +52,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
         if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
     }
 
-    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, diario, transicionesFase];
+    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, diario, transicionesFase];
     const errores = [];
     for (const paso of pasos) {
         try { await paso(ctx); await volcar(ctx); }
@@ -129,7 +131,7 @@ async function deshacerManager(ctx, eqId, eq) {
     for (const id of ids) if (pp[id]) { pp[id].moral = 60; pp[id].forma = 0; ctx.sucios.pilotosPriv.add(id); }
     // Rastro: acciones, estrategias, decisiones, avisos, declaraciones y oferta por un Galáctico
     acciones.forEach(a => ctx.ops.push({ op: 'del', path: `acciones/${a.id}` }));
-    for (const [col, filtros] of [['estrategias', [['uid', '==', uid]]], ['decisiones', [['uid', '==', uid]]], ['notificaciones', [['uid', '==', uid]]], ['paddock', [['uid', '==', uid]]]]) {
+    for (const [col, filtros] of [['estrategias', [['uid', '==', uid]]], ['decisiones', [['uid', '==', uid]]], ['notificaciones', [['uid', '==', uid]]], ['paddock', [['uid', '==', uid]]], ['prensa', [['uid', '==', uid]]]]) {
         (await ctx.store.list(col, filtros)).forEach(x => ctx.ops.push({ op: 'del', path: `${col}/${x.id}` }));
     }
     const refOfertas = `mercado_ofertas/T${ctx.temporada}`;
@@ -204,6 +206,121 @@ async function prensaManagersIA(ctx, dia) {
 }
 
 // ======================================================================
+// Ruedas de prensa: preguntas a los mánagers (2-3 por jornada, alguna entre jornadas)
+// Aparecen escalonadas (cada escudería a una hora distinta) para que no salgan todas las declaraciones a la vez.
+// ======================================================================
+function crearDocPrensa(ctx, eqId, q, retrasoMs) {
+    const uid = duenoReal(ctx, eqId);
+    if (!uid) return;
+    const disponible = ctx.ahora + retrasoMs;
+    const id = `${disponible}_${eqId}`;
+    ctx.ops.push({
+        op: 'set', path: `prensa/${id}`, data: {
+            uid, equipoId: eqId, liga: ctx.equipos[eqId]?.liga || null, plantilla: q.plantilla, pregunta: q.pregunta, opciones: q.opciones, ctx: q.ctx,
+            disponible, expira: disponible + 24 * 3600_000, eleccion: null, aplicada: false, creado: ctx.ahora,
+        },
+    });
+    const priv = ctx.privs?.[eqId];
+    if (priv) { priv.prensaUltima = ctx.ahora; ctx.sucios.privs.add(eqId); }
+}
+// Hora escalonada: cada escudería tiene su propio desfase, distinto cada día
+const retrasoPrensa = (ctx, eqId, clave) => (1 + crearRng(`${ctx.secreto}|prensaHora|${clave}|${eqId}`).next() * 20) * 3600_000;
+
+async function preguntasTrasCarrera(ctx, ev, res) {
+    const equipos = await cargarEquipos(ctx);
+    const privs = await cargarPrivs(ctx);
+    const pilotos = await cargarPilotos(ctx);
+    const carreras = sesionesOrdenadas(ev).filter(s => esCarrera(s.tipo)).map(s => s.tipo);
+    const quedan = carreras.length - carreras.indexOf(res.tipo) - 1;
+    const eqs = [...new Set(res.filas.map(f => f.eq))].filter(eq => duenoReal(ctx, eq) && privs[eq]);
+    for (const eq of eqs) {
+        const priv = privs[eq];
+        const cuenta = priv.prensaJornada?.ev === ev.id ? priv.prensaJornada.n : 0;
+        const objetivo = crearRng(`${ctx.secreto}|prensaN|${ev.id}|${eq}`).chance(0.5) ? 3 : 2;
+        if (cuenta >= Math.min(objetivo, MAX_PREGUNTAS_JORNADA)) continue;
+        const faltan = objetivo - cuenta;
+        const rng = crearRng(`${ctx.secreto}|prensa|${res.id}|${eq}`);
+        if (!rng.chance(faltan > quedan ? 1 : faltan / (quedan + 1))) continue;
+        const fs = res.filas.filter(f => f.eq === eq);
+        const q = preguntaTrasCarrera(rng, {
+            pilotos: fs.map(f => ({ pid: f.pid, nombre: nombrePiloto(pilotos[f.pid]), apellido: pilotos[f.pid]?.apellido || '—', fila: f })),
+            eventos: res.eventos, nombreDe: (pid) => nombrePiloto(pilotos[pid]), apellidoDe: (pid) => pilotos[pid]?.apellido || '—',
+            equipoDe: (id) => equipos[id]?.nombre || '—', eqDe: (pid) => res.filas.find(f => f.pid === pid)?.eq,
+            sesion: SESION_INFO[res.tipo].nombre, circuito: ev.circuito.nombre, equipo: equipos[eq].nombre,
+        });
+        if (!q) continue;
+        crearDocPrensa(ctx, eq, q, retrasoPrensa(ctx, eq, res.id));
+        priv.prensaJornada = { ev: ev.id, n: cuenta + 1 };
+    }
+}
+
+// Entre jornadas: de vez en cuando, una pregunta de opinión
+async function preguntaEntreJornadas(ctx, eqId, eq, priv, dia, eventos) {
+    const cerca = eventos.some(e => (e.liga === eq.liga) && sesionesOrdenadas(e).some(s => Math.abs(s.publishAt - ctx.ahora) < 36 * 3600_000));
+    if (cerca || (priv.prensaUltima || 0) > ctx.ahora - 3 * 864e5) return;
+    const rng = crearRng(`${ctx.secreto}|prensaOp|${dia}|${eqId}`);
+    if (!rng.chance(0.35)) return;
+    const pilotos = await cargarPilotos(ctx);
+    const tabla = await tablaLiga(ctx, eq.liga);
+    const pos = Object.fromEntries(tabla.clasPilotos.map(p => [p.pid, p.posicion]));
+    const mios = Object.values(pilotos).filter(p => p.equipoId === eqId).map(p => ({ pid: p.id, nombre: nombrePiloto(p), apellido: p.apellido }));
+    const n = tabla.clasPilotos.length;
+    const peor = mios.slice().sort((a, b) => (pos[b.pid] || 0) - (pos[a.pid] || 0))[0];
+    const q = preguntaOpinion(rng, {
+        equipo: eq.nombre, mios,
+        rivales: Object.entries(ctx.equipos).filter(([id, e]) => e.liga === eq.liga && id !== eqId).map(([id, e]) => ({ id, nombre: e.nombre, manager: e.ownerNombre || (e.managerIA ? conIA(e.managerIA) : null) })),
+        topPilotos: tabla.clasPilotos.slice(0, 5).filter(p => pilotos[p.pid]?.equipoId !== eqId).map(p => ({ pid: p.pid, nombre: nombrePiloto(pilotos[p.pid]), equipo: ctx.equipos[pilotos[p.pid]?.equipoId]?.nombre || '—' })),
+        enRiesgo: peor && n && pos[peor.pid] > n - 5 ? peor : null,
+    });
+    crearDocPrensa(ctx, eqId, q, retrasoPrensa(ctx, eqId, dia));
+}
+
+async function tablaLiga(ctx, liga) {
+    if (!ctx._sesionesTemp) {
+        const doc = await ctx.store.get(`resumen/${idResumen(ctx.temporada)}`);
+        ctx._sesionesTemp = doc?.json ? JSON.parse(doc.json).sesiones.map(descompactar) : [];
+    }
+    return construirTemporada(ctx._sesionesTemp.filter(s => s.liga === liga));
+}
+
+// Respuestas (o silencios) de la prensa: fans, moral y declaraciones publicadas
+async function procesarPrensa(ctx) {
+    const pendientes = await ctx.store.list('prensa', [['aplicada', '==', false]]);
+    const aplicar = pendientes.filter(d => d.eleccion || d.expira <= ctx.ahora);
+    if (!aplicar.length) return;
+    const equipos = await cargarEquipos(ctx);
+    const privs = await cargarPrivs(ctx);
+    const pilotos = await cargarPilotos(ctx);
+    for (const d of aplicar) {
+        const eq = equipos[d.equipoId];
+        if (!eq) { ctx.ops.push({ op: 'update', path: `prensa/${d.id}`, data: { aplicada: true } }); continue; }
+        const rng = crearRng(`${ctx.secreto}|prensaR|${d.id}`);
+        const ef = efectosRespuesta(d, d.eleccion, rng, privs[d.equipoId]?.inst?.comunicacion || 0);
+        eq.fans = Math.max(0, (eq.fans || 0) + ef.fans);
+        ctx.sucios.equipos.add(d.equipoId);
+        // moral: al piloto de la pregunta (o a los dos si la pregunta es sobre el equipo) y a su compañero
+        const suyos = Object.values(pilotos).filter(p => p.equipoId === d.equipoId).map(p => p.id);
+        const objetivo = d.ctx?.pid && suyos.includes(d.ctx.pid) ? [d.ctx.pid] : suyos;
+        const otro = d.ctx?.companeroPid || (d.ctx?.pid ? suyos.find(x => x !== d.ctx.pid) : null);
+        const cambios = {};
+        if (ef.moral) objetivo.forEach(id => { cambios[id] = (cambios[id] || 0) + ef.moral; });
+        if (ef.companero && otro && suyos.includes(otro)) cambios[otro] = (cambios[otro] || 0) + ef.companero;
+        if (Object.keys(cambios).length) {
+            const pp = await cargarPilotosPriv(ctx, Object.keys(cambios));
+            for (const [id, dm] of Object.entries(cambios)) if (pp[id]) { pp[id].moral = clamp((pp[id].moral ?? 60) + dm, 5, 100); ctx.sucios.pilotosPriv.add(id); }
+        }
+        const manager = eq.ownerNombre || (eq.managerIA ? conIA(eq.managerIA) : `El mánager de ${eq.nombre}`);
+        if (!ef.sinRespuesta) {
+            noticia(ctx, { titulo: `${manager}: "${ef.texto}"`, texto: `${ef.contexto}, el mánager de ${eq.nombre} fue claro ante los periodistas.`, liga: d.liga, tipo: 'prensa' });
+        } else if (rng.chance(0.35)) {
+            noticia(ctx, { titulo: `${manager} da plantón a la prensa`, texto: `El mánager de ${eq.nombre} no se presentó a atender a los medios. Los aficionados no lo han entendido.`, liga: d.liga, tipo: 'prensa' });
+        }
+        ctx.ops.push({ op: 'update', path: `prensa/${d.id}`, data: { aplicada: true, resultado: { fans: ef.fans, sinRespuesta: !!ef.sinRespuesta } } });
+    }
+    ctx.nota(`Prensa: ${aplicar.length} respuesta(s)`);
+}
+
+// ======================================================================
 // 1. Simular sesiones cuyo plazo de estrategia ya ha cerrado
 // ======================================================================
 async function simularPendientes(ctx) {
@@ -257,7 +374,7 @@ export async function simularUna(ctx, ev, tipo) {
         const e = estrategiaDe(p.equipoId);
         if (!duenoReal(ctx, p.equipoId)) {
             setup = setupIA(ideal, crearRng(`${ctx.secreto}|iasetup|${ev.id}|${p.equipoId}`), 1);
-            estr = { riesgo: rngAI.pick([1, 2, 2, 3]), ritmo: rngAI.pick(['conservador', 'equilibrado', 'equilibrado', 'ataque']), actitud: rngAI.pick(['defensiva', 'normal', 'normal', 'agresiva']) };
+            estr = { riesgo: rngAI.pick([1, 2, 2, 3]), ritmo: rngAI.pick(['conservador', 'equilibrado', 'equilibrado', 'ataque']), actitud: rngAI.pick(['defensiva', 'normal', 'normal', 'agresiva']), neumatico: rngAI.pick(circuito.desgaste > 0.6 ? ['medio', 'duro', 'duro'] : circuito.desgaste < 0.45 ? ['blando', 'blando', 'medio'] : ['blando', 'medio', 'duro']) };
         } else {
             setup = { ...SETUP_BASE, ...(e?.setup || priv.ultimoSetup || {}) };
             const mismaCategoria = estrategias.filter(x => x.equipoId === p.equipoId && x.pilotos?.[p.id])
@@ -268,7 +385,7 @@ export async function simularUna(ctx, ev, tipo) {
         return {
             id: p.id, equipoId: p.equipoId, attrs: pp.attrs || { ritmo: 70, consistencia: 70, agresividad: 65, defensa: 70 },
             moral: pp.moral ?? 60, forma: pp.forma ?? 0, coche: priv.coche || {}, setupQ: calidadSetup(setup, ideal),
-            estr, riesgoFiab: priv.riesgoFiab || 1, _setup: setup,
+            estr, riesgoFiab: (priv.riesgoFiab || 1) * (1 - 0.08 * (priv.inst?.boxes || 0)), _setup: setup,
         };
     });
 
@@ -323,6 +440,7 @@ async function publicarPendientes(ctx) {
         resumen.sesiones.push(compactar(res));
         await noticiasAutomaticas(ctx, ev, res, antes, antes ? construirTemporada(deLiga()) : null);
         await efectosPublicacion(ctx, ev, res);
+        if (esCarrera(s.tipo)) await preguntasTrasCarrera(ctx, ev, res);
         ev.sesiones[s.tipo].estado = 'publicada';
         await ctx.store.update(`eventos/${ev.id}`, { [`sesiones.${s.tipo}.estado`]: 'publicada' });
         const ultima = sesionesOrdenadas(ev).slice(-1)[0]?.tipo;
@@ -356,7 +474,7 @@ async function efectosPublicacion(ctx, ev, res) {
         const porEq = {};
         res.filas.forEach(f => { (porEq[f.eq] ||= []).push(f); });
         for (const [eq, fs] of Object.entries(porEq)) {
-            if (!equipos[eq]?.ownerId) continue;
+            if (!duenoReal(ctx, eq)) continue;
             const setup = { ...SETUP_BASE, ...(res.setups?.[eq] || {}) };
             const ideal = setupIdeal(ctx.secreto, ev.id, eq, ev.circuito);
             const inf = informeSetup(setup, ideal, privs[eq]?.inst?.simulador || 0, crearRng(`${ctx.secreto}|fpinf|${ev.id}|${eq}`));
@@ -519,7 +637,7 @@ const ACCIONES = {
         if (activos.some(p => p.clave === area)) throw new Error('Ya hay un proyecto en marcha en esa área.');
         const urgente = !!a.params?.urgente;
         const descuento = priv.descuentos?.[area] || 0;
-        const coste = Math.round(costeMejora(nivel) * (urgente ? RECARGO_URGENTE : 1) * (1 - descuento));
+        const coste = costeMejoraFinal(area, nivel, priv, urgente);
         if ((priv.presupuesto || 0) < coste) throw new Error(`Presupuesto insuficiente (necesitas ${M(coste)}).`);
         const horas = horasMejora(nivel, priv.inst?.fabrica || 0, urgente);
         const inicio = Math.min(a.creado || ctx.ahora, ctx.ahora);
@@ -754,6 +872,30 @@ const ACCIONES = {
         return { ok: true, equipoId: oferta.equipoId };
     },
 
+    // Entrenar un atributo de uno de tus pilotos (una vez cada pocos días por piloto)
+    async entrenar(ctx, a) {
+        const priv = privDe(ctx, a.equipoId);
+        const { pid, attr } = a.params || {};
+        if (!ENTRENO.attrs[attr]) throw new Error('Atributo no válido.');
+        const pil = await cargarPilotos(ctx);
+        if (pil[pid]?.equipoId !== a.equipoId) throw new Error('Ese piloto no es tuyo.');
+        const ult = priv.entrenos?.[pid] || 0;
+        if (ctx.ahora - ult < ENTRENO.diasEspera * 864e5) throw new Error(`${pil[pid].apellido} ya ha entrenado hace poco. Podrá volver a hacerlo en ${Math.ceil((ult + ENTRENO.diasEspera * 864e5 - ctx.ahora) / 3600_000)} h.`);
+        const pp = (await cargarPilotosPriv(ctx, [pid]))[pid];
+        if (!pp) throw new Error('Piloto no encontrado.');
+        const antes = pp.attrs?.[attr] ?? 60;
+        if (antes >= ENTRENO.maxAtributo) throw new Error(`${ENTRENO.attrs[attr]} ya está al máximo.`);
+        if ((priv.presupuesto || 0) < ENTRENO.coste) throw new Error(`Presupuesto insuficiente (necesitas ${M(ENTRENO.coste)}).`);
+        movimiento(priv, `Entrenamiento de ${pil[pid].apellido} (${ENTRENO.attrs[attr].toLowerCase()})`, -ENTRENO.coste, ctx.ahora);
+        const { exito, doble } = probEntreno(priv.inst?.academia);
+        const rng = crearRng(`${ctx.secreto}|entreno|${a.id}`);
+        const sube = rng.chance(exito) ? (rng.chance(doble) ? 2 : 1) : 0;
+        pp.attrs = { ...(pp.attrs || {}), [attr]: Math.min(ENTRENO.maxAtributo, antes + sube) };
+        ctx.sucios.pilotosPriv.add(pid);
+        priv.entrenos = { ...(priv.entrenos || {}), [pid]: ctx.ahora };
+        return { ok: true, sube, attr, valor: pp.attrs[attr], piloto: pil[pid].apellido };
+    },
+
     async draft(ctx, a) {
         if (ctx.cfg.fase !== 'mercado') throw new Error('El draft no está abierto.');
         const lista = (a.params?.lista || []).slice(0, 8).map(String);
@@ -781,7 +923,7 @@ async function completarProyectos(ctx) {
         for (const p of listos) {
             const rng = crearRng(`${ctx.secreto}|proy|${p.id}`);
             if (p.tipo === 'area') {
-                const exito = rng.chance(probExitoMejora(p.nivel - 1, priv.inst?.fabrica || 0));
+                const exito = rng.chance(Math.min(0.98, probExitoMejora(p.nivel - 1, priv.inst?.fabrica || 0) + bonusExitoTunel(p.clave, priv.inst?.tunel)));
                 if (exito) {
                     priv.coche = { ...(priv.coche || {}), [p.clave]: Math.max(priv.coche?.[p.clave] || 0, p.nivel) };
                     notificar(ctx, eq, { remitente: 'Departamento técnico', tipo: 'id', titulo: `${AREAS[p.clave].nombre} mejorada a nivel ${p.nivel}`, texto: 'La pieza ha superado las pruebas y ya está montada en los coches.' });
@@ -929,6 +1071,7 @@ async function diario(ctx) {
                     eleccion: null, expira, aplicada: false, nombres, ctx: { p1Id: misPilotos[0]?.id || null, p2Id: misPilotos[1]?.id || misPilotos[0]?.id || null },
                 },
             });
+            await preguntaEntreJornadas(ctx, eqId, eq, priv, dia, eventos);
         } else if (!dueno) {
             // IA: ingreso diario equivalente a una racha media y gestión automática
             movimiento(priv, 'Ingresos diarios', ECO.checkinBase + 3 * ECO.checkinPorRacha, ctx.ahora);
@@ -964,6 +1107,8 @@ async function diario(ctx) {
         if (!p) continue;
         const m = p.moral ?? 60;
         p.moral = m > 62 ? m - 1 : m < 58 ? m + 1 : m;
+        const academia = privs[p.equipoId]?.inst?.academia || 0;
+        if (academia) p.moral = Math.max(p.moral, 40 + 5 * academia);
         p.forma = Math.round((p.forma || 0) * 0.8 * 100) / 100;
         ctx.sucios.pilotosPriv.add(id);
     }
