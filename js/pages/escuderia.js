@@ -618,6 +618,7 @@ function elegirEquipo() {
     const pintar = () => {
         const eqs = libres.filter(([, e]) => e.liga === ligaSel);
         main.innerHTML = `<div class="cabecera-pagina"><div><div class="etiqueta">Inscripción</div><h1>Elige tu escudería</h1><p class="sub">Las escuderías sin mánager las lleva la IA. Las que forman parte de un grupo con equipos en varios países no se pueden elegir.</p></div></div>
+        ${u.perfil?.aviso ? `<div class="aviso-caja" style="margin-bottom:12px">${esc(u.perfil.aviso)}</div>` : ''}
         ${!abierta ? '<div class="aviso-caja" style="margin-bottom:12px">La inscripción está cerrada ahora mismo.</div>' : ''}
         <div class="selector-ligas">${LIGAS_NACIONALES.map(l => `<a href="#" data-liga="${l}" class="${l === ligaSel ? 'activo' : ''}">${banderaLiga(l, { ancho: 18, titulo: false })}${esc(LIGAS[l].nombre)} <span class="tenue">${libres.filter(([, e]) => e.liga === l).length}</span></a>`).join('')}</div>
         <div class="tarjeta">${eqs.length ? eqs.map(([id, e]) => {

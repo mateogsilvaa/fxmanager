@@ -42,7 +42,7 @@ CIRC.INT.forEach((c, k) => {
 await guardarEventos(store, eventos);
 
 // Dos mánagers humanos
-const humanos = [{ uid: 'u_ana', nombre: 'Ana', eq: 'valcor-es' }, { uid: 'u_leo', nombre: 'Leo', eq: 'kessler-de' }];
+const humanos = [{ uid: 'u_ana', nombre: 'Ana', eq: 'tramontana' }, { uid: 'u_leo', nombre: 'Leo', eq: 'rheinwerk' }];
 for (const h of humanos) {
     await store.set(`usuarios/${h.uid}`, { nombre: h.nombre, email: `${h.uid}@x.com`, isAdmin: false, equipoId: h.eq });
     await store.merge(`equipos/${h.eq}`, { ownerId: h.uid, ownerNombre: h.nombre });
@@ -62,18 +62,18 @@ while (t < FIN) {
     // Rutina diaria de Ana (muy activa); Leo solo hace check-in
     if (hora === 8 && min === 0) {
         for (const h of humanos) await accion(h, 'checkin', {}, t);
-        const priv = await store.get('equipos_priv/valcor-es');
+        const priv = await store.get('equipos_priv/tramontana');
         if (!priv.sponsor) await accion(humanos[0], 'sponsor_firmar', { ofertaId: 'rendimiento' }, t);
         await accion(humanos[0], 'id_iniciar', { area: ['aero', 'motor', 'chasis'][n % 3], urgente: false }, t);
         const prox = eventos.filter(e => e.liga === 'ESP' && e.sesiones.FP.lockAt > t)[0];
         if (prox) for (let i = 0; i < 3; i++) await accion(humanos[0], 'simulador', { eventoId: prox.id, setup: { ala: 3 + i * 2, susp: 5, marchas: 6 } }, t);
         await accion(humanos[0], 'espiar', { tipo: 'coche', objetivo: 'stellari-es' }, t);
-        const dec = await store.get(`decisiones/${diaMadrid(t)}_valcor-es`);
+        const dec = await store.get(`decisiones/${diaMadrid(t)}_tramontana`);
         if (dec && !dec.aplicada) await store.update(`decisiones/${dec.id}`, { eleccion: dec.opciones[0].id });
         // estrategia + pronóstico para la próxima carrera
         if (prox) {
             for (const tipo of ['FP', 'Q1', 'R1']) {
-                await store.set(`estrategias/${prox.id}_${tipo}_valcor-es`, { eventoId: prox.id, tipo, equipoId: 'valcor-es', uid: 'u_ana', setup: { ala: 6, susp: 5, marchas: 5 }, pilotos: {}, actualizado: t });
+                await store.set(`estrategias/${prox.id}_${tipo}_tramontana`, { eventoId: prox.id, tipo, equipoId: 'tramontana', uid: 'u_ana', setup: { ala: 6, susp: 5, marchas: 5 }, pilotos: {}, actualizado: t });
             }
         }
     }
@@ -81,7 +81,7 @@ while (t < FIN) {
     if (t === T0 + 10 * D + 6 * H) {
         const tb = await tablasTemporada(store, 1);
         const objetivo = tb.ESP.clasPilotos[0].pid;
-        const mios = (await store.list('pilotos')).filter(p => p.equipoId === 'kessler-de');
+        const mios = (await store.list('pilotos')).filter(p => p.equipoId === 'rheinwerk');
         const tactico = mios.find(p => p.rol === 'P2') || mios[1];
         await accion(humanos[1], 'galactico_oferta', { pid: objetivo, tactico: tactico.id, importe: 3_500_000 }, t);
         console.log('Oferta de Leo por', objetivo, 'dando a', tactico.id);
@@ -101,7 +101,7 @@ while (t < FIN) {
             if (tact) { eqTop = e.eq; break; }
         }
         if (eqTop) {
-            await store.merge(`equipos/kessler-de`, { ownerId: null });
+            await store.merge(`equipos/rheinwerk`, { ownerId: null });
             await store.merge(`equipos/${eqTop}`, { ownerId: 'u_leo', ownerNombre: 'Leo' });
             humanos[1].eq = eqTop;
             await store.merge(`equipos_priv/${eqTop}`, { presupuesto: 10_000_000 });
@@ -116,8 +116,8 @@ while (t < FIN) {
     if (r.errores?.length) ok(false, `Errores en tick ${new Date(t).toISOString()}: ${r.errores.join(' | ')}`);
     if (DEMO && !demoGuardado && t >= T0 + 2 * 4 * D + D + 2 * H + 30 * 60_000) {
         const dia = diaMadrid(t);
-        await store.set(`paddock/${dia}_u_ana`, { uid: 'u_ana', nombre: 'Ana', equipoId: 'valcor-es', liga: 'ESP', texto: 'Tres carreras sin podio no son casualidad. El coche va, nos falta afinar el reglaje del domingo.', fecha: t - 2 * H, dia });
-        await store.set(`paddock/${dia}_u_leo`, { uid: 'u_leo', nombre: 'Leo', equipoId: 'kessler-de', liga: 'GER', texto: 'A los que nos espían: el motor nuevo llega en Hockenheim. Id preparando excusas.', fecha: t - 5 * H, dia });
+        await store.set(`paddock/${dia}_u_ana`, { uid: 'u_ana', nombre: 'Ana', equipoId: 'tramontana', liga: 'ESP', texto: 'Tres carreras sin podio no son casualidad. El coche va, nos falta afinar el reglaje del domingo.', fecha: t - 2 * H, dia });
+        await store.set(`paddock/${dia}_u_leo`, { uid: 'u_leo', nombre: 'Leo', equipoId: 'rheinwerk', liga: 'GER', texto: 'A los que nos espían: el motor nuevo llega en Hockenheim. Id preparando excusas.', fecha: t - 5 * H, dia });
         await store.set('usuarios/u_nuevo', { nombre: 'Carla', email: 'carla@correo.com', isAdmin: false, equipoId: null, estado: 'pendiente', creado: t - H });
         writeFileSync(new URL('../data/demo.json', import.meta.url), JSON.stringify({ ahora: t, datos: store.volcar() }));
         demoGuardado = true;
@@ -160,8 +160,8 @@ for (const liga of LIGAS_NACIONALES) {
     const equipos = [...new Set(pl.map(p => p.equipoId))];
     equipos.forEach(eq => ok(pl.filter(p => p.equipoId === eq).length === 2, `${eq} no tiene 2 pilotos`));
 }
-const privAna = await store.get('equipos_priv/valcor-es');
-const privLeo = await store.get('equipos_priv/kessler-de');
+const privAna = await store.get('equipos_priv/tramontana');
+const privLeo = await store.get('equipos_priv/rheinwerk');
 console.log('Ana:', Math.round(privAna.presupuesto / 1e5) / 10, 'M€ coche', privAna.coche, 'inst', privAna.inst, 'racha', privAna.racha, 'sponsor', privAna.sponsor?.marca);
 console.log('Leo:', Math.round(privLeo.presupuesto / 1e5) / 10, 'M€ coche', privLeo.coche);
 const acciones = await store.list('acciones');

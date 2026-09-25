@@ -48,7 +48,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
         if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
     }
 
-    const pasos = [simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, diario, transicionesFase];
+    const pasos = [sanearInscripciones, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, diario, transicionesFase];
     const errores = [];
     for (const paso of pasos) {
         try { await paso(ctx); await volcar(ctx); }
@@ -64,6 +64,90 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
     // solo se guarda registro si el ciclo hizo algo (o falló)
     if (ctx.informe.length || errores.length) await store.set(`logs/${ahora}`, { ...resumenTick, notas: ctx.informe.slice(-80) });
     return { ok: errores.length === 0, ...resumenTick };
+}
+
+// ======================================================================
+// 0. Inscripciones no válidas: las escuderías de un grupo (con hermanas en otros países) no se pueden elegir.
+//    Si un mánager tiene una sin haber llegado por una oferta, se deshace todo lo que ha hecho y queda sin equipo.
+// ======================================================================
+async function sanearInscripciones(ctx) {
+    const equipos = await cargarEquipos(ctx);
+    const invalidos = Object.entries(equipos).filter(([, e]) => e.ownerId && e.grupo && !e.grupoPropio && !e.viaOferta);
+    if (!invalidos.length) return;
+    await cargarPrivs(ctx);
+    for (const [eqId, eq] of invalidos) await deshacerManager(ctx, eqId, eq);
+}
+
+async function deshacerManager(ctx, eqId, eq) {
+    const uid = eq.ownerId;
+    const priv = ctx.privs[eqId];
+    const acciones = (await ctx.store.list('acciones', [['uid', '==', uid]])).filter(a => a.equipoId === eqId);
+    const hechas = acciones.filter(a => a.estado === 'hecha');
+    if (priv) {
+        // Coche: se quitan los niveles que consiguió con sus mejoras ya terminadas (las fallidas no subieron nivel)
+        const coche = { ...(priv.coche || {}) };
+        const pendientes = new Set((priv.proyectos || []).map(p => p.id));
+        for (const area of Object.keys(AREAS)) {
+            const terminadas = hechas.filter(a => a.tipo === 'id_iniciar' && a.params?.area === area && !pendientes.has(a.id)).length;
+            const fallidas = (priv.finanzas || []).filter(f => f.c === `Reembolso parcial I+D fallido (${AREAS[area].nombre})`).length;
+            coche[area] = Math.max(0, (coche[area] || 0) - Math.max(0, terminadas - fallidas));
+        }
+        const inst = { ...(priv.inst || {}) };
+        for (const k of Object.keys(INSTALACIONES)) {
+            const terminadas = hechas.filter(a => a.tipo === 'inst_mejorar' && a.params?.inst === k && !pendientes.has(a.id)).length;
+            inst[k] = Math.max(0, (inst[k] || 0) - terminadas);
+        }
+        // Dinero, proyectos, patrocinio, racha e historial: como al empezar
+        const misProyectos = new Set(hechas.map(a => a.id));
+        Object.assign(priv, {
+            presupuesto: ECO.presupuestoInicial, coche, inst,
+            proyectos: (priv.proyectos || []).filter(p => !misProyectos.has(p.id)),
+            sponsor: null, ofertasSponsor: [], racha: { n: 0, ultimoDia: null }, finanzas: [], riesgoFiab: 1,
+            descuentos: {}, simuladorUso: null, tandasExtra: null, ofertasPlaza: [],
+        });
+        ctx.sucios.privs.add(eqId);
+    }
+    // Nombre y colores que hubiera cambiado, y filiales que hubiera comprado
+    const imagen = hechas.filter(a => a.tipo === 'identidad' && a.resultado?.antes).sort((a, b) => a.creado - b.creado);
+    for (const a of imagen.reverse()) {
+        const obj = a.params?.objetivo || eqId;
+        if (!ctx.equipos[obj]) continue;
+        Object.assign(ctx.equipos[obj], a.resultado.antes);
+        ctx.ops.push({ op: 'merge', path: `equipos/${obj}`, data: a.resultado.antes });
+    }
+    for (const [fid, f] of Object.entries(ctx.equipos)) {
+        if (f.filialDe !== eqId) continue;
+        f.grupo = null; f.filialDe = null;
+        ctx.ops.push({ op: 'merge', path: `equipos/${fid}`, data: { grupo: null, filialDe: null } });
+    }
+    // Moral y forma de sus pilotos (las decisiones del día las cambian)
+    const pilotos = await cargarPilotos(ctx);
+    const ids = Object.values(pilotos).filter(p => p.equipoId === eqId).map(p => p.id);
+    const pp = await cargarPilotosPriv(ctx, ids);
+    for (const id of ids) if (pp[id]) { pp[id].moral = 60; pp[id].forma = 0; ctx.sucios.pilotosPriv.add(id); }
+    // Rastro: acciones, estrategias, decisiones, avisos, declaraciones y oferta por un Galáctico
+    acciones.forEach(a => ctx.ops.push({ op: 'del', path: `acciones/${a.id}` }));
+    for (const [col, filtros] of [['estrategias', [['uid', '==', uid]]], ['decisiones', [['uid', '==', uid]]], ['notificaciones', [['uid', '==', uid]]], ['paddock', [['uid', '==', uid]]]]) {
+        (await ctx.store.list(col, filtros)).forEach(x => ctx.ops.push({ op: 'del', path: `${col}/${x.id}` }));
+    }
+    const refOfertas = `mercado_ofertas/T${ctx.temporada}`;
+    const docOfertas = await ctx.store.get(refOfertas);
+    if (docOfertas?.ofertas?.[eqId]) {
+        const ofertas = { ...docOfertas.ofertas }; delete ofertas[eqId];
+        ctx.ops.push({ op: 'set', path: refOfertas, data: { ofertas } });
+    }
+    // Escudería a la IA y mánager sin equipo, con aviso para que elija otra
+    const nombre = eq.nombre, manager = eq.ownerNombre;
+    eq.ownerId = null; eq.ownerNombre = null;
+    ctx.ops.push({ op: 'merge', path: `equipos/${eqId}`, data: { ownerId: null, ownerNombre: null } });
+    ctx.ops.push({
+        op: 'merge', path: `usuarios/${uid}`, data: {
+            equipoId: null,
+            aviso: `${nombre} forma parte de un grupo con escuderías en varios países y no se puede elegir al inscribirse. Se ha deshecho lo que hiciste con ella: elige otra escudería.`,
+        },
+    });
+    ctx.catalogoSucio = true;
+    ctx.nota(`Inscripción anulada: ${manager || uid} en ${nombre}`);
 }
 
 // ======================================================================
@@ -461,6 +545,7 @@ const ACCIONES = {
             if (priv.sponsor?.temporada !== ctx.temporada) priv.sponsor = null;
         }
         ctx.catalogoSucio = true;
+        ctx.ops.push({ op: 'merge', path: `usuarios/${a.uid}`, data: { aviso: null } });
         notificar(ctx, a.equipoId, {
             remitente: 'Dirección de la liga', tipo: 'bienvenida', titulo: `Bienvenido a ${ctx.equipos[a.equipoId].nombre}`,
             texto: 'Firma un patrocinador, recoge tu recompensa diaria cada día y usa el simulador antes de cada jornada. ¡Suerte!',
@@ -529,6 +614,7 @@ const ACCIONES = {
         if (!Object.keys(cambios).length) throw new Error('No has cambiado nada.');
         if ((priv.presupuesto || 0) < coste) throw new Error(`Presupuesto insuficiente (necesitas ${M(coste)}).`);
         const antes = eq.nombre;
+        const antes0 = { nombre: eq.nombre, corto: eq.corto, color: eq.color };
         movimiento(priv, `Cambio de imagen${objetivo !== a.equipoId ? ` (${antes})` : ''}`, -coste, ctx.ahora);
         Object.assign(eq, cambios);
         ctx.ops.push({ op: 'merge', path: `equipos/${objetivo}`, data: cambios });
@@ -549,7 +635,7 @@ const ACCIONES = {
         const filialTxt = objetivo !== a.equipoId ? ` La decisión viene de su matriz, ${ctx.equipos[a.equipoId].nombre}.` : '';
         if (cambios.nombre) noticia(ctx, { titulo: `${antes} pasa a llamarse ${cambios.nombre}`, texto: `Nueva imagen para la próxima temporada${partes.length ? `: además ${partes.join(' y ')}` : ''}.${filialTxt}`, liga: eq.liga, tipo: 'noticia' });
         else noticia(ctx, { titulo: `${eq.nombre} ${cambios.color && !cambios.corto ? 'estrena colores' : 'renueva su imagen'}`, texto: `${eq.nombre} ${partes.join(' y ')} de cara a la próxima temporada.${filialTxt}`, liga: eq.liga, tipo: 'noticia' });
-        return { ok: true, coste, cambios };
+        return { ok: true, coste, cambios, antes: Object.fromEntries(Object.keys(cambios).map(k => [k, antes0[k] ?? null])) };
     },
 
     // Comprar una escudería de otro país: pasa a ser tu filial (la lleva la IA, comparte tecnología y paga dividendos)
@@ -598,8 +684,9 @@ const ACCIONES = {
         const uid = viejo.ownerId, ownerNombre = viejo.ownerNombre;
         nuevo.ownerId = uid; nuevo.ownerNombre = ownerNombre;
         viejo.ownerId = null; viejo.ownerNombre = null;
-        ctx.ops.push({ op: 'merge', path: `equipos/${oferta.equipoId}`, data: { ownerId: uid, ownerNombre } });
-        ctx.ops.push({ op: 'merge', path: `equipos/${a.equipoId}`, data: { ownerId: null, ownerNombre: null } });
+        nuevo.viaOferta = true; viejo.viaOferta = false;
+        ctx.ops.push({ op: 'merge', path: `equipos/${oferta.equipoId}`, data: { ownerId: uid, ownerNombre, viaOferta: true } });
+        ctx.ops.push({ op: 'merge', path: `equipos/${a.equipoId}`, data: { ownerId: null, ownerNombre: null, viaOferta: false } });
         ctx.ops.push({ op: 'merge', path: `usuarios/${uid}`, data: { equipoId: oferta.equipoId } });
         priv.ofertasPlaza = [];
         const pn = ctx.privs[oferta.equipoId];

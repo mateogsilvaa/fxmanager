@@ -65,8 +65,8 @@ export const ECO = {
     // Fin de temporada: premio por posición en el campeonato de escuderías de cada liga
     premiosLiga: [6_000_000, 5_000_000, 4_500_000, 4_000_000, 3_500_000, 3_000_000, 2_500_000, 2_000_000, 1_500_000, 1_000_000],
     // Identidad y grupo (solo fuera del periodo de carreras)
-    cambioNombre: 2_000_000,
-    cambioColor: 600_000,
+    cambioNombre: 1_250_000,
+    cambioColor: 500_000,
     compraFilial: 9_000_000,
     maxFiliales: 2,
     dividendoFilial: 90_000,              // al día, por cada filial

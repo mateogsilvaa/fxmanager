@@ -34,7 +34,7 @@ export function iniciar() {
                 _store[m] = async (...a) => { const r = await orig(...a); persistir(); return r; };
             }
             addEventListener('pagehide', () => { try { sessionStorage.setItem('fx-demo-estado', JSON.stringify({ offset: _offset, datos: _store.volcar() })); } catch { } });
-            const eq = (await _store.get('usuarios/u_ana'))?.equipoId ?? 'valcor-es';
+            const eq = (await _store.get('usuarios/u_ana'))?.equipoId ?? 'tramontana';
             _usuario = { uid: 'u_ana', email: 'ana@demo', perfil: { nombre: 'Ana (demo)', isAdmin: true, equipoId: eq, estado: 'aprobado' } };
             return;
         }
