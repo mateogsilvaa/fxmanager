@@ -184,6 +184,7 @@ export async function prepararMercado(ctx) {
         movimiento(privs[campeon.eq], `Campeón del mundo: ${nombre(campeon.pid)}`, ECO.bonusCampeonMundial, ctx.ahora);
         ctx.sucios.privs.add(campeon.eq);
     }
+    ofertasDePlaza(ctx, { tablas, equipos, privs, rng: crearRng(`${ctx.secreto}|plaza|${temporada}`) });
 
     const conNombre = (x) => ({ ...x, nombre: nombre(x.pid) });
     await store.set(`mercado/T${temporada}`, {
@@ -337,3 +338,42 @@ export async function nuevaTemporada(store, { ahora = Date.now() } = {}) {
 }
 
 void esCarrera; void sinId;
+
+// ---------- Ofertas para dirigir otra escudería ----------
+// Temporada excepcional: top 3 de escuderías de su liga, o top 3 del Mundial (pilotos o escuderías).
+// Tirada independiente: 5% de que llame una escudería con hermanas y 9% de que llame una normal.
+export function esTemporadaExcepcional(eqId, tablas) {
+    if (LIGAS_NACIONALES.some(l => tablas[l]?.clasEquipos?.slice(0, 3).some(e => e.eq === eqId))) return true;
+    const int = tablas.INT;
+    if (int?.clasEquipos?.slice(0, 3).some(e => e.eq === eqId)) return true;
+    if (int?.clasPilotos?.slice(0, 3).some(p => p.eq === eqId)) return true;
+    return false;
+}
+
+export function ofertasDePlaza(ctx, { tablas, equipos, privs, rng }) {
+    const libres = Object.entries(equipos).filter(([, e]) => !e.ownerId && !e.filialDe);
+    const conHermanas = libres.filter(([, e]) => e.grupo);
+    const normales = libres.filter(([, e]) => !e.grupo);
+    const cogidas = new Set();
+    const expira = ctx.ahora + ECO.diasOfertaPlaza * 864e5;
+    for (const [eqId, eq] of Object.entries(equipos)) {
+        if (!eq.ownerId || !privs[eqId] || !esTemporadaExcepcional(eqId, tablas)) continue;
+        const nuevas = [];
+        for (const [tipo, prob, lista] of [['hermanas', ECO.probOfertaHermanas, conHermanas], ['normal', ECO.probOfertaNormal, normales]]) {
+            if (!rng.chance(prob)) continue;
+            const cands = lista.filter(([id]) => id !== eqId && !cogidas.has(id));
+            if (!cands.length) continue;
+            const [id, e] = rng.pick(cands);
+            cogidas.add(id);
+            nuevas.push({ id: `${ctx.cfg.temporada}_${tipo}_${id}`, equipoId: id, nombre: e.nombre, liga: e.liga, grupo: e.grupo || null, tipo, expira });
+            notificar(ctx, eqId, {
+                remitente: e.nombre, tipo: 'plaza', titulo: `${e.nombre} te quiere como mánager`,
+                texto: `Tu temporada no ha pasado desapercibida. ${e.nombre}${e.grupo ? ` (grupo ${e.grupo})` : ''} te ofrece dirigir su escudería. Tienes ${ECO.diasOfertaPlaza} días para decidir en Mi escudería.`,
+            });
+        }
+        if (!nuevas.length) continue;
+        privs[eqId].ofertasPlaza = nuevas;
+        ctx.sucios.privs.add(eqId);
+        ctx.nota(`Oferta de plaza para ${eq.nombre}: ${nuevas.map(o => o.nombre).join(', ')}`);
+    }
+}

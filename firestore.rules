@@ -38,6 +38,8 @@ service cloud.firestore {
       allow update: if esAdmin() || (
         autenticado()
         && resource.data.get('ownerId', null) == null
+        && resource.data.get('grupo', null) == null
+        && resource.data.get('filialDe', null) == null
         && request.resource.data.ownerId == uid()
         && soloCambian(['ownerId', 'ownerNombre'])
         && config().inscripcion == true

@@ -1,9 +1,12 @@
 name: Ciclo del juego
 
+# El worker se queda encendido casi 6 horas escuchando Firestore en tiempo real:
+# las acciones de los mánagers se procesan en segundos y las sesiones se simulan y publican a su hora.
+# Al terminar su turno se relanza solo. El cron es solo un respaldo por si la cadena se corta
+# (GitHub retrasa mucho los cron, por eso no se usa para el día a día).
 on:
   schedule:
-    # Cada 10 minutos (repositorio público: minutos de Actions gratis e ilimitados)
-    - cron: '*/10 * * * *'
+    - cron: '17 */2 * * *'
   workflow_dispatch:
     inputs:
       forzar:
@@ -11,14 +14,18 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+  actions: write   # para relanzarse al acabar el turno
+
 concurrency:
   group: ciclo-juego
   cancel-in-progress: false
 
 jobs:
-  tick:
+  worker:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 358
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -26,8 +33,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --omit=dev
-      - name: Ejecutar ciclo
+      - name: Ciclo inicial
+        continue-on-error: true
         env:
           BOT_EMAIL: ${{ secrets.BOT_EMAIL }}
           BOT_PASSWORD: ${{ secrets.BOT_PASSWORD }}
         run: node worker/run.mjs ${{ inputs.forzar && '--forzar' || '' }}
+      - name: Worker continuo (5 h 40 min)
+        env:
+          BOT_EMAIL: ${{ secrets.BOT_EMAIL }}
+          BOT_PASSWORD: ${{ secrets.BOT_PASSWORD }}
+        run: node worker/run.mjs --continuo 340
+      - name: Relanzar el siguiente turno
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ciclo.yml --ref ${{ github.ref_name }}

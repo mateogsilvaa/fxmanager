@@ -64,7 +64,21 @@ export const ECO = {
     bonusCampeonMundial: 3_000_000,       // para la escudería del campeón del mundo
     // Fin de temporada: premio por posición en el campeonato de escuderías de cada liga
     premiosLiga: [6_000_000, 5_000_000, 4_500_000, 4_000_000, 3_500_000, 3_000_000, 2_500_000, 2_000_000, 1_500_000, 1_000_000],
+    // Identidad y grupo (solo fuera del periodo de carreras)
+    cambioNombre: 2_000_000,
+    cambioColor: 600_000,
+    compraFilial: 9_000_000,
+    maxFiliales: 2,
+    dividendoFilial: 90_000,              // al día, por cada filial
+    // Ofertas para dirigir otra escudería tras una temporada excepcional
+    probOfertaHermanas: 0.05,
+    probOfertaNormal: 0.09,
+    diasOfertaPlaza: 7,
 };
+
+// Fases en las que se puede cambiar nombre/colores o comprar una filial (no durante las carreras)
+export const FASES_IDENTIDAD = ['pretemporada', 'mercado', 'cerrada'];
+export const identidadAbierta = (fase) => FASES_IDENTIDAD.includes(fase);
 
 export const AREAS = {
     motor: { nombre: 'Motor', icono: '' },

@@ -2,8 +2,9 @@
 import {
     SESION_INFO, esCarrera, esQualy, ECO, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST, SLOTS_ID,
     costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion,
-    ESTRATEGIA_DEF, diaMadrid, finDiaMadrid, LIGAS, LIGAS_NACIONALES, SETUP_PARAMS, SETUP_BASE,
+    ESTRATEGIA_DEF, diaMadrid, finDiaMadrid, LIGAS, LIGAS_NACIONALES, SETUP_PARAMS, SETUP_BASE, identidadAbierta,
 } from '../engine/constants.js';
+import { validarNombreEscuderia } from '../engine/badwords.js';
 import { crearRng } from '../engine/rng.js';
 import { simularSesion } from '../engine/sim.js';
 import { compactar, descompactar, construirTemporada, proyeccionMundial } from '../engine/stats.js';
@@ -23,7 +24,8 @@ import { MERCADO } from '../engine/mercado.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const M = (v) => `${(v / 1e6).toFixed(2).replace('.', ',')} M€`;
 
-export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker', log = console.log, forzar = false } = {}) {
+// precarga: {eventos, equipos, privs} ya leídos (el worker continuo los mantiene con listeners y así no gasta lecturas)
+export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker', log = console.log, forzar = false, precarga = null, extra = {} } = {}) {
     const inicio = Date.now();
     const cfg = await store.get('config/juego');
     if (!cfg) { log('No existe config/juego: inicializa la temporada desde el panel admin.'); return { ok: false }; }
@@ -39,6 +41,12 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
     }
     const ctx = crearContexto(store, { ahora, log });
     ctx.cfg = cfg; ctx.secreto = secreto; ctx.temporada = cfg.temporada || 1;
+    if (precarga) {
+        const copia = (v) => structuredClone(v);
+        if (precarga.eventos) ctx.eventos = precarga.eventos.filter(e => e.temporada === ctx.temporada).map(copia);
+        if (precarga.equipos) ctx.equipos = Object.fromEntries(precarga.equipos.map(e => [e.id, copia(e)]));
+        if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
+    }
 
     const pasos = [simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, diario, transicionesFase];
     const errores = [];
@@ -49,7 +57,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
     if (ctx.catalogoSucio) await reconstruirCatalogo(store, ctx.cfg);
 
     const resumenTick = {
-        ultimo: ahora, origen, duracionMs: Date.now() - inicio, enCurso: null,
+        ...extra, ultimo: ahora, origen, duracionMs: Date.now() - inicio, enCurso: null,
         notas: ctx.informe.slice(-15), errores, lecturas: store.lecturas, escrituras: store.escrituras,
     };
     await store.merge('config/juego', { tick: resumenTick });
@@ -488,6 +496,114 @@ const ACCIONES = {
         return { ok: true };
     },
 
+    // Cambiar nombre, nombre corto y/o color de tu escudería (o de una filial tuya)
+    async identidad(ctx, a) {
+        if (!identidadAbierta(ctx.cfg.fase)) throw new Error('Solo se puede cambiar en pretemporada o al acabar la temporada.');
+        const objetivo = a.params?.objetivo || a.equipoId;
+        const eq = ctx.equipos[objetivo];
+        if (!eq || (objetivo !== a.equipoId && eq.filialDe !== a.equipoId)) throw new Error('Esa escudería no es tuya.');
+        const priv = privDe(ctx, a.equipoId);
+        const cambios = {};
+        let coste = 0;
+        const limpio = (v) => v != null ? String(v).trim().replace(/\s+/g, ' ') : null;
+        const nombre = limpio(a.params?.nombre), corto = limpio(a.params?.corto);
+        if (nombre && nombre !== eq.nombre) {
+            const err = validarNombreEscuderia(nombre);
+            if (err) throw new Error(err);
+            const repetido = Object.entries(ctx.equipos).some(([id, e]) => id !== objetivo && [e.nombre, e.corto].some(x => (x || '').toLowerCase() === nombre.toLowerCase()));
+            if (repetido) throw new Error('Ya hay una escudería con ese nombre.');
+            cambios.nombre = nombre;
+        }
+        if (corto && corto !== eq.corto) {
+            const err = validarNombreEscuderia(corto, { min: 2, max: 16 });
+            if (err) throw new Error(err.replace('El nombre', 'El nombre corto'));
+            cambios.corto = corto;
+        }
+        if (cambios.nombre || cambios.corto) coste += ECO.cambioNombre;
+        const color = a.params?.color;
+        if (color && color.toLowerCase() !== (eq.color || '').toLowerCase()) {
+            if (!/^#[0-9a-f]{6}$/i.test(color)) throw new Error('Color no válido.');
+            cambios.color = color.toLowerCase();
+            coste += ECO.cambioColor;
+        }
+        if (!Object.keys(cambios).length) throw new Error('No has cambiado nada.');
+        if ((priv.presupuesto || 0) < coste) throw new Error(`Presupuesto insuficiente (necesitas ${M(coste)}).`);
+        const antes = eq.nombre;
+        movimiento(priv, `Cambio de imagen${objetivo !== a.equipoId ? ` (${antes})` : ''}`, -coste, ctx.ahora);
+        Object.assign(eq, cambios);
+        ctx.ops.push({ op: 'merge', path: `equipos/${objetivo}`, data: cambios });
+        // Si el grupo lo fundó esta escudería, el grupo pasa a llamarse como ella
+        if (cambios.corto && eq.grupoPropio) {
+            const grupo = eq.grupo;
+            for (const [id, e] of Object.entries(ctx.equipos)) {
+                if (e.grupo !== grupo) continue;
+                e.grupo = cambios.corto;
+                ctx.ops.push({ op: 'merge', path: `equipos/${id}`, data: { grupo: cambios.corto } });
+            }
+        }
+        ctx.catalogoSucio = true;
+        if (cambios.nombre) noticia(ctx, { titulo: `${antes} pasa a llamarse ${cambios.nombre}`, texto: 'Nueva imagen para la próxima temporada.', liga: eq.liga, tipo: 'noticia' });
+        return { ok: true, coste, cambios };
+    },
+
+    // Comprar una escudería de otro país: pasa a ser tu filial (la lleva la IA, comparte tecnología y paga dividendos)
+    async comprar_filial(ctx, a) {
+        if (!identidadAbierta(ctx.cfg.fase)) throw new Error('Solo se puede comprar en pretemporada o al acabar la temporada.');
+        const mio = ctx.equipos[a.equipoId];
+        const objId = a.params?.equipoId;
+        const obj = ctx.equipos[objId];
+        if (!obj) throw new Error('Escudería no encontrada.');
+        if (obj.liga === mio.liga) throw new Error('Tiene que ser de otro país.');
+        if (obj.ownerId) throw new Error('Esa escudería ya tiene mánager.');
+        if (obj.grupo || obj.filialDe) throw new Error('Esa escudería ya pertenece a un grupo.');
+        const filiales = Object.values(ctx.equipos).filter(e => e.filialDe === a.equipoId);
+        if (filiales.length >= ECO.maxFiliales) throw new Error(`Como mucho puedes tener ${ECO.maxFiliales} filiales.`);
+        if (filiales.some(e => e.liga === obj.liga)) throw new Error('Ya tienes una filial en esa liga.');
+        const priv = privDe(ctx, a.equipoId);
+        if ((priv.presupuesto || 0) < ECO.compraFilial) throw new Error(`Presupuesto insuficiente (necesitas ${M(ECO.compraFilial)}).`);
+        movimiento(priv, `Compra de ${obj.nombre}`, -ECO.compraFilial, ctx.ahora);
+        if (!mio.grupo) {
+            mio.grupo = mio.corto || mio.nombre; mio.grupoPropio = true;
+            ctx.ops.push({ op: 'merge', path: `equipos/${a.equipoId}`, data: { grupo: mio.grupo, grupoPropio: true } });
+        }
+        obj.grupo = mio.grupo; obj.filialDe = a.equipoId;
+        ctx.ops.push({ op: 'merge', path: `equipos/${objId}`, data: { grupo: mio.grupo, filialDe: a.equipoId } });
+        ctx.catalogoSucio = true;
+        notificar(ctx, a.equipoId, { remitente: 'Consejo de administración', tipo: 'grupo', titulo: `${obj.nombre} ya es tuya`, texto: `Compartís tecnología (−25% en I+D cuando una de las dos mejora un área) y te paga ${M(ECO.dividendoFilial)} al día en dividendos.` });
+        noticia(ctx, { titulo: `${mio.nombre} compra ${obj.nombre}`, texto: `El grupo ${mio.grupo} ya tiene equipos en ${[mio.liga, ...filiales.map(f => f.liga), obj.liga].map(l => LIGAS[l]?.nombre || l).join(', ')}.`, liga: obj.liga, tipo: 'mercado' });
+        return { ok: true, coste: ECO.compraFilial };
+    },
+
+    // Responder a una oferta para dirigir otra escudería
+    async plaza_responder(ctx, a) {
+        const priv = privDe(ctx, a.equipoId);
+        const oferta = (priv.ofertasPlaza || []).find(o => o.id === a.params?.ofertaId);
+        if (!oferta) throw new Error('Oferta no encontrada.');
+        priv.ofertasPlaza = priv.ofertasPlaza.filter(o => o.id !== oferta.id);
+        if (!a.params?.aceptar) return { ok: true, rechazada: true };
+        if (oferta.expira <= ctx.ahora || !identidadAbierta(ctx.cfg.fase)) throw new Error('La oferta ha caducado.');
+        const viejo = ctx.equipos[a.equipoId];
+        const nuevo = ctx.equipos[oferta.equipoId];
+        if (!nuevo || nuevo.ownerId) throw new Error('Esa escudería ya tiene mánager.');
+        const uid = viejo.ownerId, ownerNombre = viejo.ownerNombre;
+        nuevo.ownerId = uid; nuevo.ownerNombre = ownerNombre;
+        viejo.ownerId = null; viejo.ownerNombre = null;
+        ctx.ops.push({ op: 'merge', path: `equipos/${oferta.equipoId}`, data: { ownerId: uid, ownerNombre } });
+        ctx.ops.push({ op: 'merge', path: `equipos/${a.equipoId}`, data: { ownerId: null, ownerNombre: null } });
+        ctx.ops.push({ op: 'merge', path: `usuarios/${uid}`, data: { equipoId: oferta.equipoId } });
+        priv.ofertasPlaza = [];
+        const pn = ctx.privs[oferta.equipoId];
+        if (pn) {
+            pn.ofertasSponsor = ofertasSponsor(ctx.secreto, ctx.temporada, oferta.equipoId, 5);
+            if (pn.sponsor?.temporada !== ctx.temporada) pn.sponsor = null;
+            ctx.sucios.privs.add(oferta.equipoId);
+        }
+        ctx.catalogoSucio = true;
+        notificar(ctx, oferta.equipoId, { remitente: 'Dirección de la liga', tipo: 'bienvenida', titulo: `Bienvenido a ${nuevo.nombre}`, texto: `Dejas ${viejo.nombre}, que pasa a llevarla la IA. Te quedas con el presupuesto, el coche y los pilotos de tu nuevo equipo.` });
+        noticia(ctx, { titulo: `${ownerNombre || 'Un mánager'} ficha por ${nuevo.nombre}`, texto: `Tras una gran temporada al frente de ${viejo.nombre}, da el salto a ${nuevo.nombre}.`, liga: nuevo.liga, tipo: 'mercado' });
+        return { ok: true, equipoId: oferta.equipoId };
+    },
+
     async draft(ctx, a) {
         if (ctx.cfg.fase !== 'mercado') throw new Error('El draft no está abierto.');
         const lista = (a.params?.lista || []).slice(0, 8).map(String);
@@ -665,6 +781,12 @@ async function diario(ctx) {
         } else if (!eq.ownerId) {
             // IA: ingreso diario equivalente a una racha media y gestión automática
             movimiento(priv, 'Ingresos diarios', ECO.checkinBase + 3 * ECO.checkinPorRacha, ctx.ahora);
+            // Filial: paga dividendos a su matriz si la dirige un mánager
+            const matriz = eq.filialDe && equipos[eq.filialDe];
+            if (matriz?.ownerId && privs[eq.filialDe]) {
+                movimiento(privs[eq.filialDe], `Dividendos de ${eq.nombre}`, ECO.dividendoFilial, ctx.ahora);
+                ctx.sucios.privs.add(eq.filialDe);
+            }
             if (!priv.sponsor || priv.sponsor.temporada !== ctx.temporada) priv.sponsor = { ...(priv.ofertasSponsor?.[0] || ofertasSponsor(ctx.secreto, ctx.temporada, eqId)[0]), temporada: ctx.temporada };
             const rng = crearRng(`${ctx.secreto}|iadia|${dia}|${eqId}`);
             const prox = eventos.filter(e => e.liga === eq.liga).map(e => ({ e, t: Math.min(...sesionesOrdenadas(e).map(s => s.lockAt)) })).filter(x => x.t > ctx.ahora).sort((a, b) => a.t - b.t)[0]?.e;

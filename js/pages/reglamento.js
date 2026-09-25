@@ -10,7 +10,7 @@ await montar({ activo: 'reglamento' });
 const indice = [
     ['simulacion', 'Qué es esto'], ['formato', 'El campeonato'], ['jornada', 'Una jornada'], ['puntos', 'Puntos'],
     ['mundial', 'El Mundial'], ['mercado', 'El mercado'], ['despidos', 'Despidos'], ['economia', 'Economía'],
-    ['cada-dia', 'Qué hacer cada día'], ['carrera', 'Cómo se decide una carrera'],
+    ['cada-dia', 'Qué hacer cada día'], ['club', 'Imagen y filiales'], ['carrera', 'Cómo se decide una carrera'],
 ];
 const seccion = (id, titulo, html) => `<section id="${id}" style="scroll-margin-top:90px;padding:30px 0;border-bottom:1px solid var(--hair)">
   <div class="tarjeta-titulo"><h2>${titulo}</h2></div><div class="guia">${html}</div></section>`;
@@ -39,7 +39,7 @@ ${seccion('formato', 'El campeonato', `
 <li><b>Cinco ligas nacionales:</b> España, Italia, Reino Unido, Alemania y Australia. Cada una tiene 10 escuderías, 20 pilotos y 5 jornadas.</li>
 <li><b>Los pilotos son de la liga, no de las escuderías.</b> No se fichan: la liga los asigna y los mueve según las normas del mercado.</li>
 <li><b>Cuota nacional:</b> el Piloto 1 de cada escudería es siempre de la nacionalidad de la liga, y cada liga tiene al menos 11 pilotos locales.</li>
-<li>Algunas marcas (Valcor, Kessler, Altair, Stellari, Northline) tienen escuderías en varios países. Cuando una mejora un área del coche, sus hermanas la desarrollan un 25% más barata.</li>
+<li>Algunas marcas (Valcor, Kessler, Altair, Stellari, Northline) tienen escuderías en varios países. Cuando una mejora un área del coche, sus hermanas la desarrollan un 25% más barata. Esas escuderías no se pueden elegir al inscribirse: solo se llega a ellas por una oferta.</li>
 <li>Al terminar las ligas se juega la <b>Liga Intercontinental</b> (el Mundial) en una sede neutral.</li>
 </ul>`)}
 
@@ -94,6 +94,7 @@ ${tablaTexto(['Entra dinero por', 'Cuánto'], [
     ['Pilotos en el Mundial', `${dinero(ECO.bonusClasificadoMundial)} por cada uno`],
     ['Fin de temporada', `Según tu puesto en la liga: de ${dinero(ECO.premiosLiga[0])} (1º) a ${dinero(ECO.premiosLiga[ECO.premiosLiga.length - 1])} (10º)`],
     ['Vender un Galáctico', 'El importe de la operación'],
+    ['Filiales', `${dinero(ECO.dividendoFilial)} al día por cada una`],
 ])}
 ${tablaTexto(['Sale dinero por', 'Cuánto'], [
     ['Salarios de los pilotos', 'Al terminar cada jornada de liga'],
@@ -101,6 +102,7 @@ ${tablaTexto(['Sale dinero por', 'Cuánto'], [
     ['Instalaciones', 'Fábrica, simulador y marketing: 2 M€ por nivel'],
     ['Espionaje', `De ${dinero(ECO.costeInvestigacion.piloto)} a ${dinero(ECO.costeInvestigacion.estrategia)} por misión`],
     ['Pedir un Galáctico', 'Lo que ofrezcas, solo si la operación se hace'],
+    ['Nombre / colores / filial', `${dinero(ECO.cambioNombre)} / ${dinero(ECO.cambioColor)} / ${dinero(ECO.compraFilial)} (solo fuera del periodo de carreras)`],
 ])}
 <p>El coche tiene cuatro áreas (motor, aerodinámica, chasis y fiabilidad) con 10 niveles. Puedes tener ${SLOTS_ID} mejoras en marcha a la vez; tardan horas y pueden fallar (si fallan recuperas la mitad). Cada circuito premia más unas áreas que otras.</p>
 <p>Al empezar una temporada nueva cada área baja 2 niveles por el cambio de reglamento, y el presupuesto se queda en la mitad más 8 M€.</p>`)}
@@ -113,7 +115,15 @@ ${seccion('cada-dia', 'Qué hacer cada día', `
 <li><b>Guarda la estrategia</b> de la próxima jornada antes de que cierre.</li>
 <li><b>Ten el coche siempre en desarrollo.</b></li>
 </ol>
-<p>Todo lo que pides (mejoras, simulador, espionaje…) lo procesa el servidor cada pocos minutos.</p>`)}
+<p>Todo lo que pides (mejoras, simulador, espionaje…) lo procesa el servidor en unos segundos.</p>`)}
+
+${seccion('club', 'Imagen, filiales y ofertas', `
+<p>En <b>pretemporada</b> y <b>al acabar la temporada</b> (nunca con las carreras en marcha), desde Mi escudería → Equipo puedes:</p>
+<ul>
+<li><b>Cambiar el nombre</b> (y el nombre corto) por ${dinero(ECO.cambioNombre)}, y <b>los colores</b> por ${dinero(ECO.cambioColor)}. Los nombres ofensivos no se aceptan.</li>
+<li><b>Comprar una escudería extranjera</b> sin mánager ni grupo por ${dinero(ECO.compraFilial)} (hasta ${ECO.maxFiliales}, una por país). Pasa a ser tu filial: la sigue llevando la IA, formáis grupo (−25% en I+D cuando una mejora un área) y te paga ${dinero(ECO.dividendoFilial)} al día. También puedes cambiarle el nombre y los colores.</li>
+</ul>
+<p><b>Ofertas de otras escuderías.</b> Si haces una temporada excepcional (top 3 de escuderías de tu liga, o top 3 del Mundial en pilotos o escuderías), al acabar puede llamarte otra escudería: un ${Math.round(ECO.probOfertaHermanas * 100)}% de probabilidad de que sea una de un grupo con hermanas y un ${Math.round(ECO.probOfertaNormal * 100)}% de que sea una normal. Tienes ${ECO.diasOfertaPlaza} días para decidir. Si aceptas, tu escudería actual pasa a la IA y te quedas con el presupuesto, el coche y los pilotos de la nueva.</p>`)}
 
 ${seccion('carrera', 'Cómo se decide una carrera', `
 <p>Cada vuelta de cada piloto se calcula con:</p>

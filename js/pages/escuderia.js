@@ -5,8 +5,9 @@ import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal,
 import {
     LIGAS, LIGAS_NACIONALES, SESIONES, SESION_INFO, esCarrera, esQualy, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST,
     SLOTS_ID, costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion, ECO,
-    SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, tandasSimulador,
+    SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, tandasSimulador, identidadAbierta,
 } from '../engine/constants.js';
+import { validarNombreEscuderia } from '../engine/badwords.js';
 import { tandasDisponibles, textoLectura } from '../engine/juego.js';
 import { candidatosGalactico, tacticosDisponibles, puedePedirGalactico, MERCADO } from '../core/mercado-ui.js';
 
@@ -30,6 +31,7 @@ const hoy = () => diaMadrid(ahora());
 const cadencia = d.cfg.cadenciaMin || 10;
 const proximoCiclo = () => {
     const ult = d.cfg.tick?.ultimo;
+    if (d.cfg.tick?.continuoHasta > ahora()) return 'en unos segundos';
     if (!ult) return 'en unos minutos';
     let t = ult + cadencia * 60_000;
     while (t < ahora()) t += cadencia * 60_000;
@@ -97,10 +99,14 @@ escuchar(`decisiones/${hoy()}_${eqId}`, (dec) => {
     if (E.priv) repintar('hoy');
 });
 
-const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico' };
+const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico', identidad: 'Cambio de imagen', comprar_filial: 'Compra de filial', plaza_responder: 'Oferta de plaza' };
 function avisarAccion(a) {
     if (a.estado === 'error') toast(`${NOMBRES_ACCION[a.tipo] || a.tipo}: ${a.resultado?.error}`, 'error');
     else toast(`${NOMBRES_ACCION[a.tipo] || a.tipo}: hecho`);
+    // cambios que afectan a la información pública de la escudería: recargar con el catálogo nuevo
+    if (a.estado === 'hecha' && ['identidad', 'comprar_filial', 'plaza_responder'].includes(a.tipo) && !(a.tipo === 'plaza_responder' && a.resultado?.rechazada)) {
+        limpiarCache(); setTimeout(() => location.reload(), 3000);
+    }
 }
 const pendientes = (tipo) => E.acciones.filter(a => a.tipo === tipo && a.estado === 'pendiente');
 async function lanzar(tipo, params, msg = 'Enviado') {
@@ -160,6 +166,7 @@ function pintarHoy() {
         </div>
       </div>
       <aside class="pila">
+        ${plazaHtml()}
         <div class="tarjeta">
           <div class="tarjeta-titulo"><h2>Recompensa diaria</h2><span class="muted peq">${rachaN} ${rachaN === 1 ? 'día' : 'días'} seguidos</span></div>
           <div class="racha">${Array.from({ length: 7 }, (_, i) => `<i class="${i < Math.min(rachaN, 7) ? 'on' : ''}">${i + 1}</i>`).join('')}</div>
@@ -174,6 +181,7 @@ function pintarHoy() {
     </div>`;
     $$('[data-ir]', el).forEach(b => b.addEventListener('click', () => irA(b.dataset.ir)));
     $('#btn-checkin', el)?.addEventListener('click', () => lanzar('checkin', {}, 'Recompensa en cola'));
+    activarPlaza(el);
     $('#ver-avisos', el)?.addEventListener('click', () => { modal(`<h2>Avisos</h2>${E.notifs.slice(0, 80).map(notifHtml).join('')}`, { ancho: 620 }); marcarLeidas(); });
     if (avisos.some(n => !n.leida)) setTimeout(marcarLeidas, 4000);
     $$('[data-op]', el).forEach(b => b.addEventListener('click', async () => {
@@ -384,6 +392,7 @@ function pintarEquipo() {
             : '<p class="muted">Las ofertas llegan con el próximo ciclo.</p>'}
         </div>
         ${mercadoHtml()}
+        ${identidadHtml()}
       </div>
       <div class="tarjeta">
         <div class="tarjeta-titulo"><h2>Movimientos</h2><span class="muted peq">${dinero(priv.presupuesto)}</span></div>
@@ -396,6 +405,7 @@ function pintarEquipo() {
         await lanzar('sponsor_firmar', { ofertaId: o.id }, 'Contrato enviado');
     }));
     activarMercado(el);
+    activarIdentidad(el);
 }
 
 // Mercado: pedir un Galáctico de otra liga (solo las 5 mejores escuderías de cada liga)
@@ -441,6 +451,116 @@ function activarMercado(el) {
         if (!await confirmar(`¿Ofrecer <b>${dinero(importe)}</b> y a ${esc(d.nombre(f.tactico.value))} por <b>${esc(d.nombre(f.pid.value))}</b>? El dinero solo se cobra si la operación se hace al final de temporada.`)) return;
         await lanzar('galactico_oferta', { pid: f.pid.value, tactico: f.tactico.value, importe }, 'Oferta enviada');
     });
+}
+
+// Imagen y grupo: nombre, colores y filiales (solo fuera del periodo de carreras)
+function identidadHtml() {
+    const abierto = identidadAbierta(d.cfg.fase);
+    const filiales = Object.entries(d.cat.equipos).filter(([, e]) => e.filialDe === eqId);
+    const comprables = Object.entries(d.cat.equipos)
+        .filter(([id, e]) => id !== eqId && e.liga !== liga && LIGAS_NACIONALES.includes(e.liga) && !e.ownerId && !e.grupo && !e.filialDe && !filiales.some(([, f]) => f.liga === e.liga))
+        .sort(([, a], [, b]) => LIGAS_NACIONALES.indexOf(a.liga) - LIGAS_NACIONALES.indexOf(b.liga) || a.nombre.localeCompare(b.nombre));
+    const enCola = pendientes('identidad').length + pendientes('comprar_filial').length;
+    const puedeComprar = filiales.length < ECO.maxFiliales;
+    return `<div class="tarjeta">
+      <div class="tarjeta-titulo"><h2>Imagen y grupo</h2>${abierto ? '' : '<span class="muted peq">Cerrado durante las carreras</span>'}</div>
+      ${!abierto ? `<p class="muted peq">Podrás cambiar el nombre y los colores o comprar una escudería extranjera en pretemporada y al acabar la temporada.</p>` : `
+      <form id="f-identidad" style="display:grid;gap:12px">
+        <div class="campo-fila">
+          <label>Nombre<input name="nombre" maxlength="32" value="${esc(eq.nombre)}"></label>
+          <label>Nombre corto<input name="corto" maxlength="16" value="${esc(eq.corto || '')}"></label>
+          <label>Color<input type="color" name="color" value="${esc(eq.color || '#888888')}"></label>
+        </div>
+        <p class="muted peq" id="identidad-coste">Nombre: ${dinero(ECO.cambioNombre)} · Color: ${dinero(ECO.cambioColor)}</p>
+        <div class="fila-botones"><button class="btn" ${enCola ? 'disabled' : ''}>${enCola ? 'En cola…' : 'Guardar cambios'}</button></div>
+      </form>`}
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--hair2)">
+        <div class="fila-entre"><b>Filiales</b><span class="muted peq">${filiales.length}/${ECO.maxFiliales}</span></div>
+        <p class="muted peq">Compra una escudería de otro país sin mánager. La sigue llevando la IA, pero forma grupo contigo: compartís tecnología (−25% en I+D cuando una mejora un área) y te paga ${dinero(ECO.dividendoFilial)} al día.</p>
+        ${filiales.length ? `<ul class="lista">${filiales.map(([id, e]) => `<li>${banderaLiga(e.liga)} <span class="chip-equipo" style="color:var(--texto)"><i style="background:${esc(e.color)}"></i>${esc(e.nombre)}</span>${abierto ? `<button class="btn btn-sec btn-peq" data-filial-editar="${esc(id)}">Editar</button>` : ''}</li>`).join('')}</ul>` : ''}
+        ${abierto && puedeComprar ? (comprables.length ? `<form id="f-filial" class="fila" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+            <select name="equipoId" style="flex:1;min-width:200px">${LIGAS_NACIONALES.filter(l => l !== liga).map(l => {
+                const cs = comprables.filter(([, e]) => e.liga === l);
+                return cs.length ? `<optgroup label="${esc(LIGAS[l].nombre)}">${cs.map(([id, e]) => `<option value="${esc(id)}">${esc(e.nombre)}</option>`).join('')}</optgroup>` : '';
+            }).join('')}</select>
+            <button class="btn btn-peq" ${enCola ? 'disabled' : ''}>Comprar · ${dinero(ECO.compraFilial)}</button></form>`
+            : '<p class="muted peq">No quedan escuderías disponibles.</p>') : ''}
+      </div>
+    </div>`;
+}
+function activarIdentidad(el) {
+    const f = $('#f-identidad', el);
+    if (f) {
+        const coste = () => {
+            const n = f.nombre.value.trim() !== eq.nombre || f.corto.value.trim() !== (eq.corto || '');
+            const c = f.color.value.toLowerCase() !== (eq.color || '').toLowerCase();
+            return (n ? ECO.cambioNombre : 0) + (c ? ECO.cambioColor : 0);
+        };
+        f.addEventListener('input', () => { const c = coste(); $('#identidad-coste', el).innerHTML = c ? `Total: <b style="color:var(--texto)">${dinero(c)}</b>` : `Nombre: ${dinero(ECO.cambioNombre)} · Color: ${dinero(ECO.cambioColor)}`; });
+        f.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nombre = f.nombre.value.trim(), corto = f.corto.value.trim(), color = f.color.value;
+            const c = coste();
+            if (!c) return toast('No has cambiado nada.', 'error');
+            const err = validarNombreEscuderia(nombre) || (corto && validarNombreEscuderia(corto, { min: 2, max: 16 }));
+            if (err) return toast(err, 'error');
+            if (c > (E.priv.presupuesto || 0)) return toast('No tienes presupuesto suficiente.', 'error');
+            if (!await confirmar(`¿Cambiar la imagen de tu escudería por <b>${dinero(c)}</b>?`)) return;
+            await lanzar('identidad', { nombre, corto, color }, 'Cambio enviado');
+        });
+    }
+    $('#f-filial', el)?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = e.target.equipoId.value;
+        const obj = d.equipo(id);
+        if (ECO.compraFilial > (E.priv.presupuesto || 0)) return toast('No tienes presupuesto suficiente.', 'error');
+        if (!await confirmar(`¿Comprar <b>${esc(obj.nombre)}</b> por <b>${dinero(ECO.compraFilial)}</b>? Pasará a ser tu filial en ${esc(LIGAS[obj.liga].nombre)}.`)) return;
+        await lanzar('comprar_filial', { equipoId: id }, 'Compra enviada');
+    });
+    $$('[data-filial-editar]', el).forEach(b => b.addEventListener('click', () => {
+        const id = b.dataset.filialEditar;
+        const e = d.equipo(id);
+        const m = modal(`<h2>Editar ${esc(e.nombre)}</h2>
+          <form id="f-edit-filial" style="display:grid;gap:12px">
+            <label>Nombre<input name="nombre" maxlength="32" value="${esc(e.nombre)}"></label>
+            <label>Nombre corto<input name="corto" maxlength="16" value="${esc(e.corto || '')}"></label>
+            <label>Color<input type="color" name="color" value="${esc(e.color || '#888888')}"></label>
+            <p class="muted peq">Nombre: ${dinero(ECO.cambioNombre)} · Color: ${dinero(ECO.cambioColor)}</p>
+            <div class="fila-botones"><button class="btn">Guardar</button></div>
+          </form>`, { ancho: 440 });
+        const f2 = document.getElementById('f-edit-filial');
+        f2.addEventListener('submit', async (ev2) => {
+            ev2.preventDefault();
+            const nombre = f2.nombre.value.trim(), corto = f2.corto.value.trim(), color = f2.color.value;
+            const err = validarNombreEscuderia(nombre) || (corto && validarNombreEscuderia(corto, { min: 2, max: 16 }));
+            if (err) return toast(err, 'error');
+            await lanzar('identidad', { objetivo: id, nombre, corto, color }, 'Cambio enviado');
+            m?.cerrar?.();
+        });
+    }));
+}
+
+// Ofertas para dirigir otra escudería (tras una temporada excepcional)
+function plazaHtml() {
+    const ofertas = (E.priv.ofertasPlaza || []).filter(o => o.expira > ahora());
+    if (!ofertas.length) return '';
+    const enCola = pendientes('plaza_responder').length;
+    return `<div class="tarjeta" style="border-color:var(--acento)">
+      <div class="tarjeta-titulo"><h2>Te quieren fichar</h2></div>
+      <p class="muted peq">Tu temporada ha llamado la atención. Si aceptas, dejas ${esc(eq.nombre)} (la llevará la IA) y pasas a dirigir la nueva escudería con su presupuesto, su coche y sus pilotos.</p>
+      ${ofertas.map(o => `<div class="fila-entre" style="padding:10px 0;border-top:1px solid var(--hair2)">
+        <div>${banderaLiga(o.liga)} <b>${esc(d.nombreEquipo(o.equipoId) || o.nombre)}</b>${o.grupo ? ` <span class="muted peq">· grupo ${esc(o.grupo)}</span>` : ''}<div class="tenue peq">Caduca en ${cuentaAtras(o.expira, true)}</div></div>
+        <div class="fila" style="gap:6px"><button class="btn btn-sec btn-peq" data-plaza="${esc(o.id)}" data-aceptar="0" ${enCola ? 'disabled' : ''}>Rechazar</button><button class="btn btn-peq" data-plaza="${esc(o.id)}" data-aceptar="1" ${enCola ? 'disabled' : ''}>Aceptar</button></div>
+      </div>`).join('')}
+    </div>`;
+}
+function activarPlaza(el) {
+    $$('[data-plaza]', el).forEach(b => b.addEventListener('click', async () => {
+        const o = E.priv.ofertasPlaza.find(x => x.id === b.dataset.plaza);
+        const aceptar = b.dataset.aceptar === '1';
+        if (!await confirmar(aceptar ? `¿Dejar <b>${esc(eq.nombre)}</b> y dirigir <b>${esc(o.nombre)}</b>? No hay vuelta atrás.` : `¿Rechazar la oferta de <b>${esc(o.nombre)}</b>?`)) return;
+        await lanzar('plaza_responder', { ofertaId: o.id, aceptar }, aceptar ? 'Aceptada' : 'Rechazada');
+    }));
 }
 
 // ======================================================================
@@ -492,11 +612,12 @@ function elegirEquipo() {
         return;
     }
     const abierta = d.cfg.inscripcion !== false;
-    const libres = Object.entries(d.cat.equipos).filter(([, e]) => !e.ownerId);
+    // Las escuderías de un grupo (con hermanas en otros países) no se pueden elegir
+    const libres = Object.entries(d.cat.equipos).filter(([, e]) => !e.ownerId && !e.grupo && !e.filialDe);
     let ligaSel = LIGAS_NACIONALES.find(l => libres.some(([, e]) => e.liga === l)) || 'ESP';
     const pintar = () => {
         const eqs = libres.filter(([, e]) => e.liga === ligaSel);
-        main.innerHTML = `<div class="cabecera-pagina"><div><div class="etiqueta">Inscripción</div><h1>Elige tu escudería</h1><p class="sub">Las escuderías sin mánager las lleva la IA.</p></div></div>
+        main.innerHTML = `<div class="cabecera-pagina"><div><div class="etiqueta">Inscripción</div><h1>Elige tu escudería</h1><p class="sub">Las escuderías sin mánager las lleva la IA. Las que forman parte de un grupo con equipos en varios países no se pueden elegir.</p></div></div>
         ${!abierta ? '<div class="aviso-caja" style="margin-bottom:12px">La inscripción está cerrada ahora mismo.</div>' : ''}
         <div class="selector-ligas">${LIGAS_NACIONALES.map(l => `<a href="#" data-liga="${l}" class="${l === ligaSel ? 'activo' : ''}">${banderaLiga(l, { ancho: 18, titulo: false })}${esc(LIGAS[l].nombre)} <span class="tenue">${libres.filter(([, e]) => e.liga === l).length}</span></a>`).join('')}</div>
         <div class="tarjeta">${eqs.length ? eqs.map(([id, e]) => {

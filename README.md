@@ -7,7 +7,7 @@ Las sesiones se **simulan solas** al cerrar las estrategias y se **publican a la
 ## Cómo funciona
 
 ```
-Navegador (web estática)  ──lee/escribe──▶  Firestore  ◀──cada 10 min──  GitHub Actions (worker/run.mjs)
+Navegador (web estática)  ──lee/escribe──▶  Firestore  ◀──tiempo real──  GitHub Actions (worker/run.mjs --continuo)
 ```
 
 - **Web**: HTML + JS sin compilar. Se puede servir desde GitHub Pages, Firebase Hosting o cualquier hosting estático.
@@ -22,7 +22,7 @@ Navegador (web estática)  ──lee/escribe──▶  Firestore  ◀──cada 
    1. GitHub → Settings → Secrets and variables → Actions → *New repository secret*: `BOT_EMAIL` (por ejemplo `bot@fxmanager.es`) y `BOT_PASSWORD` (cualquier contraseña de 6+ caracteres que te inventes).
    2. Actions → «Ciclo del juego» → *Run workflow*. La primera vez crea la cuenta y falla a propósito diciendo que aún no es admin.
    3. En la web, `control.html` → Usuarios → marca **Admin** en «Bot del juego».
-   4. Vuelve a lanzar el workflow: debería salir en verde. A partir de ahí corre solo cada 10 minutos.
+   4. Vuelve a lanzar el workflow: debería salir en verde. A partir de ahí se queda encendido solo (turnos de ~6 h que se relanzan a sí mismos).
 4. **Preparar la temporada** desde `control.html` (solo visible para administradores):
    1. *Temporada* → **Borrar todo** (limpia la temporada pasada; conserva las cuentas).
    2. *Parrilla* → **Cargar la parrilla ficticia incluida** → Validar → Importar.
@@ -32,7 +32,7 @@ Navegador (web estática)  ──lee/escribe──▶  Firestore  ◀──cada 
 
 ## Frecuencia del ciclo
 
-El repositorio es público, así que los minutos de GitHub Actions son gratis: el ciclo corre cada 10 minutos. GitHub a veces retrasa unos minutos las ejecuciones programadas; por eso las estrategias cierran 30 minutos antes de cada sesión (ajustable en el panel). Los resultados se publican a la hora exacta igualmente.
+El repositorio es público, así que los minutos de GitHub Actions son gratis. El worker se queda encendido escuchando Firestore en tiempo real: procesa las acciones de los mánagers en segundos y simula/publica cada sesión a su hora. Cada turno dura unas 5 h 40 min y al acabar lanza el siguiente; un cron cada 2 horas lo rearranca si la cadena se corta. Como los datos se escuchan en vivo, un ciclo sin trabajo cuesta unas 4 lecturas de Firestore.
 
 ## Reglas del juego
 
