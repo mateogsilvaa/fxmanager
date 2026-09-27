@@ -34,6 +34,7 @@ ${selectorLigas(liga)}
   <button data-tab="calendario">Calendario</button>
   <button data-tab="equipos">Escuderías</button>
   <button data-tab="estadisticas">Estadísticas</button>
+  <button data-tab="noticias">Noticias</button>
   ${esInt ? '' : '<button data-tab="riesgo">Mundial y mercado</button>'}
 </div>
 <section data-panel="resumen" id="p-resumen"></section>
@@ -41,6 +42,7 @@ ${selectorLigas(liga)}
 <section data-panel="calendario" id="p-calendario"></section>
 <section data-panel="equipos" id="p-equipos"></section>
 <section data-panel="estadisticas" id="p-estadisticas"></section>
+<section data-panel="noticias" id="p-noticias"></section>
 <section data-panel="riesgo" id="p-riesgo"></section>`;
 
 const pintados = new Set();
@@ -48,9 +50,46 @@ pestanas($('#tabs').parentElement, {
     alCambiar: (id) => {
         if (pintados.has(id)) return;
         pintados.add(id);
-        ({ resumen, clasificacion, calendario, cronicas, estadisticas, pilotos, equipos, riesgo })[id]?.();
+        ({ resumen, clasificacion, calendario, cronicas, estadisticas, pilotos, equipos, riesgo, noticias: pestanaNoticias })[id]?.();
     },
 });
+
+// ---------------------------------------------------------------- Noticias
+function filtrosNoticias() { return [
+    ['todas', 'Todas', () => true],
+    ['carreras', 'Carreras', (n) => ['noticia', 'cronica', 'previa'].includes(n.tipo)],
+    ['prensa', 'Prensa', (n) => n.tipo === 'prensa'],
+    ['rumores', 'Rumores', (n) => n.tipo === 'rumor'],
+    ['mercado', 'Mercado', (n) => n.tipo === 'mercado' || n.tipo === 'fase'],
+]; }
+async function pestanaNoticias() {
+    const el = $('#p-noticias');
+    let todas = noticias.slice(), filtro = 'todas', agotadas = noticias.length < 60, cargando = false;
+    const deLiga = () => todas.filter(n => n.liga === liga || (!n.liga && n.tipo === 'fase'));
+    const pintar = () => {
+        const f = filtrosNoticias().find(x => x[0] === filtro)[2];
+        const lista = deLiga().filter(f);
+        el.innerHTML = `
+        <div class="sub-pestanas">${filtrosNoticias().map(([id, txt, fn]) => `<button data-filtro="${id}" class="${id === filtro ? 'activa' : ''}">${txt} <span class="tenue">${deLiga().filter(fn).length}</span></button>`).join('')}</div>
+        <div class="tarjeta">${listaNoticias(lista)}</div>
+        ${agotadas ? '' : `<div class="fila-botones" style="justify-content:center;margin-top:18px"><button class="btn btn-sec" id="mas-noticias" ${cargando ? 'disabled' : ''}>${cargando ? 'Cargando…' : 'Cargar noticias más antiguas'}</button></div>`}`;
+        $$('[data-filtro]', el).forEach(b => b.addEventListener('click', () => { filtro = b.dataset.filtro; pintar(); }));
+        $('#mas-noticias', el)?.addEventListener('click', async () => {
+            cargando = true; pintar();
+            const mas = await cargarNoticias(100, todas.at(-1)?.publishAt);
+            todas = [...todas, ...mas];
+            agotadas = mas.length < 100;
+            cargando = false; pintar();
+        });
+    };
+    pintar();
+    // la página trae las últimas noticias de todas las ligas: si de esta hay pocas, se cargan más
+    if (!agotadas && deLiga().length < 15) {
+        cargando = true; pintar();
+        const mas = await cargarNoticias(150, todas.at(-1)?.publishAt);
+        todas = [...todas, ...mas]; agotadas = mas.length < 150; cargando = false; pintar();
+    }
+}
 
 // ---------------------------------------------------------------- Resumen
 function resumen() {

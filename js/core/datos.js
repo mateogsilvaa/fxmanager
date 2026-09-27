@@ -144,10 +144,13 @@ export class Datos {
     nombreSesion(tipo) { return SESION_INFO[tipo]?.nombre || tipo; }
 }
 
-export async function cargarNoticias(limite = 30) {
+// antesDe: para paginar hacia atrás (noticias publicadas antes de ese instante)
+export async function cargarNoticias(limite = 30, antesDe = null) {
     try {
         // margen de 2 min por si el reloj del navegador va adelantado respecto al servidor
-        return await store().list('noticias', [['publishAt', '<=', ahora() - 120_000]], { orden: ['publishAt', 'desc'], limit: limite });
+        const filtros = [['publishAt', '<=', ahora() - 120_000]];
+        if (antesDe) filtros.push(['publishAt', '<', antesDe]);
+        return await store().list('noticias', filtros, { orden: ['publishAt', 'desc'], limit: limite });
     } catch (e) { console.warn('noticias', e); return []; }
 }
 

@@ -98,6 +98,7 @@ export function bloqueLiga(d, liga, noticias, { enlace = true, titulo = true } =
     const news = `<div class="lb-col lb-noticia">
         <h3 class="lb-sub">Última noticia</h3>
         ${noticia ? `<article><div class="muted peq">${hace(noticia.publishAt)}</div><h4>${esc(noticia.titulo)}</h4>${noticia.texto ? `<p>${esc(corto(noticia.texto, 190))}</p>` : ''}</article>` : '<p class="muted">Todavía no hay noticias de esta liga.</p>'}
+        <a class="lb-mas lb-mas-peq" href="liga.html?l=${liga}&tab=noticias">Todas las noticias →</a>
       </div>`;
 
     return `<section class="liga-bloque${titulo ? "" : " sin-titulo"}" id="liga-${liga}">

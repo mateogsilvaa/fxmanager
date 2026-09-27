@@ -510,3 +510,4 @@ a.sesion-fila:hover { background: var(--panel-warm); color: var(--ink); }
 .solo-escritorio { display: none; }
 @media (min-width: 760px) { .tarjeta-titulo > .solo-escritorio { display: inline; } }
 .liga-bloque.sin-titulo { margin-top: 6px; padding-top: 0; border-top: 0; }
+.lb-mas-peq { margin-top: 14px; font-size: 10px; }
