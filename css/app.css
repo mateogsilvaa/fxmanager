@@ -22,7 +22,8 @@
     --grid-chart: #efece6;
     --pos-bg: rgba(29, 122, 82, .05);
     --neg-bg: rgba(168, 50, 31, .07);
-    --acc-bg: rgba(184, 115, 11, .07);
+    --acc-bg: rgba(184, 115, 11, .09);
+    --wc-bg: rgba(106, 63, 160, .08);
     --sans: Barlow, system-ui, sans-serif;
     --cond: 'Barlow Condensed', 'Arial Narrow', sans-serif;
     --mono: 'Space Mono', 'Cascadia Mono', Consolas, monospace;
@@ -558,3 +559,18 @@ a.sesion-fila:hover { background: var(--panel-warm); color: var(--ink); }
 .neu-blando { border-color: var(--red); }
 .neu-medio { border-color: var(--sc); }
 .neu-duro { border-color: var(--ink); }
+
+/* Zonas de Mundial: top 3 de cada liga y wildcards */
+.tabla tr.zona-top3 td, .lb-piloto.zona-top3 { background: var(--acc-bg); }
+.tabla tr.zona-top3 td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.tabla tr.zona-wc td, .lb-piloto.zona-wc { background: var(--wc-bg); }
+.tabla tr.zona-wc td:first-child { box-shadow: inset 3px 0 0 var(--purple); }
+.lb-piloto.zona-top3 { box-shadow: inset 3px 0 0 var(--accent); }
+.lb-piloto.zona-wc { box-shadow: inset 3px 0 0 var(--purple); }
+.lb-piloto.zona-top3, .lb-piloto.zona-wc { padding-left: 8px; }
+.insignia.wc { color: var(--purple); }
+.leyenda-zonas { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.leyenda-zonas span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda-zonas i { width: 14px; height: 10px; display: inline-block; }
+.leyenda-zonas i.zona-top3 { background: var(--acc-bg); box-shadow: inset 3px 0 0 var(--accent); }
+.leyenda-zonas i.zona-wc { background: var(--wc-bg); box-shadow: inset 3px 0 0 var(--purple); }

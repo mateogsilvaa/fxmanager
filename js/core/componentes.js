@@ -33,13 +33,15 @@ export function tablaClasificacionPilotos(d, liga, { limite = null, corteMundial
     if (!lista.length) return vacio('Aún no hay pilotos en esta liga.');
     const miEq = usuario()?.perfil?.equipoId;
     const proy = liga !== 'INT' ? d.clasificadosMundial() : null;
-    const clasif = new Set((proy?.clasificados || []).map(c => c.pid));
+    const via = Object.fromEntries((proy?.clasificados || []).map(c => [c.pid, c.via]));
+    const hayPuntos = lista.some(s => s.pts > 0);
     const filas = lista.map((s, i) => {
         const p = d.piloto(s.pid);
-        return `<tr class="${p?.equipoId === miEq ? 'yo' : ''} ${corteMundial && liga !== 'INT' && i === 2 ? 'corte' : ''}">
+        const zona = !hayPuntos || liga === 'INT' ? '' : via[s.pid] === 'top3' ? 'zona-top3' : via[s.pid] === 'repesca' ? 'zona-wc' : '';
+        return `<tr class="${p?.equipoId === miEq ? 'yo' : ''} ${zona} ${corteMundial && liga !== 'INT' && i === 2 ? 'corte' : ''}">
           <td>${pos(i + 1)}</td>
           <td class="dorsal ancho">${p?.numero ?? ''}</td>
-          <td><div class="fila" style="flex-wrap:nowrap;gap:6px">${celdaPiloto(d, s.pid)}<span class="celda-piloto-extra">${p?.rol === 'P1' ? '<span class="insignia p1">P1</span> ' : ''}${clasif.has(s.pid) ? '<span class="insignia mundial" title="En zona de Mundial">MUN</span>' : ''}</span></div></td>
+          <td><div class="fila" style="flex-wrap:nowrap;gap:6px">${celdaPiloto(d, s.pid)}<span class="celda-piloto-extra">${zona === 'zona-wc' ? '<span class="insignia wc" title="Wildcard: uno de los 5 mejores del resto">WC</span>' : ''}</span></div></td>
           <td class="ancho">${celdaEquipo(d, p?.equipoId || s.eq)}</td>
           <td class="cen num">${s.victorias || 0}</td>
           <td class="cen num">${s.podios || 0}</td>
@@ -47,7 +49,12 @@ export function tablaClasificacionPilotos(d, liga, { limite = null, corteMundial
           ${extra ? `<td class="cen num">${extra(s) ?? ''}</td>` : ''}
           <td class="pts">${s.pts}</td></tr>`;
     }).join('');
-    return `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th class="ancho">#</th><th>Piloto</th><th class="ancho">Equipo</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="cen" title="Poles">Pole</th>${extra ? '<th class="cen">+</th>' : ''}<th class="der">Pts</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+    return `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th class="ancho">#</th><th>Piloto</th><th class="ancho">Equipo</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="cen" title="Poles">Pole</th>${extra ? '<th class="cen">+</th>' : ''}<th class="der">Pts</th></tr></thead><tbody>${filas}</tbody></table></div>${liga !== 'INT' && hayPuntos ? leyendaZonas() : ''}`;
+}
+
+// Leyenda de los sombreados: top 3 de cada liga y wildcards (5 mejores del resto) van al Mundial
+export function leyendaZonas() {
+    return `<div class="leyenda-zonas"><span><i class="zona-top3"></i>Top 3: al Mundial</span><span><i class="zona-wc"></i>Wildcard: uno de los 5 mejores del resto</span></div>`;
 }
 
 export function tablaClasificacionEquipos(d, liga, { limite = null } = {}) {

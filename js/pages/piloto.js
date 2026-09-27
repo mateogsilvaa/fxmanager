@@ -46,7 +46,7 @@ main.innerHTML = `
 <section class="hero">
   <div class="fila" style="gap:20px;align-items:flex-end">
     <div style="font-size:40px;font-weight:700;line-height:1;color:${esc(eq?.color || 'var(--acento)')}">${pl.numero ?? ''}</div>
-    <div><div class="fila">${bandera(pl.nac, { ancho: 30 })}<span class="muted">${esc(PAISES[pl.nac] || '')} · ${pl.edad ?? '?'} años</span>${pl.rol === 'P1' ? '<span class="insignia p1">Piloto 1</span>' : ''}${pl.rookie ? '<span class="insignia rookie">Rookie</span>' : ''}${enMundial ? `<span class="insignia mundial">${proy.fijado ? 'Clasificado al Mundial' : 'En zona Mundial'}</span>` : ''}</div>
+    <div><div class="fila">${bandera(pl.nac, { ancho: 30 })}<span class="muted">${esc(PAISES[pl.nac] || '')} · ${pl.edad ?? '?'} años</span>${pl.rookie ? '<span class="insignia rookie">Rookie</span>' : ''}${enMundial ? `<span class="insignia mundial">${proy.fijado ? 'Clasificado al Mundial' : 'En zona Mundial'}</span>` : ''}</div>
     <h1 style="margin:6px 0 0">${esc(pl.nombre)} ${esc(pl.apellido)}</h1>
     <div class="fila" style="margin-top:6px">${eq ? celdaEquipo(d, pl.equipoId) : '<span class="muted">Sin equipo</span>'} ${liga ? `<a href="liga.html?l=${liga}">${banderaLiga(liga)} ${esc(LIGAS[liga]?.nombre)}</a>` : ''}</div></div>
   </div>

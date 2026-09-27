@@ -417,7 +417,7 @@ function pintarEquipo() {
         const a = pp.attrs || {};
         const moral = pp.moral ?? 60;
         return `<div class="tarjeta">
-          <div class="fila-entre"><a class="fila" href="piloto.html?id=${esc(p.id)}">${bandera(p.nac, { ancho: 22 })}<b>${esc(p.nombre)} ${esc(p.apellido)}</b></a><span class="muted peq">#${p.numero ?? ''} · ${p.rol === 'P1' ? 'Piloto 1' : 'Piloto 2'}</span></div>
+          <div class="fila-entre"><a class="fila" href="piloto.html?id=${esc(p.id)}">${bandera(p.nac, { ancho: 22 })}<b>${esc(p.nombre)} ${esc(p.apellido)}</b></a><span class="muted peq">#${p.numero ?? ''}</span></div>
           <div class="datos" style="margin:12px 0"><div class="dato"><b>${st[p.id]?.pts ?? 0}</b><span>Puntos</span></div><div class="dato"><b>${moral >= 70 ? 'Alta' : moral >= 45 ? 'Normal' : 'Baja'}</b><span>Moral</span></div><div class="dato"><b>${pp.forma > 0.2 ? 'En racha' : pp.forma < -0.2 ? 'Bajón' : 'Normal'}</b><span>Forma</span></div></div>
           ${attr('Ritmo', a.ritmo)}${attr('Consistencia', a.consistencia)}${attr('Agresividad', a.agresividad)}${attr('Lluvia', a.lluvia)}
           ${entrenoHtml(p)}

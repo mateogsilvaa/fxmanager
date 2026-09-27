@@ -1,8 +1,8 @@
 import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, cargarHistorico } from '../core/datos.js';
-import { store } from '../core/app.js';
+import { store, usuario } from '../core/app.js';
 import { esc, banderaLiga, vacio, $, $$, bandera } from '../core/ui.js';
-import { tarjetasRecords, activarRecords, celdaPiloto, celdaEquipo, pos } from '../core/componentes.js';
+import { tarjetasRecords, activarRecords, celdaPiloto, celdaEquipo, pos, managerDe } from '../core/componentes.js';
 import { LIGAS, LIGAS_NACIONALES } from '../engine/constants.js';
 import { CATEGORIAS_PILOTO, CATEGORIAS_EQUIPO, ranking, construirTemporada } from '../engine/stats.js';
 
@@ -14,7 +14,7 @@ barraDirecto(d);
 main.innerHTML = `
 <div class="cabecera-pagina"><div><div class="etiqueta">Desde la temporada 1</div><h1>Estadísticas</h1><p class="sub">Récords históricos acumulados. Pulsa cualquiera para ver el ranking completo.</p></div></div>
 <div class="barra-opciones">
-  <div class="sub-pestanas" style="margin:0"><button data-modo="historico" class="activa">Histórico</button><button data-modo="temporada">Temporada ${d.temporada}</button><button data-modo="palmares">Palmarés</button></div>
+  <div class="sub-pestanas" style="margin:0"><button data-modo="historico" class="activa">Histórico</button><button data-modo="temporada">Temporada ${d.temporada}</button><button data-modo="global">Clasificación global</button><button data-modo="palmares">Palmarés</button></div>
   <select id="filtro"><option value="TODAS">Todas las ligas</option><optgroup label="Ligas nacionales">${LIGAS_NACIONALES.map(l => `<option value="${l}">${esc(LIGAS[l].nombre)}</option>`).join('')}</optgroup><optgroup label="Final"><option value="INT">Intercontinental</option></optgroup></select>
 </div>
 <div id="cuerpo"></div>`;
@@ -24,9 +24,10 @@ let modo = 'historico';
 const pintar = () => {
     const l = $('#filtro').value;
     $$('[data-modo]').forEach(b => b.classList.toggle('activa', b.dataset.modo === modo));
-    $('#filtro').hidden = modo === 'palmares';
+    $('#filtro').hidden = modo === 'palmares' || modo === 'global';
     const cuerpo = $('#cuerpo');
     if (modo === 'palmares') return palmares(cuerpo);
+    if (modo === 'global') return global(cuerpo);
     const base = modo === 'historico' ? historico : d.sesiones;
     const sesionesSel = base.filter(s => l === 'TODAS' ? s.liga !== 'INT' : s.liga === l);
     const t = construirTemporada(sesionesSel);
@@ -55,6 +56,36 @@ const pintar = () => {
 $('#filtro').addEventListener('change', () => pintar());
 $$('[data-modo]').forEach(b => b.addEventListener('click', () => { modo = b.dataset.modo; pintar(); }));
 pintar();
+
+// Clasificación global: todos los pilotos y escuderías de las cinco ligas nacionales juntos
+let globalHistorico = false;
+function global(cuerpo) {
+    const base = (globalHistorico ? historico : d.sesiones).filter(s => s.liga !== 'INT');
+    const t = construirTemporada(base);
+    const miEq = usuario()?.perfil?.equipoId;
+    const P = t.clasPilotos, E = t.clasEquipos;
+    const ligaDe = (pid, eq) => d.piloto(pid)?.liga || d.equipo(eq)?.liga;
+    cuerpo.innerHTML = `
+    <div class="sub-pestanas"><button data-g="0" class="${globalHistorico ? '' : 'activa'}">Temporada ${d.temporada}</button><button data-g="1" class="${globalHistorico ? 'activa' : ''}">Histórico</button></div>
+    <p class="muted" style="margin:0 0 18px;max-width:70ch">Las cinco ligas nacionales en una sola tabla: todas corren el mismo número de carreras con el mismo sistema de puntos. ${globalHistorico ? 'Suma todas las temporadas.' : ''}</p>
+    ${!P.length ? vacio('Todavía no se ha disputado ninguna sesión.') : `
+    <div class="rejilla rejilla-lado">
+      <section class="tarjeta"><div class="tarjeta-titulo"><h2>Pilotos</h2><span>${P.length}</span></div>
+        <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Piloto</th><th class="ancho">Liga</th><th class="ancho">Escudería</th><th class="cen" title="Carreras">Car</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="cen ancho" title="Poles">Pole</th><th class="cen ancho" title="Puntos por carrera">Pts/C</th><th class="der">Pts</th></tr></thead><tbody>
+        ${P.map((p, i) => `<tr class="${d.piloto(p.pid)?.equipoId === miEq ? 'yo' : ''} ${i < 3 ? 'zona-top3' : ''}"><td>${pos(i + 1)}</td><td>${celdaPiloto(d, p.pid)}</td>
+          <td class="ancho">${ligaDe(p.pid, p.eq) ? banderaLiga(ligaDe(p.pid, p.eq), { ancho: 16 }) : ''}</td><td class="ancho">${celdaEquipo(d, d.piloto(p.pid)?.equipoId || p.eq)}</td>
+          <td class="cen num">${p.carreras || 0}</td><td class="cen num">${p.victorias || 0}</td><td class="cen num">${p.podios || 0}</td><td class="cen num ancho">${p.poles || 0}</td>
+          <td class="cen num ancho">${p.carreras ? (p.ptsCarrera / p.carreras).toFixed(1).replace('.', ',') : '—'}</td><td class="pts">${p.pts}</td></tr>`).join('')}
+        </tbody></table></div></section>
+      <section class="tarjeta"><div class="tarjeta-titulo"><h2>Escuderías</h2><span>${E.length}</span></div>
+        <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Escudería</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="der">Pts</th></tr></thead><tbody>
+        ${E.map((e, i) => { const eq = d.equipo(e.eq); return `<tr class="${e.eq === miEq ? 'yo' : ''} ${i < 3 ? 'zona-top3' : ''}"><td>${pos(i + 1)}</td>
+          <td>${eq?.liga ? banderaLiga(eq.liga, { ancho: 14 }) + ' ' : ''}${celdaEquipo(d, e.eq)}<div class="muted peq">${managerDe(eq)}</div></td>
+          <td class="cen num">${e.victorias || 0}</td><td class="cen num">${e.podios || 0}</td><td class="pts">${e.pts}</td></tr>`; }).join('')}
+        </tbody></table></div></section>
+    </div>`}`;
+    $$('[data-g]', cuerpo).forEach(b => b.addEventListener('click', () => { globalHistorico = b.dataset.g === '1'; global(cuerpo); }));
+}
 
 function destacado(t, nombre, v) {
     return `<div class="tarjeta"><div class="etiqueta">${esc(t)}</div><div class="cuenta">${esc(v ?? '—')}</div><div class="muted">${esc(nombre || '')}</div></div>`;

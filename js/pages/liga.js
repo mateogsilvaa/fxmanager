@@ -130,7 +130,7 @@ function zonaMundialLiga(proy) {
     if (!d.sesionesLiga(liga).length) return vacio('Se decide cuando arranque la liga.');
     const aqui = proy.clasificados.filter(c => c.liga === liga);
     const aspir = (proy.aspirantes || []).filter(a => a.liga === liga).slice(0, 3);
-    return `<ul class="lista">${aqui.map(c => `<li class="fila-entre"><span>${esc(d.nombre(c.pid))} ${c.via === 'repesca' ? '<span class="insignia mundial">repesca</span>' : ''}</span><span class="num muted">${c.pts}</span></li>`).join('')}</ul>
+    return `<ul class="lista">${aqui.map(c => `<li class="fila-entre"><span>${esc(d.nombre(c.pid))} ${c.via === 'repesca' ? '<span class="insignia wc">wildcard</span>' : ''}</span><span class="num muted">${c.pts}</span></li>`).join('')}</ul>
     ${aspir.length ? `<p class="etiqueta" style="margin-top:10px">Al acecho</p><ul class="lista">${aspir.map(a => `<li class="fila-entre"><span class="muted">${esc(d.nombre(a.pid))}</span><span class="num muted">a ${a.aCorte} pts</span></li>`).join('')}</ul>` : ''}`;
 }
 
@@ -263,7 +263,7 @@ function pilotos() {
         return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}" style="border-left:4px solid ${esc(eq?.color || 'var(--hair)')}">
           <div class="fila-entre"><span class="dorsal" style="font-size:18px">${p.numero ?? ''}</span>${p.st ? pos(p.st.posicion) : ''}</div>
           <div class="fila" style="margin-top:4px">${bandera(p.nac, { ancho: 24 })}<div><div>${esc(p.nombre)}</div><b style="font-size:16px">${esc(p.apellido)}</b></div></div>
-          <div class="fila-entre" style="margin-top:8px">${chipEquipo(eq)}<span>${p.rol === 'P1' ? '<span class="insignia p1">Piloto 1</span>' : ''} ${p.rookie ? '<span class="insignia rookie">Rookie</span>' : ''}</span></div>
+          <div class="fila-entre" style="margin-top:8px">${chipEquipo(eq)}<span>${p.rookie ? '<span class="insignia rookie">Rookie</span>' : ''}</span></div>
           <div class="muted" style="font-size:.85rem;margin-top:6px">${esc(PAISES[p.nac] || '')} · ${p.edad ?? '?'} años · <b style="color:var(--texto)">${p.st?.pts ?? 0} pts</b></div></a>`;
     }).join('')}</div>`;
 }
@@ -279,7 +279,7 @@ function equipos() {
         return `<a class="tarjeta ${s.eq === miEq ? 'resaltada' : ''}" href="equipo.html?id=${esc(s.eq)}" style="border-top:4px solid ${esc(e?.color)}">
           <div class="fila-entre"><h3 style="margin:0">${esc(e?.nombre)}</h3>${pos(i + 1)}</div>
           <div class="muted" style="font-size:.85rem">${e?.grupo ? `Grupo ${esc(e.grupo)} · ` : ''}Mánager: <b style="color:var(--texto)">${managerDe(e)}</b></div>
-          <ul class="lista" style="margin-top:8px">${suyos.map(p => `<li class="fila">${bandera(p.nac)} ${esc(p.nombre)} <b>${esc(p.apellido)}</b> ${p.rol === 'P1' ? '<span class="insignia p1">P1</span>' : ''}</li>`).join('')}</ul>
+          <ul class="lista" style="margin-top:8px">${suyos.map(p => `<li class="fila">${bandera(p.nac)} ${esc(p.nombre)} <b>${esc(p.apellido)}</b></li>`).join('')}</ul>
           <div class="datos" style="margin-top:8px"><div class="dato"><b>${s.pts}</b><span>Puntos</span></div><div class="dato"><b>${s.victorias || 0}</b><span>Victorias</span></div><div class="dato"><b>${e?.fans ?? 0}</b><span>Fans</span></div></div></a>`;
     }).join('')}</div>`;
 }
@@ -304,7 +304,7 @@ function riesgo() {
       </div>
       <aside class="pila">
         <div class="tarjeta"><div class="tarjeta-titulo"><h3>${proy.fijado ? 'Clasificados' : 'Proyección Mundial'}</h3></div>
-          ${proy.clasificados?.length && d.sesiones.length ? `<ul class="lista">${proy.clasificados.map(c => `<li class="fila-entre"><span>${banderaLiga(c.liga, { ancho: 16 })} ${c.liga === liga ? `<b>${esc(d.nombre(c.pid))}</b>` : esc(d.nombre(c.pid))} ${c.via === 'repesca' ? '<span class="insignia mundial">repesca</span>' : ''}</span><span class="num muted">${c.pts}</span></li>`).join('')}</ul>` : vacio('Aún sin datos.')}
+          ${proy.clasificados?.length && d.sesiones.length ? `<ul class="lista">${proy.clasificados.map(c => `<li class="fila-entre"><span>${banderaLiga(c.liga, { ancho: 16 })} ${c.liga === liga ? `<b>${esc(d.nombre(c.pid))}</b>` : esc(d.nombre(c.pid))} ${c.via === 'repesca' ? '<span class="insignia wc">wildcard</span>' : ''}</span><span class="num muted">${c.pts}</span></li>`).join('')}</ul>` : vacio('Aún sin datos.')}
         </div>
       </aside>
     </div>`;

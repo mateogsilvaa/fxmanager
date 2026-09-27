@@ -58,6 +58,8 @@ function modeloCarrera(r) {
 function progresoCarrera(x, T) {
     const c = x.c, laps = x.f.laps;
     if (x.retiro != null && T >= x.retiro) return { p: laps.length + 0.45, fuera: true };
+    // abandono en la salida sin ninguna vuelta: se queda en su puesto de parrilla hasta retirarse
+    if (!laps.length) return { p: 0 };
     if (T >= c[c.length - 1]) return { p: laps.length, acabado: x.fin };
     let k = 0;
     while (k < laps.length && c[k + 1] <= T) k++;

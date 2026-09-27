@@ -58,6 +58,7 @@ export function bloqueLiga(d, liga, noticias, { enlace = true, titulo = true } =
     const ev = e.actual;
     const max = Math.max(1, clasP[0]?.pts || 0);
     const vivo = ev ? sesionEnDirecto(ev) : null;
+    const via = liga === 'INT' ? {} : Object.fromEntries((d.clasificadosMundial().clasificados || []).map(c => [c.pid, c.via]));
 
     const cabeceraProxima = ev ? `<div class="lb-proxima">
         <div class="etiqueta">${e.enCurso ? `Jornada ${ev.ronda} · en curso` : `Próxima jornada · J${ev.ronda}`}</div>
@@ -76,7 +77,8 @@ export function bloqueLiga(d, liga, noticias, { enlace = true, titulo = true } =
         <h3 class="lb-sub">${empezo ? 'Top 5 pilotos' : 'Pilotos'}</h3>
         ${clasP.slice(0, 5).map((p, i) => {
             const pil = d.piloto(p.pid), eq = d.equipo(p.eq || pil?.equipoId);
-            return `<a class="lb-piloto" href="piloto.html?id=${esc(p.pid)}">
+            const zona = !empezo ? '' : via[p.pid] === 'top3' ? 'zona-top3' : via[p.pid] === 'repesca' ? 'zona-wc' : '';
+            return `<a class="lb-piloto ${zona}" href="piloto.html?id=${esc(p.pid)}">
               <span class="lb-pos mono">${i + 1}</span>
               <span class="lb-quien">${bandera(pil?.nac, { ancho: 16 })}<b>${esc(pil?.nombre || '')} ${esc(pil?.apellido || '')}</b><span class="lb-eq"><i style="background:${esc(eq?.color || '#999')}"></i>${esc(eq?.corto || eq?.nombre || '')}</span></span>
               <span class="lb-pts mono">${p.pts}</span>

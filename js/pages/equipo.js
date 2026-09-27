@@ -44,7 +44,7 @@ main.innerHTML = `
     </div></div>
     <div class="rejilla rejilla-2">${pilotos.map(p => {
         const s = d.tabla(liga).pilotos[p.id];
-        return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}"><div class="fila-entre"><span class="dorsal" style="font-size:20px;color:${esc(e.color)}">${p.numero ?? ''}</span>${p.rol === 'P1' ? '<span class="insignia p1">Piloto 1</span>' : '<span class="muted">Piloto 2</span>'}</div>
+        return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}"><div class="fila-entre"><span class="dorsal" style="font-size:20px;color:${esc(e.color)}">${p.numero ?? ''}</span>${p.rookie ? '<span class="insignia rookie">Rookie</span>' : ''}</div>
         <div class="fila">${bandera(p.nac, { ancho: 24 })}<div><div>${esc(p.nombre)}</div><b style="font-size:16px">${esc(p.apellido)}</b></div></div>
         <div class="muted" style="font-size:.85rem;margin-top:6px">${esc(PAISES[p.nac] || '')} · ${s?.pts ?? 0} pts · ${s?.victorias ?? 0} victorias</div></a>`;
     }).join('')}</div>
