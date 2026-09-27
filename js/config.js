@@ -9,4 +9,4 @@ export const FIREBASE_CONFIG = {
 };
 
 // Clave pública de los avisos en el móvil (Web Push). La pone worker/configurar-avisos.mjs
-export const VAPID_PUBLIC_KEY = '';
+export const VAPID_PUBLIC_KEY = 'BESzpHC1dCHYHVDxn7aHAn4rgvmkXX7q-aE6M8ZE4PBxBqnWqun7Ooevs_ZWyevC4m5xGeZwavGVlyHqi56ok2M';
