@@ -19,6 +19,7 @@ import {
     notificar, noticia, movimiento, nombrePiloto, volcar, idResultado, idEstrategia, idResumen, duenoReal,
 } from './comun.js';
 import { nombreManagerIA, noticiaManagerIA, conIA } from '../engine/prensa-ia.js';
+import { noticiaAmbiente, rumorMejora } from '../engine/ambiente.js';
 import { reconstruirCatalogo } from './catalogo.js';
 import { prepararMercado, cerrarMercado } from './temporada.js';
 import { noticiasSesion, previaJornada } from '../engine/cronica.js';
@@ -175,6 +176,31 @@ async function managersIA(ctx) {
         ctx.ops.push({ op: 'merge', path: `equipos/${id}`, data: cambios });
     }
     ctx.catalogoSucio = true;
+}
+
+// Una noticia de ambiente al día en cada liga (en el Mundial, solo en la Intercontinental)
+async function noticiasAmbiente(ctx, dia, eventos) {
+    const pilotos = await cargarPilotos(ctx);
+    const ligas = ctx.cfg.fase === 'mundial' ? ['INT'] : LIGAS_NACIONALES;
+    const recientes = { ...(ctx.cfg.ambienteRecientes || {}) };
+    for (const liga of ligas) {
+        const rng = crearRng(`${ctx.secreto}|ambiente|${dia}|${liga}`);
+        if (!rng.chance(0.85)) continue;
+        const tabla = await tablaLiga(ctx, liga);
+        const prox = eventos.filter(e => e.liga === liga).map(e => ({ e, t: Math.min(...sesionesOrdenadas(e).map(s => s.publishAt)) })).filter(x => x.t > ctx.ahora).sort((a, b) => a.t - b.t)[0]?.e;
+        const n = noticiaAmbiente(rng, {
+            liga, nombreLiga: liga === 'INT' ? 'el Mundial' : LIGAS[liga].nombre, tabla,
+            nombre: (pid) => nombrePiloto(pilotos[pid]), apellido: (pid) => pilotos[pid]?.apellido || '—',
+            equipo: (id) => ctx.equipos[id]?.nombre || '—',
+            prox: prox ? { circuito: prox.circuito, ronda: prox.ronda } : null,
+            recientes: new Set(recientes[liga] || []),
+        });
+        if (!n) continue;
+        noticia(ctx, { titulo: n.titulo, texto: n.texto, liga, tipo: n.tipo, publishAt: ctx.ahora + rng.int(9, 20) * 3600_000 });
+        recientes[liga] = [n.clave, ...(recientes[liga] || [])].slice(0, 6);
+    }
+    ctx.cfg.ambienteRecientes = recientes;
+    ctx.ops.push({ op: 'merge', path: 'config/juego', data: { ambienteRecientes: recientes } });
 }
 
 // Prensa del día sobre los mánagers de la IA (declaraciones, piques, espionaje…)
@@ -1068,7 +1094,14 @@ async function completarProyectos(ctx) {
                         ctx.sucios.privs.add(hid);
                         notificar(ctx, hid, { remitente: `Grupo ${grupo}`, tipo: 'id', titulo: `Transferencia técnica de ${equipos[eq].nombre}`, texto: `Tu próxima mejora de ${AREAS[p.clave].nombre.toLowerCase()} costará un 25% menos.` });
                     }
-                    if (p.nivel >= 4 && rng.chance(0.5)) noticia(ctx, { titulo: `${equipos[eq].nombre} estrena evolución`, texto: `Se rumorea en el paddock que ${equipos[eq].nombre} ha dado un paso adelante en ${AREAS[p.clave].nombre.toLowerCase()}.`, liga: equipos[eq].liga, tipo: 'rumor' });
+                    // Rumor de mejora: como mucho uno por liga cada dos días, para no llenar la prensa
+                    const ligaEq = equipos[eq].liga, hoyD = diaMadrid(ctx.ahora);
+                    const ultimo = ctx.cfg.rumoresMejora?.[ligaEq];
+                    if (p.nivel >= 3 && (!ultimo || ultimo < diaMadrid(ctx.ahora - 864e5)) && rng.chance(0.4)) {
+                        noticia(ctx, { ...rumorMejora(rng, equipos[eq].nombre, AREAS[p.clave].nombre.toLowerCase()), liga: ligaEq, tipo: 'rumor' });
+                        ctx.cfg.rumoresMejora = { ...(ctx.cfg.rumoresMejora || {}), [ligaEq]: hoyD };
+                        ctx.ops.push({ op: 'merge', path: 'config/juego', data: { rumoresMejora: { [ligaEq]: hoyD } } });
+                    }
                 } else {
                     const devolucion = Math.round(p.coste * 0.5);
                     movimiento(priv, `Reembolso parcial I+D fallido (${AREAS[p.clave].nombre})`, devolucion, ctx.ahora);
@@ -1235,7 +1268,7 @@ async function diario(ctx) {
             ctx.sucios.privs.add(eqId);
         }
     }
-    if (activos) await prensaManagersIA(ctx, dia);
+    if (activos) { await prensaManagersIA(ctx, dia); await noticiasAmbiente(ctx, dia, eventos); }
     // Moral y forma vuelven poco a poco a la normalidad
     const pp = await cargarPilotosPriv(ctx, Object.values(pilotos).filter(p => p.equipoId).map(p => p.id));
     for (const [id, p] of Object.entries(pp)) {
