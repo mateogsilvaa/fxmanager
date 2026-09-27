@@ -511,3 +511,24 @@ a.sesion-fila:hover { background: var(--panel-warm); color: var(--ink); }
 @media (min-width: 760px) { .tarjeta-titulo > .solo-escritorio { display: inline; } }
 .liga-bloque.sin-titulo { margin-top: 6px; padding-top: 0; border-top: 0; }
 .lb-mas-peq { margin-top: 14px; font-size: 10px; }
+
+/* ---------- Carrusel de ligas (portada) ---------- */
+.carrusel .tira-liga { position: relative; cursor: pointer; }
+.carrusel .tira-liga.activa { background: var(--panel-warm); }
+.carrusel .tira-liga.activa .tira-nombre { color: var(--accent); }
+.tira-progreso { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: transparent; }
+.tira-liga.activa .tira-progreso { background: var(--hair); }
+.tira-liga.activa .tira-progreso::after { content: ''; position: absolute; inset: 0; background: var(--accent); transform-origin: left; transform: scaleX(1); }
+.carrusel.corriendo .tira-liga.activa .tira-progreso::after { animation: progreso-carrusel var(--dur, 9s) linear forwards; }
+.carrusel.en-pausa .tira-liga.activa .tira-progreso::after { transform: scaleX(1); }
+@keyframes progreso-carrusel { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.carrusel-pista { display: flex; gap: 40px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; margin-top: 8px; }
+.carrusel-pista::-webkit-scrollbar { display: none; }
+.carrusel-diapo { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
+.carrusel-diapo .liga-bloque { margin-top: 18px; }
+.carrusel-ctrl { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--hair); }
+.carrusel-btn { width: 36px; height: 36px; border: 1px solid var(--ink); background: var(--bg); color: var(--ink); font: 700 16px var(--mono); cursor: pointer; border-radius: 0; }
+.carrusel-btn:hover { background: var(--ink); color: var(--bg); }
+.carrusel-n { font-size: 12px; color: var(--muted); min-width: 42px; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .carrusel-pista { scroll-behavior: auto; } }

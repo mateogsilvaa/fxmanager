@@ -34,16 +34,17 @@ function sesionEnDirecto(ev) {
 }
 
 // Tira superior con las cinco ligas y la cuenta atrás de cada una
-export function tiraLigas(d, { ancla = true } = {}) {
-    return `<nav class="tira-ligas" aria-label="Ligas">${LIGAS_NACIONALES.map(l => {
+// modo: 'ancla' (salta al bloque), 'enlace' (va a la liga) o 'carrusel' (selecciona la diapositiva)
+export function tiraLigas(d, { ancla = true, carrusel = false } = {}) {
+    return `<nav class="tira-ligas" aria-label="Ligas">${LIGAS_NACIONALES.map((l, i) => {
         const e = estadoLiga(d, l);
         const directo = e.actual && sesionEnDirecto(e.actual);
         const pie = directo ? '<span class="tira-cuenta en-vivo-txt">En directo</span>' : e.siguiente ? `<span class="tira-cuenta mono" data-cuenta="${e.siguiente.publishAt}" data-corta>${cuentaAtras(e.siguiente.publishAt, true)}</span>`
             : e.terminada ? '<span class="tira-cuenta muted">Terminada</span>' : '<span class="tira-cuenta muted">Sin fecha</span>';
-        return `<a class="tira-liga" href="${ancla ? `#liga-${l}` : `liga.html?l=${l}`}">
+        return `<a class="tira-liga" href="${ancla ? `#liga-${l}` : `liga.html?l=${l}`}"${carrusel ? ` data-slide="${i}" role="tab"` : ''}>
           <span class="tira-nombre">${banderaLiga(l, { ancho: 18, titulo: false })}${esc(LIGAS[l].nombre)}</span>
           <span class="tira-ronda">${e.total ? `J${Math.min(e.total, e.jugadas + (e.actual ? 1 : 0))} de ${e.total}` : '—'}</span>
-          ${pie}</a>`;
+          ${pie}${carrusel ? '<span class="tira-progreso"></span>' : ''}</a>`;
     }).join('')}</nav>`;
 }
 
