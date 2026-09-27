@@ -1,6 +1,7 @@
 import { montar } from '../core/layout.js';
 import { cargarDatos, limpiarCache } from '../core/datos.js';
 import { store, usuario, esAdmin, ahora, DEMO } from '../core/app.js';
+import { VAPID_PUBLIC_KEY } from '../config.js';
 import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal, pestanas, $, $$, dinero } from '../core/ui.js';
 import { LIGAS, LIGAS_NACIONALES, SESIONES, SESION_INFO, PAISES, NAC_LOCAL } from '../engine/constants.js';
 import { CIRCUITOS, CIRCUITOS_POR_ID, normalizarCircuito, tiempoReferencia } from '../engine/circuitos.js';
@@ -25,10 +26,10 @@ main.innerHTML = `
 <div class="cabecera-pagina"><div><div class="etiqueta">Organización</div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div><a class="btn btn-sec" href="sombra.html" target="_blank" rel="noopener">Jugar en modo sombra</a></div>
 <div class="pestanas" id="tabs">
   <button data-tab="estado">Estado y ciclo</button><button data-tab="calendario">Calendario</button><button data-tab="parrilla">Parrilla</button>
-  <button data-tab="usuarios">Usuarios</button><button data-tab="noticias">Noticias</button><button data-tab="temporada">Temporada</button>
+  <button data-tab="usuarios">Usuarios</button><button data-tab="noticias">Noticias</button><button data-tab="avisos">Avisos</button><button data-tab="temporada">Temporada</button>
 </div>
-${['estado', 'calendario', 'parrilla', 'usuarios', 'noticias', 'temporada'].map(t => `<section data-panel="${t}" id="p-${t}"></section>`).join('')}`;
-const PINTAR = { estado: pintarEstado, calendario: pintarCalendario, parrilla: pintarParrilla, usuarios: pintarUsuarios, noticias: pintarNoticias, temporada: pintarTemporada };
+${['estado', 'calendario', 'parrilla', 'usuarios', 'noticias', 'avisos', 'temporada'].map(t => `<section data-panel="${t}" id="p-${t}"></section>`).join('')}`;
+const PINTAR = { estado: pintarEstado, calendario: pintarCalendario, parrilla: pintarParrilla, usuarios: pintarUsuarios, noticias: pintarNoticias, avisos: pintarAvisos, temporada: pintarTemporada };
 pestanas($('#tabs').parentElement, { alCambiar: (id) => PINTAR[id]() });
 
 async function recargar() { limpiarCache(); d = await cargarDatos(); cfg = await store().get('config/juego'); }
@@ -459,3 +460,62 @@ async function pintarTemporada() {
     }));
 }
 void dinero; void tiempoReferencia; void idResultado;
+
+// ======================================================================
+// AVISOS: notificaciones personalizadas al móvil (las envía el worker)
+// ======================================================================
+async function pintarAvisos() {
+    const el = $('#p-avisos');
+    const [us, subs, hist] = await Promise.all([
+        store().list('usuarios').catch(() => []),
+        store().list('suscripciones').catch(() => []),
+        store().list('avisos_admin').catch(() => []),
+    ]);
+    const conAvisos = subs.filter(s => s.subs?.length).map(s => s.id);
+    const nombre = (uid) => us.find(x => x.id === uid)?.nombre || uid.slice(0, 6);
+    const lista = conAvisos.map(uid => ({ uid, nombre: nombre(uid) })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const PAGINAS = [['escuderia.html', 'Mi escudería'], ['index.html', 'Inicio'], ['liga.html', 'Ligas'], ['mercado.html', 'Mercado'], ['estadisticas.html', 'Estadísticas'], ['reglamento.html', 'Cómo funciona']];
+    const historial = hist.sort((a, b) => b.creado - a.creado).slice(0, 25);
+    el.innerHTML = `
+    <div class="rejilla rejilla-2" style="align-items:start">
+      <div class="tarjeta">
+        <div class="tarjeta-titulo"><h2>Enviar aviso</h2><span class="muted peq">${lista.length} con avisos activados</span></div>
+        ${VAPID_PUBLIC_KEY ? '' : '<div class="aviso-caja" style="margin-bottom:12px">Los avisos todavía no están configurados: ejecuta <code>node worker/configurar-avisos.mjs</code> en tu ordenador. Lo que envíes se quedará en cola hasta entonces.</div>'}
+        <form id="f-aviso" style="display:grid;gap:12px">
+          <label>Título<input name="titulo" maxlength="60" required placeholder="¡Mañana arranca la liga!"></label>
+          <label>Mensaje<textarea name="texto" maxlength="180" rows="3" required placeholder="Guarda la estrategia antes de las 16:30."></textarea></label>
+          <label>Al pulsarlo, abrir<select name="url">${PAGINAS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select></label>
+          <div><div class="muted peq" style="margin-bottom:6px">Destinatarios</div>
+            <label style="display:flex;gap:8px;align-items:center"><input type="radio" name="dest" value="todos" checked> Todos los que tienen avisos (${lista.length})</label>
+            <label style="display:flex;gap:8px;align-items:center"><input type="radio" name="dest" value="algunos"> Elegir</label>
+            <div id="elegir" hidden style="margin-top:6px;max-height:200px;overflow:auto;border:1px solid var(--hair2);padding:8px">${lista.length ? lista.map(x => `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="uid" value="${esc(x.uid)}"> ${esc(x.nombre)}</label>`).join('') : '<span class="muted peq">Nadie los ha activado todavía.</span>'}</div>
+          </div>
+          <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="copia" checked> Copiarlo también en los avisos de la web</label>
+          <div class="fila-botones"><button class="btn">Enviar</button></div>
+        </form>
+      </div>
+      <div class="tarjeta">
+        <div class="tarjeta-titulo"><h2>Enviados</h2></div>
+        ${historial.length ? historial.map(a => `<div style="padding:8px 0;border-top:1px solid var(--hair2)">
+          <div class="fila-entre"><b>${esc(a.titulo)}</b><span class="muted peq">${hace(a.creado)}</span></div>
+          <div class="muted peq">${esc(a.texto)}</div>
+          <div class="peq" style="margin-top:4px">${a.estado === 'enviado' ? `<span class="ok">Enviado</span> a ${a.personas ?? 0} persona${a.personas === 1 ? '' : 's'} (${a.dispositivos ?? 0} dispositivo${a.dispositivos === 1 ? '' : 's'})${a.fallidos ? ` · ${a.fallidos} fallidos` : ''}` : '<span class="muted">En cola…</span>'} · ${a.destinatarios === 'todos' ? 'todos' : `${a.destinatarios.length} elegidos`}</div>
+        </div>`).join('') : vacio('Todavía no has enviado ningún aviso.')}
+      </div>
+    </div>`;
+    const f = $('#f-aviso', el);
+    $$('[name=dest]', f).forEach(r => r.addEventListener('change', () => { $('#elegir', f).hidden = f.dest.value !== 'algunos'; }));
+    f.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const destinatarios = f.dest.value === 'todos' ? 'todos' : $$('[name=uid]:checked', f).map(c => c.value);
+        if (destinatarios !== 'todos' && !destinatarios.length) return toast('Elige al menos a una persona.', 'error');
+        const n = destinatarios === 'todos' ? lista.length : destinatarios.length;
+        if (!await confirmar(`¿Enviar «${esc(f.titulo.value)}» a ${n} persona${n === 1 ? '' : 's'}?`)) return;
+        await store().set(`avisos_admin/${store().nuevoId('avisos_admin')}`, {
+            titulo: f.titulo.value.trim(), texto: f.texto.value.trim(), url: f.url.value, destinatarios,
+            copiaWeb: f.copia.checked, estado: 'pendiente', creado: Date.now(), autor: usuario().uid,
+        });
+        toast(VAPID_PUBLIC_KEY ? 'En cola: sale en unos segundos' : 'En cola hasta que configures los avisos');
+        setTimeout(pintarAvisos, 1500);
+    });
+}

@@ -54,7 +54,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
         if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
     }
 
-    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, diario, transicionesFase, recordatorios];
+    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, diario, transicionesFase, recordatorios, avisosOrganizacion];
     const errores = [];
     for (const paso of pasos) {
         try { await paso(ctx); await volcar(ctx); }
@@ -389,6 +389,38 @@ async function recordatorios(ctx) {
         ctx.ops.push({ op: 'merge', path: `suscripciones/${uid}`, data: { ...cambios, ...(subs.length !== doc.subs.length ? { subs } : {}), ...(mensajes.length ? { ultimoPush: ctx.ahora } : {}) } });
     }
     if (enviados) ctx.nota(`Avisos enviados: ${enviados}`);
+}
+
+// Avisos personalizados que manda la organización desde Control → Avisos
+async function avisosOrganizacion(ctx) {
+    if (!ctx.push) return;
+    const cola = await ctx.store.list('avisos_admin', [['estado', '==', 'pendiente']]);
+    if (!cola.length) return;
+    const docs = (await ctx.store.list('suscripciones')).filter(d => d.subs?.length);
+    const equipos = await cargarEquipos(ctx);
+    for (const a of cola) {
+        const para = a.destinatarios === 'todos' ? docs : docs.filter(d => a.destinatarios.includes(d.id));
+        let personas = 0, dispositivos = 0, fallidos = 0;
+        for (const d of para) {
+            let vivos = d.subs, ok = false;
+            for (const sub of d.subs) {
+                const r = await ctx.push(sub, { title: a.titulo, body: a.texto, url: a.url || 'escuderia.html', tag: `org_${a.id}` });
+                if (r === 'ok') { dispositivos++; ok = true; } else { fallidos++; if (r === 'caducada') vivos = vivos.filter(x => x.endpoint !== sub.endpoint); }
+            }
+            if (ok) personas++;
+            if (vivos.length !== d.subs.length) { d.subs = vivos; ctx.ops.push({ op: 'merge', path: `suscripciones/${d.id}`, data: { subs: vivos } }); }
+        }
+        // Copia en los avisos de la web (a todos los destinatarios que dirigen una escudería)
+        if (a.copiaWeb) {
+            const uids = a.destinatarios === 'todos' ? para.map(d => d.id) : a.destinatarios;
+            for (const uid of uids) {
+                const eqId = Object.keys(equipos).find(id => duenoReal(ctx, id) === uid) || null;
+                ctx.ops.push({ op: 'set', path: `notificaciones/${ctx.store.nuevoId('notificaciones')}`, data: { uid, equipoId: eqId, remitente: 'Organización', titulo: a.titulo, texto: a.texto, tipo: 'organizacion', fecha: ctx.ahora, leida: false } });
+            }
+        }
+        ctx.ops.push({ op: 'update', path: `avisos_admin/${a.id}`, data: { estado: 'enviado', personas, dispositivos, fallidos, enviado: ctx.ahora } });
+        ctx.nota(`Aviso de la organización "${a.titulo}": ${personas} personas`);
+    }
 }
 
 async function mensajeDelDia(ctx, { uid, eqId, eq, priv, mios, dia, url, desde }) {
