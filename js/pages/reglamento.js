@@ -117,7 +117,7 @@ ${seccion('cada-dia', 'Qué hacer cada día', `
 <li><b>Recoge la recompensa diaria.</b> Si fallas un día, la racha vuelve a 1.</li>
 <li><b>Responde la decisión del día</b> antes de medianoche. Si no, se aplica la opción por defecto (normalmente la peor).</li>
 <li><b>Prueba reglajes en el simulador</b> (${tandasSimulador(0)} pruebas al día, más si lo mejoras). Cada coche tiene un reglaje ideal secreto en cada circuito (ala, suspensión, marchas, presión de neumáticos, reparto de frenada y altura de suelo). El ingeniero califica cada ajuste de Súper malo a Excelente; con el simulador mejorado (nivel 2) además te dice si subir o bajar.</li>
-<li><b>Guarda la estrategia</b> de la próxima jornada antes de que cierre: riesgo en qualy; ritmo, actitud y neumático (blando, medio o duro) en cada carrera.</li>
+<li><b>Guarda la estrategia</b> de la próxima jornada antes de que cierre: riesgo en qualy, ritmo y actitud en cada carrera y, en la Carrera 3, neumático de salida y paradas.</li>
 <li><b>Atiende a la prensa.</b> Tras las carreras (2 o 3 preguntas por jornada) y de vez en cuando entre jornadas te preguntan por accidentes, toques, averías, victorias, rivales o la actualidad. Lo que respondes sale publicado y te hace ganar o perder fans; algunas respuestas cambian la moral de tus pilotos. Si no contestas en 24 h, pierdes fans.</li>
 <li><b>Entrena a tus pilotos</b> (${dinero(ENTRENO.coste)}, cada ${ENTRENO.diasEspera} días por piloto): puede subir un punto un atributo.</li>
 <li><b>Ten el coche siempre en desarrollo.</b></li>
@@ -138,7 +138,9 @@ ${seccion('carrera', 'Cómo se decide una carrera', `
 <li><b>El piloto:</b> ritmo, regularidad, agresividad, defensa, lluvia, experiencia, moral y forma.</li>
 <li><b>El coche:</b> los niveles de motor, aero y chasis según lo que pida el circuito, y la fiabilidad para las averías.</li>
 <li><b>El reglaje</b> (6 ajustes): cuanto más cerca del ideal, más rápido (hasta un 0,8% por vuelta).</li>
-<li><b>Los neumáticos:</b> el blando es más rápido pero se degrada el doble; el duro es más lento y casi no se gasta. En carreras cortas y circuitos que desgastan poco compensa el blando; en los que desgastan mucho, el duro.</li>
+<li><b>Carrera 3 (20 vueltas) y neumáticos:</b> es la única con estrategia de neumáticos. El blando es el más rápido pero dura poco; el duro, el más lento pero aguanta. Cuando un neumático pasa de su vida, pierde mucho tiempo por vuelta. Parar en boxes cuesta unos segundos (menos con coche de seguridad). Tras los libres, el ingeniero te estima cuántas vueltas aguanta cada compuesto: la estimación es más precisa cuanto mejor sea tu reglaje, tu simulador y la experiencia de tus pilotos. Si no eliges estrategia, se aplica la propuesta del ingeniero.</li>
+<li><b>Coche de seguridad y VSC:</b> tras un accidente o un coche parado en pista puede salir el coche de seguridad (el pelotón se agrupa) o el virtual (todos a ritmo lento). No se puede adelantar y parar en boxes cuesta menos.</li>
+<li><b>Accidentes y daños:</b> un choque leve te hace perder el resto de esa sesión; un toque puede dañar el alerón y hacerte más lento el resto de la carrera. Si el accidente es grave y queda otra sesión en la jornada, eliges: reparación urgente (${dinero(ECO.reparacionUrgente)}, llegas a la siguiente sesión) o normal (${dinero(ECO.reparacionNormal)}, te la pierdes). Te avisamos al momento.</li>
 <li><b>La estrategia:</b> riesgo en clasificación, y ritmo y actitud en carrera.</li>
 <li><b>El azar:</b> errores, toques, averías, tráfico y lluvia (que se anuncia antes como probabilidad).</li>
 </ul>

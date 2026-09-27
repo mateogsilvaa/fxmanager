@@ -4,11 +4,12 @@ import { esc, bandera, $, $$ } from '../core/ui.js';
 import { montarDirecto } from '../core/directo.js';
 import { simularSesion, ritmoBase, formatoTiempo } from '../engine/sim.js';
 import { CIRCUITOS, normalizarCircuito } from '../engine/circuitos.js';
-import { SESION_INFO, esCarrera, esQualy, duracionDirecto, NEUMATICOS, AREAS } from '../engine/constants.js';
+import { SESION_INFO, esCarrera, esQualy, duracionDirecto, AREAS } from '../engine/constants.js';
 import { crearRng } from '../engine/rng.js';
 import { nombreAleatorio } from '../engine/nombres.js';
 import { atributosAleatorios, calidadSetup } from '../engine/juego.js';
 import { TRAZADOS } from '../engine/trazados.js';
+import { COMPUESTOS, vidaNeumaticos, mejorEstrategia } from '../engine/neumaticos.js';
 
 await montar({});
 const main = document.getElementById('main');
@@ -40,7 +41,7 @@ function nuevaParrilla(semilla) {
                 id: `p${i}_${k}`, nombre: n, apellido, nac, numero: 2 + i * 7 + k * 3, equipoId: id,
                 attrs: atributosAleatorios(rng, { estrella: rng.chance(0.15) ? 1 : 0 }),
                 moral: rng.int(40, 85), forma: Math.round((rng.next() - 0.5) * 60) / 100,
-                estr: { riesgo: rng.pick([1, 2, 2, 3]), ritmo: rng.pick(['conservador', 'equilibrado', 'equilibrado', 'ataque']), actitud: rng.pick(['defensiva', 'normal', 'normal', 'agresiva']), neumatico: rng.pick(['blando', 'medio', 'duro']) },
+                estr: { riesgo: rng.pick([1, 2, 2, 3]), ritmo: rng.pick(['conservador', 'equilibrado', 'equilibrado', 'ataque']), actitud: rng.pick(['defensiva', 'normal', 'normal', 'agresiva']) },
             });
         }
     });
@@ -74,7 +75,7 @@ main.innerHTML = `
       <div class="lab-controles">
         <label>Tipo<select id="l-tipo">
           <option value="FP">Entrenamientos libres</option><option value="Q1">Clasificación</option>
-          <option value="R1">Carrera corta (10 vueltas)</option><option value="R3">Carrera larga (15 vueltas)</option></select></label>
+          <option value="R1">Carrera corta (10 vueltas)</option><option value="R3">Carrera larga (20 vueltas, con paradas)</option></select></label>
         <label>Circuito<select id="l-circuito">${circuitos.map(c => `<option value="${esc(c.id)}" ${c.id === 'jerez' ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select></label>
         <label class="lab-check"><input type="checkbox" id="l-lluvia"> Lluvia</label>
       </div>
@@ -107,6 +108,7 @@ main.innerHTML = `
 </div>`;
 
 const mioId = 'eq0';
+const miPlan = { salida: 'auto', parada: 10, tras: 'duro' };
 function pintarMio() {
     const e = P.equipos[mioId];
     const pil = P.pilotos.filter(p => p.equipoId === mioId);
@@ -120,12 +122,19 @@ function pintarMio() {
         <label>Riesgo en qualy${sel('riesgo', [[1, 'Seguro'], [2, 'Normal'], [3, 'Al límite']], s.riesgo)}</label>
         <label>Ritmo de carrera${sel('ritmo', [['conservador', 'Suave'], ['equilibrado', 'Normal'], ['ataque', 'Ataque']], s.ritmo)}</label>
         <label>Actitud${sel('actitud', [['defensiva', 'Defensiva'], ['normal', 'Normal'], ['agresiva', 'Agresiva']], s.actitud)}</label>
-        <label>Neumático${sel('neumatico', Object.entries(NEUMATICOS).map(([k, n]) => [k, n.nombre]), s.neumatico)}</label>
+      </div>
+      <div class="lab-controles" style="margin-top:10px">
+        <label>Carrera 20 v · salida${sel('salida', [['auto', 'Lo que diga el ingeniero'], ...Object.entries(COMPUESTOS).map(([k, c]) => [k, c.nombre])], miPlan.salida)}</label>
+        <label>Parada en la vuelta<input type="number" min="0" max="19" data-mio="parada" value="${miPlan.parada}"><small class="muted">0 = sin parar</small></label>
+        <label>Neumático tras parar${sel('tras', Object.entries(COMPUESTOS).map(([k, c]) => [k, c.nombre]), miPlan.tras)}</label>
       </div>
       <p class="muted peq">Pilotos: ${pil.map(p => `${bandera(p.nac, { ancho: 14 })} ${esc(p.apellido)} (ritmo ${p.attrs.ritmo})`).join(' · ')}</p>`;
     $$('[data-coche]').forEach(i => i.addEventListener('input', () => { e.coche[i.dataset.coche] = +i.value; }));
     $$('[data-mio]').forEach(i => i.addEventListener('change', () => {
         if (i.dataset.mio === 'reglaje') e.reglaje = +i.value / 100;
+        else if (i.dataset.mio === 'salida') miPlan.salida = i.value;
+        else if (i.dataset.mio === 'parada') miPlan.parada = +i.value;
+        else if (i.dataset.mio === 'tras') miPlan.tras = i.value;
         else pil.forEach(p => { p.estr[i.dataset.mio] = i.dataset.mio === 'riesgo' ? +i.value : i.value; });
     }));
     $('[data-mio="reglaje"]').addEventListener('input', (ev) => { e.reglaje = +ev.target.value / 100; });
@@ -150,10 +159,22 @@ function simular() {
     const circuito = normalizarCircuito(CIRCUITOS.find(c => c.id === $('#l-circuito').value));
     const lluvia = $('#l-lluvia').checked;
     const rng = crearRng(`lab|sim|${Math.random()}`);
-    const pilotos = P.pilotos.map(p => datosPiloto(p, circuito));
+    const vidas = vidaNeumaticos(`lab${Math.random()}`, 'lab', circuito);
+    const n = SESION_INFO[tipo].vueltas;
+    const pilotos = P.pilotos.map(p => {
+        const x = datosPiloto(p, circuito);
+        if (SESION_INFO[tipo].estrategia) {
+            const mio = p.equipoId === mioId && miPlan.salida !== 'auto';
+            const leidas = Object.fromEntries(Object.entries(vidas).map(([k, v]) => [k, Math.max(2, v + Math.round((Math.random() - 0.5) * 4))]));
+            const m = mejorEstrategia(leidas, n, circuito, p.estr.ritmo);
+            x.estr = { ...p.estr, ...(mio ? { neumatico: miPlan.salida, paradas: miPlan.parada > 0 ? [{ vuelta: miPlan.parada, neumatico: miPlan.tras }] : [] } : { neumatico: m.neumatico, paradas: m.paradas }) };
+        }
+        return x;
+    });
     let parrilla = null;
     if (esCarrera(tipo)) parrilla = ultimaQualy || crearRng(`lab|parrilla|${Math.random()}`).shuffle(P.pilotos.map(p => p.id));
-    const res = simularSesion({ tipo, circuito, pilotos, parrilla, lluvia, rng });
+    const res = simularSesion({ tipo, circuito, pilotos, parrilla, lluvia, rng, vidas });
+    res.vidas = vidas;
     if (esQualy(tipo)) { ultimaQualy = res.filas.map(f => f.pid); textoParrilla(); }
     const inicio = Date.now();
     const ses = { publishAt: inicio, revealAt: inicio + duracionDirecto(tipo) };
@@ -173,7 +194,7 @@ function pintarResultado(res, circuito, lluvia, pilotos) {
         <td class="cen mono">${f.pos}</td>
         <td>${bandera(d.piloto(f.pid)?.nac, { ancho: 14 })} ${esc(d.nombre(f.pid))}<div class="muted peq"><span class="lb-eq"><i style="background:${esc(P.equipos[f.eq].color)}"></i>${esc(P.equipos[f.eq].nombre)}</span></div></td>
         <td class="der mono">${carrera ? (f.estado === 'DNF' ? `<span class="mal">${esc(f.motivo || 'Abandono')}</span>` : f.pos === 1 ? formatoTiempo(f.tiempo) : formatoTiempo(f.gap, true)) : f.mejor != null ? formatoTiempo(f.mejor) : '<span class="mal">Sin tiempo</span>'}</td>
-        ${carrera ? `<td class="cen mono">${f.parrilla ?? ''}</td><td class="cen mono">${f.adel || 0}</td>` : `<td class="cen mono">${f.errores || 0}</td>`}
+        ${carrera ? `<td class="cen mono">${f.parrilla ?? ''}</td><td class="cen mono">${f.adel || 0}</td><td class="mono peq">${(f.neumaticos || []).map(k => COMPUESTOS[k].corto).join(' › ')}</td>` : `<td class="cen mono">${f.errores || 0}</td>`}
         <td class="der mono">${f.pts || ''}</td></tr>`).join('');
 
     // Por qué: ritmo teórico de cada piloto y de dónde sale
@@ -194,14 +215,15 @@ function pintarResultado(res, circuito, lluvia, pilotos) {
         <td class="cen mono">${i + 1}</td><td>${esc(d.apellido(x.p.id))} <span class="muted peq">${esc(P.equipos[x.p.equipoId].corto)}</span></td>
         <td class="der mono">${formatoTiempo(Math.round(x.total))}</td><td class="der mono muted">${i ? '+' + ((x.total - mejor) / 1000).toFixed(3) : ''}</td>
         <td class="der">${barra(x.coche)}</td><td class="der">${barra(x.piloto)}</td><td class="der">${barra(x.reglaje)}</td><td class="der">${barra(x.animo)}</td>
-        ${carrera ? `<td class="peq muted">${esc(NEUMATICOS[x.p.estr.neumatico]?.nombre || '')} · ${esc(x.p.estr.ritmo)} · ${esc(x.p.estr.actitud)}</td>` : `<td class="peq muted">riesgo ${x.p.estr.riesgo}</td>`}
+        ${carrera ? `<td class="peq muted">${esc(x.p.estr.ritmo)} · ${esc(x.p.estr.actitud)}</td>` : `<td class="peq muted">riesgo ${x.p.estr.riesgo}</td>`}
       </tr>`).join('');
 
-    const inc = res.eventos.filter(e => ['abandono', 'toque', 'accidente', 'error'].includes(e.tipo)).slice(0, 14);
+    const inc = res.eventos.filter(e => ['abandono', 'toque', 'accidente', 'error', 'sc', 'vsc', 'parada'].includes(e.tipo)).slice(0, 30);
     $('#l-resultado').innerHTML = `
     <div class="tarjeta portada-seccion">
       <div class="tarjeta-titulo"><h2>Resultado · ${esc(SESION_INFO[tipo].nombre)}</h2><span>${esc(circuito.nombre)}${lluvia ? ' · lluvia' : ''}</span></div>
-      <div class="tabla-scroll"><table class="tabla"><thead><tr><th class="cen">Pos</th><th>Piloto</th><th class="der">${carrera ? 'Tiempo' : 'Mejor vuelta'}</th>${carrera ? '<th class="cen">Salida</th><th class="cen">Adel.</th>' : '<th class="cen">Errores</th>'}<th class="der">Pts</th></tr></thead><tbody>${filasRes}</tbody></table></div>
+      ${SESION_INFO[tipo].estrategia && !lluvia ? `<p class="muted peq" style="margin-top:0">Vida real de los neumáticos hoy: ${Object.entries(res.vidas).map(([k, v]) => `${COMPUESTOS[k].nombre.toLowerCase()} ${v} vueltas`).join(' · ')}. ${res.eventos.some(e => e.tipo === 'sc') ? 'Hubo coche de seguridad.' : res.eventos.some(e => e.tipo === 'vsc') ? 'Hubo VSC.' : ''}</p>` : ''}
+      <div class="tabla-scroll"><table class="tabla"><thead><tr><th class="cen">Pos</th><th>Piloto</th><th class="der">${carrera ? 'Tiempo' : 'Mejor vuelta'}</th>${carrera ? '<th class="cen">Salida</th><th class="cen">Adel.</th><th>Neum.</th>' : '<th class="cen">Errores</th>'}<th class="der">Pts</th></tr></thead><tbody>${filasRes}</tbody></table></div>
     </div>
     <div class="tarjeta portada-seccion">
       <div class="tarjeta-titulo"><h2>Por qué</h2><span>ritmo teórico por vuelta, sin azar</span></div>
@@ -209,6 +231,6 @@ function pintarResultado(res, circuito, lluvia, pilotos) {
       <div class="tabla-scroll"><table class="tabla"><thead><tr><th class="cen">#</th><th>Piloto</th><th class="der">Ritmo</th><th class="der">Dif.</th><th class="der">Coche</th><th class="der">Piloto</th><th class="der">Reglaje</th><th class="der">Moral y forma</th><th>Estrategia</th></tr></thead><tbody>${filasDes}</tbody></table></div>
     </div>
     ${inc.length ? `<div class="tarjeta portada-seccion"><div class="tarjeta-titulo"><h2>Incidentes</h2></div>
-      <ul class="lista">${inc.map(e => `<li>V${e.v} · ${e.tipo === 'abandono' ? `Abandono de ${esc(d.apellido(e.pid))} (${esc((e.motivo || '').toLowerCase())})` : e.tipo === 'toque' ? `Toque ${e.pid2 ? `entre ${esc(d.apellido(e.pid))} y ${esc(d.apellido(e.pid2))}` : `de ${esc(d.apellido(e.pid))} en la salida`}` : e.tipo === 'accidente' ? `Accidente de ${esc(d.apellido(e.pid))}` : `Error de ${esc(d.apellido(e.pid))} (${(e.ms / 1000).toFixed(1)} s)`}</li>`).join('')}</ul></div>` : ''}`;
+      <ul class="lista">${inc.map(e => `<li>V${e.v} · ${e.tipo === 'sc' ? '<b>Coche de seguridad</b>' : e.tipo === 'vsc' ? '<b>Coche de seguridad virtual</b>' : e.tipo === 'parada' ? `Parada de ${esc(d.apellido(e.pid))}: ${esc(COMPUESTOS[e.neumatico].nombre.toLowerCase())}` : e.tipo === 'abandono' ? `Abandono de ${esc(d.apellido(e.pid))} (${esc((e.motivo || '').toLowerCase())}${e.grave ? ', daños graves' : ''})` : e.tipo === 'toque' ? `Toque ${e.pid2 ? `entre ${esc(d.apellido(e.pid))} y ${esc(d.apellido(e.pid2))}` : `de ${esc(d.apellido(e.pid))} en la salida`}` : e.tipo === 'accidente' ? `Accidente de ${esc(d.apellido(e.pid))}${e.grave ? ' (daños graves)' : ''}` : `Error de ${esc(d.apellido(e.pid))} (${(e.ms / 1000).toFixed(1)} s)`}</li>`).join('')}</ul></div>` : ''}`;
 }
 void calidadSetup;

@@ -29,7 +29,7 @@ export const SESION_INFO = {
     R1: { nombre: 'Carrera 1', corto: 'Carrera 1', tipo: 'carrera', vueltas: 10, parrilla: 'Q1' },
     Q2: { nombre: 'Clasificación 2', corto: 'Qualy 2', tipo: 'qualy', minutos: 15 },
     R2: { nombre: 'Carrera 2', corto: 'Carrera 2', tipo: 'carrera', vueltas: 10, parrilla: 'Q2' },
-    R3: { nombre: 'Carrera 3', corto: 'Carrera 3', tipo: 'carrera', vueltas: 15, parrilla: 'R2' },
+    R3: { nombre: 'Carrera 3', corto: 'Carrera 3', tipo: 'carrera', vueltas: 20, parrilla: 'R2', estrategia: true },
 };
 export const esCarrera = (t) => SESION_INFO[t]?.tipo === 'carrera';
 export const esQualy = (t) => SESION_INFO[t]?.tipo === 'qualy';
@@ -74,6 +74,9 @@ export const ECO = {
     probOfertaHermanas: 0.05,
     probOfertaNormal: 0.09,
     diasOfertaPlaza: 7,
+    // Daños graves: arreglar a tiempo para la siguiente sesión (urgente) o con calma (se pierde esa sesión)
+    reparacionUrgente: 1_200_000,
+    reparacionNormal: 350_000,
 };
 
 // Fases en las que se puede cambiar nombre/colores o comprar una filial (no durante las carreras)

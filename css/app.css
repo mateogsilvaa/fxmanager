@@ -18,6 +18,7 @@
     --red: #a8321f;
     --blue: #1d4e89;
     --purple: #6a3fa0;
+    --sc: #d9a400;
     --grid-chart: #efece6;
     --pos-bg: rgba(29, 122, 82, .05);
     --neg-bg: rgba(168, 50, 31, .07);
@@ -540,3 +541,20 @@ a.sesion-fila:hover { background: var(--panel-warm); color: var(--ink); }
 .lab-delta { font: 700 12px var(--mono); }
 .guia-lab h4 { margin: 14px 0 4px; font: 700 16px var(--cond); text-transform: uppercase; color: var(--ink); }
 .guia-lab p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--body); }
+
+/* Coche de seguridad y VSC en la retransmisión */
+.rotulo-amarillo { border-left-color: var(--sc); background: var(--ink); color: var(--sc); letter-spacing: .14em; }
+.directo.neutral .directo-barra > div { background: var(--sc); }
+.directo.neutral .directo-estado { color: var(--sc); }
+.directo-narracion .sc, .directo-narracion .vsc { color: var(--sc); font-weight: 700; }
+.directo-narracion .pit { color: var(--blue); }
+.directo-narracion .verde { color: var(--green); font-weight: 700; }
+
+/* Estrategia de neumáticos (Carrera 3) */
+.estr-neu { display: grid; gap: 8px; margin-top: 10px; padding: 10px 12px; background: var(--note); border-left: 2px solid var(--ink); }
+.estr-neu-lectura { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; }
+.estr-neu-lectura .btn { margin-left: auto; }
+.neu { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font: 700 10px var(--mono); color: var(--ink); border: 2px solid; background: var(--bg); }
+.neu-blando { border-color: var(--red); }
+.neu-medio { border-color: var(--sc); }
+.neu-duro { border-color: var(--ink); }

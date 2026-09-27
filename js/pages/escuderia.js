@@ -3,11 +3,12 @@ import { cargarDatos, limpiarCache } from '../core/datos.js';
 import { store, ahora, encolar, escuchar, escucharConsulta, reclamarEquipo, refrescarPerfil, enSombra } from '../core/app.js';
 import { reconstruirCatalogo } from '../jobs/catalogo.js';
 import { estadoAvisos, activarAvisos } from '../core/avisos.js';
+import { COMPUESTOS, MAX_PARADAS, mejorEstrategia, textoPrecision } from '../engine/neumaticos.js';
 import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal, pestanas, $, $$, dinero, barra, cuentaAtras } from '../core/ui.js';
 import {
     LIGAS, LIGAS_NACIONALES, SESIONES, SESION_INFO, esCarrera, esQualy, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST,
     SLOTS_ID, costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion, ECO,
-    SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, tandasSimulador, identidadAbierta, costeMejoraFinal, descuentoTunel, NEUMATICOS, ENTRENO, probEntreno,
+    SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, tandasSimulador, identidadAbierta, costeMejoraFinal, descuentoTunel, ENTRENO, probEntreno,
 } from '../engine/constants.js';
 import { validarNombreEscuderia } from '../engine/badwords.js';
 import { tandasDisponibles, textoLectura } from '../engine/juego.js';
@@ -120,7 +121,7 @@ escuchar(`decisiones/${hoy()}_${eqId}`, (dec) => {
     if (E.priv) repintar('hoy');
 });
 
-const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico', identidad: 'Cambio de imagen', comprar_filial: 'Compra de filial', plaza_responder: 'Oferta de plaza', entrenar: 'Entrenamiento' };
+const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico', reparar: 'Reparación', identidad: 'Cambio de imagen', comprar_filial: 'Compra de filial', plaza_responder: 'Oferta de plaza', entrenar: 'Entrenamiento' };
 function avisarAccion(a) {
     if (a.estado === 'error') toast(`${NOMBRES_ACCION[a.tipo] || a.tipo}: ${a.resultado?.error}`, 'error');
     else if (a.tipo === 'entrenar') toast(a.resultado?.sube ? `${a.resultado.piloto}: ${ENTRENO.attrs[a.resultado.attr]} +${a.resultado.sube} (ahora ${a.resultado.valor})` : `${a.resultado?.piloto}: el entrenamiento no ha dado fruto esta vez`, a.resultado?.sube ? undefined : 'error');
@@ -191,6 +192,7 @@ function pintarHoy() {
         </div>
       </div>
       <aside class="pila">
+        ${danosHtml()}
         ${plazaHtml()}
         ${avisosHtml()}
         <div class="tarjeta">
@@ -208,6 +210,7 @@ function pintarHoy() {
     $$('[data-ir]', el).forEach(b => b.addEventListener('click', () => irA(b.dataset.ir)));
     $('#btn-checkin', el)?.addEventListener('click', () => lanzar('checkin', {}, 'Recompensa en cola'));
     activarPlaza(el);
+    activarDanos(el);
     $('#activar-avisos', el)?.addEventListener('click', async (e) => {
         e.target.disabled = true;
         try { await activarAvisos(); E.avisos = 'activo'; toast('Avisos activados'); pintarHoy(); }
@@ -290,16 +293,18 @@ function pintarCarrera() {
             const lluvia = Math.round((ev.meteo?.[tp] || 0) * 100);
             let controles = '<span class="muted peq">Solo cuenta el reglaje</span>';
             if (esQualy(tp)) controles = seg(`riesgo_${tp}`, [[1, 'Seguro'], [2, 'Normal'], [3, 'Al límite']], e.riesgo, abierta);
-            if (esCarrera(tp)) controles = `<div class="fila" style="flex-wrap:wrap;gap:6px">${seg(`ritmo_${tp}`, [['conservador', 'Suave'], ['equilibrado', 'Normal'], ['ataque', 'Ataque']], e.ritmo, abierta)}${seg(`actitud_${tp}`, [['defensiva', 'Defensiva'], ['normal', 'Normal'], ['agresiva', 'Agresiva']], e.actitud, abierta)}${seg(`neumatico_${tp}`, Object.entries(NEUMATICOS).map(([k, n]) => [k, n.nombre]), e.neumatico, abierta)}</div>`;
+            if (esCarrera(tp)) controles = `<div class="fila" style="flex-wrap:wrap;gap:6px">${seg(`ritmo_${tp}`, [['conservador', 'Suave'], ['equilibrado', 'Normal'], ['ataque', 'Ataque']], e.ritmo, abierta)}${seg(`actitud_${tp}`, [['defensiva', 'Defensiva'], ['normal', 'Normal'], ['agresiva', 'Agresiva']], e.actitud, abierta)}</div>${SESION_INFO[tp].estrategia ? estrategiaNeumaticosHtml(tp, e, abierta) : ''}`;
             return `<div class="sesion-estr" style="${abierta ? '' : 'opacity:.45'}">
               <div><b>${esc(SESION_INFO[tp].corto)}</b> ${guardada(tp) ? '<span class="ok peq">✓</span>' : ''}<div class="muted peq">${fecha(s.publishAt)}${lluvia >= 20 ? ` · lluvia ${lluvia}%` : ''}</div></div>
               <div>${controles}</div></div>`;
         }).join('')}
         ${abiertas.length ? `<div class="fila-botones"><button class="btn" id="guardar-estr">Guardar reglaje y estrategia</button></div>` : '<p class="muted peq">Todas las sesiones de esta jornada están cerradas.</p>'}
-        <p class="muted peq" style="margin:10px 0 0">Neumático blando: más rápido pero se gasta mucho (mejor en carreras cortas y circuitos que desgastan poco). Duro: más lento pero aguanta. Con lluvia no cuenta. Ataque: más rápido pero más errores y desgaste. Agresiva: adelanta más, con más toques. Al límite: gana décimas en qualy, pero puede anular la vuelta.</p>
+        <p class="muted peq" style="margin:10px 0 0">Carrera 3: elige neumático de salida y paradas según lo que aguanta cada compuesto (te lo estima el ingeniero tras los libres). Si no eliges, se aplica su propuesta. Ataque: más rápido pero más errores y desgaste. Agresiva: adelanta más, con más toques. Al límite: gana décimas en qualy, pero puede anular la vuelta.</p>
       </div>
     </div>`;
-    $$('.seg button', el).forEach(b => b.addEventListener('click', () => { if (b.disabled) return; $$('button', b.parentElement).forEach(x => x.classList.toggle('activa', x === b)); }));
+    $$('.seg button', el).forEach(b => b.addEventListener('click', () => { if (b.disabled) return; $$('button', b.parentElement).forEach(x => x.classList.toggle('activa', x === b)); if (b.parentElement.dataset.nombre?.startsWith('nparadas_')) mostrarParadas(el); }));
+    mostrarParadas(el);
+    $$('[data-propuesta]', el).forEach(b => b.addEventListener('click', () => aplicarPropuesta(el, b.dataset.propuesta)));
     const leerSetup = () => Object.fromEntries(Object.keys(SETUP_PARAMS).map(k => [k, +$(`[name=${k}]`, el).value]));
     $('#probar', el)?.addEventListener('click', () => lanzar('simulador', { eventoId: ev.id, setup: leerSetup() }, 'Coche en pista'));
     $$('[data-usar]', el).forEach(b => b.addEventListener('click', () => {
@@ -315,7 +320,8 @@ function pintarCarrera() {
             for (const tp of abiertas) {
                 const base = { ...ESTRATEGIA_DEF, ...(Object.values(heredada(tp)?.pilotos || {})[0] || {}) };
                 if (esQualy(tp)) base.riesgo = +(leer(`riesgo_${tp}`) || base.riesgo);
-                if (esCarrera(tp)) { base.ritmo = leer(`ritmo_${tp}`) || base.ritmo; base.actitud = leer(`actitud_${tp}`) || base.actitud; base.neumatico = leer(`neumatico_${tp}`) || base.neumatico; }
+                if (esCarrera(tp)) { base.ritmo = leer(`ritmo_${tp}`) || base.ritmo; base.actitud = leer(`actitud_${tp}`) || base.actitud; }
+                if (SESION_INFO[tp].estrategia) Object.assign(base, leerEstrategiaNeumaticos(tp)); else { delete base.paradas; }
                 const docu = { eventoId: ev.id, tipo: tp, equipoId: eqId, uid: u.uid, setup: setupNuevo, pilotos: Object.fromEntries(pilotosEv.map(p => [p.id, { ...base }])), actualizado: ahora() };
                 await store().set(`estrategias/${ev.id}_${tp}_${eqId}`, docu);
                 E.estrategias = [...E.estrategias.filter(x => x.tipo !== tp), { id: `${ev.id}_${tp}_${eqId}`, ...docu }];
@@ -596,6 +602,76 @@ function activarPlaza(el) {
         const aceptar = b.dataset.aceptar === '1';
         if (!await confirmar(aceptar ? `¿Dejar <b>${esc(eq.nombre)}</b> y dirigir <b>${esc(o.nombre)}</b>? No hay vuelta atrás.` : `¿Rechazar la oferta de <b>${esc(o.nombre)}</b>?`)) return;
         await lanzar('plaza_responder', { ofertaId: o.id, aceptar }, aceptar ? 'Aceptada' : 'Rechazada');
+    }));
+}
+
+// ---------- Carrera 3: estrategia de neumáticos ----------
+function lecturaNeumaticos() { return ev ? E.priv.neumaticos?.[ev.id] || null : null; }
+function estrategiaNeumaticosHtml(tp, e, abierta) {
+    const n = SESION_INFO[tp].vueltas;
+    const lec = lecturaNeumaticos();
+    const paradas = Array.isArray(e.paradas) ? e.paradas : [];
+    const compSeg = (nombre, v) => seg(nombre, Object.entries(COMPUESTOS).map(([k, c]) => [k, c.nombre]), v, abierta);
+    return `<div class="estr-neu">
+      <div class="estr-neu-lectura">${lec ? `<span class="muted peq">Lectura de los libres (${textoPrecision(lec.precision)}):</span> ${Object.entries(lec.rangos).map(([k, [a, b]]) => `<span class="neu neu-${k}">${COMPUESTOS[k].corto}</span> ${a === b ? a : `${a}–${b}`} v.`).join(' · ')}` : '<span class="muted peq">La lectura de neumáticos llega con el informe de los libres.</span>'}
+        ${abierta ? `<button type="button" class="btn btn-sec btn-peq" data-propuesta="${tp}">Propuesta del ingeniero</button>` : ''}</div>
+      <div class="fila" style="flex-wrap:wrap;gap:6px;align-items:center"><span class="muted peq">Salida</span>${compSeg(`neumatico_${tp}`, e.neumatico || 'medio')}
+        <span class="muted peq">Paradas</span>${seg(`nparadas_${tp}`, Array.from({ length: MAX_PARADAS + 1 }, (_, i) => [i, String(i)]), Array.isArray(e.paradas) ? paradas.length : 1, abierta)}</div>
+      ${Array.from({ length: MAX_PARADAS }, (_, i) => `<div class="fila estr-parada" data-parada="${tp}_${i}" style="flex-wrap:wrap;gap:6px;align-items:center">
+        <span class="muted peq">Parada ${i + 1} en la vuelta</span><input type="number" min="1" max="${n - 1}" name="vuelta_${tp}_${i}" value="${paradas[i]?.vuelta ?? Math.round(n / (MAX_PARADAS + 1) * (i + 1))}" ${abierta ? '' : 'disabled'} style="width:64px">
+        ${compSeg(`comp_${tp}_${i}`, paradas[i]?.neumatico || 'duro')}</div>`).join('')}
+      <p class="muted peq" style="margin:4px 0 0">${n} vueltas. Parar cuesta unos ${Math.round((ev.circuito?.tiempoBase || 100000) * 0.16 / 1000)} s (menos si coincide con el coche de seguridad). Ataque gasta los neumáticos un 15% antes; suave, un 15% después.</p>
+    </div>`;
+}
+function mostrarParadas(el) {
+    $$('[data-nombre^="nparadas_"]', el).forEach(s => {
+        const tp = s.dataset.nombre.slice(9);
+        const nPar = +($('.activa', s)?.dataset.v || 0);
+        $$(`[data-parada^="${tp}_"]`, el).forEach(r => { r.hidden = +r.dataset.parada.split('_').pop() >= nPar; });
+    });
+}
+function leerEstrategiaNeumaticos(tp) {
+    const el = $('#p-carrera');
+    const v = (n) => $(`.seg[data-nombre="${n}"] .activa`, el)?.dataset.v;
+    const nPar = +(v(`nparadas_${tp}`) || 0);
+    const paradas = [];
+    for (let i = 0; i < nPar; i++) paradas.push({ vuelta: +$(`[name="vuelta_${tp}_${i}"]`, el).value, neumatico: v(`comp_${tp}_${i}`) || 'medio' });
+    return { neumatico: v(`neumatico_${tp}`) || 'medio', paradas: paradas.sort((a, b) => a.vuelta - b.vuelta) };
+}
+function aplicarPropuesta(el, tp) {
+    const lec = lecturaNeumaticos();
+    if (!lec) return toast('Primero tiene que haber informe de los libres.', 'error');
+    const medias = Object.fromEntries(Object.entries(lec.rangos).map(([k, [a, b]]) => [k, Math.round((a + b) / 2)]));
+    const ritmo = $(`.seg[data-nombre="ritmo_${tp}"] .activa`, el)?.dataset.v || 'equilibrado';
+    const m = mejorEstrategia(medias, SESION_INFO[tp].vueltas, ev.circuito, ritmo);
+    const marcar = (nombre, valor) => $$(`.seg[data-nombre="${nombre}"] button`, el).forEach(b => b.classList.toggle('activa', b.dataset.v === String(valor)));
+    marcar(`neumatico_${tp}`, m.neumatico); marcar(`nparadas_${tp}`, m.paradas.length);
+    m.paradas.forEach((p, i) => { $(`[name="vuelta_${tp}_${i}"]`, el).value = p.vuelta; marcar(`comp_${tp}_${i}`, p.neumatico); });
+    mostrarParadas(el);
+    toast(`Propuesta: salir con ${COMPUESTOS[m.neumatico].nombre.toLowerCase()}${m.paradas.length ? ` y parar en ${m.paradas.map(p => `la vuelta ${p.vuelta} (${COMPUESTOS[p.neumatico].nombre.toLowerCase()})`).join(' y ')}` : ' sin parar'}. Pulsa Guardar.`);
+}
+
+// ---------- Daños graves ----------
+function danosHtml() {
+    const lista = (E.priv.danos || []).filter(x => x.estado === 'pendiente' && x.lockAt > ahora());
+    if (!lista.length) return '';
+    const enCola = pendientes('reparar').length;
+    return `<div class="tarjeta" style="border-left:3px solid var(--red);padding-left:14px">
+      <div class="tarjeta-titulo"><h2>Coche dañado</h2></div>
+      ${lista.map(x => `<div style="padding:8px 0;border-top:1px solid var(--hair2)">
+        <p style="margin:0 0 8px"><b>${esc(d.nombre(x.pid))}</b> tuvo un accidente grave. Decide antes de que cierre la ${esc(SESION_INFO[x.sesion].nombre)} (en ${cuentaAtras(x.lockAt, true)}).</p>
+        <div class="opciones-grid">
+          <button class="opcion" data-reparar="${esc(x.id)}" data-urgente="1" ${enCola ? 'disabled' : ''}><b>Reparación urgente · ${dinero(ECO.reparacionUrgente)}</b><small>Llega a la ${esc(SESION_INFO[x.sesion].nombre)}</small></button>
+          <button class="opcion" data-reparar="${esc(x.id)}" data-urgente="0" ${enCola ? 'disabled' : ''}><b>Reparación normal · ${dinero(ECO.reparacionNormal)}</b><small>Se pierde la ${esc(SESION_INFO[x.sesion].nombre)}</small></button>
+        </div></div>`).join('')}
+      <p class="muted peq" style="margin:6px 0 0">Si no decides, se hace la reparación normal.</p>
+    </div>`;
+}
+function activarDanos(el) {
+    $$('[data-reparar]', el).forEach(b => b.addEventListener('click', async () => {
+        const urgente = b.dataset.urgente === '1';
+        if (!await confirmar(urgente ? `¿Reparación urgente por <b>${dinero(ECO.reparacionUrgente)}</b>?` : `¿Reparación normal por <b>${dinero(ECO.reparacionNormal)}</b>? Ese piloto no correrá la próxima sesión.`)) return;
+        await lanzar('reparar', { danoId: b.dataset.reparar, urgente }, 'Orden enviada al taller');
     }));
 }
 

@@ -20,6 +20,7 @@ import {
 } from './comun.js';
 import { nombreManagerIA, noticiaManagerIA, conIA } from '../engine/prensa-ia.js';
 import { noticiaAmbiente, rumorMejora } from '../engine/ambiente.js';
+import { vidaNeumaticos, mejorEstrategia, precisionLibres, estimarVidas, textoPrecision, COMPUESTOS } from '../engine/neumaticos.js';
 import { reconstruirCatalogo } from './catalogo.js';
 import { prepararMercado, cerrarMercado } from './temporada.js';
 import { noticiasSesion, previaJornada } from '../engine/cronica.js';
@@ -110,7 +111,7 @@ async function deshacerManager(ctx, eqId, eq) {
             presupuesto: ECO.presupuestoInicial, coche, inst,
             proyectos: (priv.proyectos || []).filter(p => !misProyectos.has(p.id)),
             sponsor: null, ofertasSponsor: [], racha: { n: 0, ultimoDia: null }, finanzas: [], riesgoFiab: 1,
-            descuentos: {}, simuladorUso: null, tandasExtra: null, ofertasPlaza: [],
+            descuentos: {}, simuladorUso: null, tandasExtra: null, ofertasPlaza: [], danos: [],
         });
         ctx.sucios.privs.add(eqId);
     }
@@ -365,7 +366,9 @@ async function recordatorios(ctx) {
         if (s.estado === 'programada' && s.lockAt > ctx.ahora && s.lockAt - ctx.ahora <= 80 * 60_000) cierres.push({ ev, s });
     }
     const ventana = hora >= 9 && hora < 13;
-    if (!ventana && !cierres.length) return;
+    const privsR = await cargarPrivs(ctx);
+    const danosCerca = Object.values(privsR).some(p => (p.danos || []).some(x => x.estado === 'pendiente' && x.lockAt > ctx.ahora && x.lockAt - ctx.ahora <= 45 * 60_000));
+    if (!ventana && !cierres.length && !danosCerca) return;
     const docs = (await ctx.store.list('suscripciones')).filter(d => d.subs?.length);
     if (!docs.length) return;
     const equipos = await cargarEquipos(ctx);
@@ -395,6 +398,12 @@ async function recordatorios(ctx) {
             if (est.some(e => orden.indexOf(e.tipo) <= orden.indexOf(s.tipo)) || avisadoEv.has(ev.id)) continue;
             avisadoEv.add(ev.id);
             mensajes.push({ title: `${SESION_INFO[s.tipo].nombre} · ${ev.circuito.nombre}`, body: `La estrategia cierra a las ${horaTexto(s.lockAt)} y todavía no la has guardado.`, url, tag: clave });
+        }
+        // 1b. Coche dañado sin decidir la reparación y la sesión a punto de cerrar
+        for (const x of (privs[eqId]?.danos || []).filter(x => x.estado === 'pendiente' && x.lockAt > ctx.ahora && x.lockAt - ctx.ahora <= 45 * 60_000)) {
+            if (doc.cierres?.[`dano_${x.id}`]) continue;
+            (cambios.cierres ||= {})[`dano_${x.id}`] = true;
+            mensajes.push({ title: `Coche dañado: ${nombrePiloto(pilotos[x.pid])}`, body: `Decide la reparación antes de las ${horaTexto(x.lockAt)} o se perderá la ${SESION_INFO[x.sesion].nombre}.`, url, tag: `dano_${x.id}` });
         }
         // 2. Aviso del día, a una hora propia entre las 9 y las 13
         const slot = 9 + crearRng(`${uid}|${dia}|aviso`).next() * 3.75;
@@ -504,6 +513,19 @@ async function simularPendientes(ctx) {
 }
 const SESION_INFO_ORD = (t) => Object.keys(SESION_INFO).indexOf(t);
 
+// Estrategia de neumáticos a partir de unas vidas (estimadas o reales)
+function estrategiaDesde(vidas, n, circuito, ritmo) {
+    const m = mejorEstrategia(vidas, n, circuito, ritmo);
+    return { neumatico: m.neumatico, paradas: m.paradas };
+}
+// Lo que propone el ingeniero si el mánager no elige: el punto medio de lo que leyó en los libres
+function propuestaIngeniero(priv, evId, vidas, n, circuito, ritmo, rng) {
+    const est = priv.neumaticos?.[evId]?.rangos;
+    const leidas = est ? Object.fromEntries(Object.entries(est).map(([k, [a, b]]) => [k, Math.round((a + b) / 2)]))
+        : Object.fromEntries(Object.entries(vidas).map(([k, v]) => [k, Math.max(2, v + rng.int(-3, 3))]));
+    return estrategiaDesde(leidas, n, circuito, ritmo);
+}
+
 export async function simularUna(ctx, ev, tipo) {
     const equipos = await cargarEquipos(ctx);
     const privs = await cargarPrivs(ctx);
@@ -512,6 +534,23 @@ export async function simularUna(ctx, ev, tipo) {
     if (ev.liga === 'INT') lista = (ctx.cfg.mundial?.participantes || []).map(id => pilotos[id]).filter(p => p?.equipoId);
     else lista = Object.values(pilotos).filter(p => p.liga === ev.liga && p.equipoId && p.estado !== 'libre');
     if (!lista.length) { ctx.nota(`Sin pilotos para ${ev.id}`); return; }
+    // Coches en el taller por daños graves sin reparación urgente: no corren esta sesión
+    const dns = [];
+    for (const p of lista) {
+        const priv = privs[p.equipoId];
+        const dano = (priv?.danos || []).find(x => x.pid === p.id && x.evId === ev.id && x.sesion === tipo && (x.estado === 'pendiente' || x.estado === 'normal'));
+        if (!dano) continue;
+        if (dano.estado === 'pendiente') {
+            movimiento(priv, `Reparación de daños (${p.apellido})`, -ECO.reparacionNormal, ctx.ahora);
+            notificar(ctx, p.equipoId, { remitente: 'Taller', tipo: 'danos', titulo: `${nombrePiloto(p)} no correrá la ${SESION_INFO[tipo].nombre}`, texto: 'No pediste la reparación urgente: el coche se arregla con calma y se pierde esta sesión.' });
+        }
+        dano.estado = 'cumplido';
+        ctx.sucios.privs.add(p.equipoId);
+        dns.push(p.id);
+    }
+    lista = lista.filter(p => !dns.includes(p.id));
+    const vidas = SESION_INFO[tipo].estrategia ? vidaNeumaticos(ctx.secreto, ev.id, ev.circuito) : null;
+    const nVueltas = SESION_INFO[tipo].vueltas;
     const privP = await cargarPilotosPriv(ctx, lista.map(p => p.id));
     const estrategias = await ctx.store.list('estrategias', [['eventoId', '==', ev.id]]);
     const circuito = ev.circuito;
@@ -533,13 +572,17 @@ export async function simularUna(ctx, ev, tipo) {
         const e = estrategiaDe(p.equipoId);
         if (!duenoReal(ctx, p.equipoId)) {
             setup = setupIA(ideal, crearRng(`${ctx.secreto}|iasetup|${ev.id}|${p.equipoId}`), 1);
-            estr = { riesgo: rngAI.pick([1, 2, 2, 3]), ritmo: rngAI.pick(['conservador', 'equilibrado', 'equilibrado', 'ataque']), actitud: rngAI.pick(['defensiva', 'normal', 'normal', 'agresiva']), neumatico: rngAI.pick(circuito.desgaste > 0.6 ? ['medio', 'duro', 'duro'] : circuito.desgaste < 0.45 ? ['blando', 'blando', 'medio'] : ['blando', 'medio', 'duro']) };
+            estr = { riesgo: rngAI.pick([1, 2, 2, 3]), ritmo: rngAI.pick(['conservador', 'equilibrado', 'equilibrado', 'ataque']), actitud: rngAI.pick(['defensiva', 'normal', 'normal', 'agresiva']) };
+            // La IA lee los neumáticos con algo de error y elige la mejor estrategia para lo que cree
+            if (vidas) Object.assign(estr, estrategiaDesde(Object.fromEntries(Object.entries(vidas).map(([k, v]) => [k, Math.max(2, v + rngAI.int(-2, 2))])), nVueltas, circuito, estr.ritmo));
         } else {
             setup = { ...SETUP_BASE, ...(e?.setup || priv.ultimoSetup || {}) };
             const mismaCategoria = estrategias.filter(x => x.equipoId === p.equipoId && x.pilotos?.[p.id])
                 .filter(x => esQualy(x.tipo) === esQualy(tipo) && ordenTipos.indexOf(x.tipo) <= ordenTipos.indexOf(tipo))
                 .sort((a, b) => ordenTipos.indexOf(b.tipo) - ordenTipos.indexOf(a.tipo))[0];
             estr = { ...ESTRATEGIA_DEF, ...(mismaCategoria?.pilotos?.[p.id] || {}) };
+            // Carrera larga sin estrategia de neumáticos elegida: se aplica la propuesta del ingeniero
+            if (vidas && !Array.isArray(estr.paradas)) Object.assign(estr, propuestaIngeniero(priv, ev.id, vidas, nVueltas, circuito, estr.ritmo, crearRng(`${ctx.secreto}|ing|${ev.id}|${p.equipoId}`)));
         }
         return {
             id: p.id, equipoId: p.equipoId, attrs: pp.attrs || { ritmo: 70, consistencia: 70, agresividad: 65, defensa: 70 },
@@ -561,11 +604,11 @@ export async function simularUna(ctx, ev, tipo) {
     }
     const rng = crearRng(`${ctx.secreto}|sim|${ev.id}|${tipo}`);
     const lluvia = crearRng(`${ctx.secreto}|meteo|${ev.id}|${tipo}`).next() < (ev.meteo?.[tipo] ?? 0);
-    const res = simularSesion({ tipo, circuito, pilotos: datos, parrilla, lluvia, rng });
+    const res = simularSesion({ tipo, circuito, pilotos: datos, parrilla, lluvia, rng, vidas });
     const ses = ev.sesiones[tipo];
     const doc = {
         eventoId: ev.id, liga: ev.liga, temporada: ev.temporada, ronda: ev.ronda, tipo,
-        publishAt: ses.publishAt, revealAt: ses.revealAt, lluvia: res.lluvia, filas: res.filas, eventos: res.eventos, vr: res.vr,
+        publishAt: ses.publishAt, revealAt: ses.revealAt, lluvia: res.lluvia, filas: res.filas, eventos: res.eventos, vr: res.vr, dns,
         circuito: { id: circuito.id, nombre: circuito.nombre, pais: circuito.pais, tiempoBase: circuito.tiempoBase },
         // datos internos (solo admin/worker) para informes de FP
         setups: Object.fromEntries(datos.map(d => [d.equipoId, d._setup])),
@@ -625,6 +668,7 @@ async function efectosPublicacion(ctx, ev, res) {
     const privs = await cargarPrivs(ctx);
     const pilotos = await cargarPilotos(ctx);
     const pp = await cargarPilotosPriv(ctx, res.filas.map(f => f.pid));
+    const privsPil = pp;
     const nombre = (pid) => nombrePiloto(pilotos[pid]);
     const tipoNombre = SESION_INFO[res.tipo].nombre;
 
@@ -637,15 +681,28 @@ async function efectosPublicacion(ctx, ev, res) {
             const setup = { ...SETUP_BASE, ...(res.setups?.[eq] || {}) };
             const ideal = setupIdeal(ctx.secreto, ev.id, eq, ev.circuito);
             const inf = informeSetup(setup, ideal, privs[eq]?.inst?.simulador || 0, crearRng(`${ctx.secreto}|fpinf|${ev.id}|${eq}`));
+            // Lectura de los neumáticos para la carrera larga: más precisa cuanto mejor el reglaje, el simulador y la experiencia
+            let textoNeu = '';
+            if (sesionesOrdenadas(ev).some(x => SESION_INFO[x.tipo].estrategia)) {
+                const pilotosEq = fs.map(f => privsPil[f.pid]).filter(Boolean);
+                const exp = Math.max(0, ...pilotosEq.map(x => x.attrs?.experiencia ?? 50));
+                const vueltas = Math.max(...fs.map(f => (f.laps || []).length)) / 8;
+                const prec = precisionLibres({ setupQ: calidadSetup(setup, ideal), simulador: privs[eq]?.inst?.simulador || 0, experiencia: exp, vueltas });
+                const est = estimarVidas(vidaNeumaticos(ctx.secreto, ev.id, ev.circuito), prec, crearRng(`${ctx.secreto}|estneu|${ev.id}|${eq}`));
+                if (privs[eq]) { privs[eq].neumaticos = { ...(privs[eq].neumaticos || {}), [ev.id]: { ...est, fecha: ctx.ahora } }; ctx.sucios.privs.add(eq); }
+                textoNeu = `\nNeumáticos para la Carrera 3 (lectura ${textoPrecision(prec)}): ` + Object.entries(est.rangos).map(([k, [a, b]]) => `${COMPUESTOS[k].nombre.toLowerCase()} ${a === b ? a : `${a}-${b}`} vueltas`).join(' · ') + '.';
+            }
             notificar(ctx, eq, {
                 remitente: 'Ingeniero de pista', tipo: 'setup', titulo: `Informe de libres · ${ev.circuito.nombre}`,
                 texto: `Reglaje usado: ${Object.keys(SETUP_PARAMS).map(k => `${SETUP_PARAMS[k].nombre.toLowerCase()} ${setup[k]}`).join(', ')}.\n` +
                     Object.keys(SETUP_PARAMS).map(k => `${SETUP_PARAMS[k].nombre}: ${textoLectura(inf[k])}`).join(' · ') + `\n${inf.sensacion}\n` +
-                    fs.map(f => `${nombre(f.pid)}: P${f.pos}`).join(' · '),
+                    fs.map(f => `${nombre(f.pid)}: P${f.pos}`).join(' · ') + textoNeu,
             });
         }
+        await danosGraves(ctx, ev, res);
         return;
     }
+    await danosGraves(ctx, ev, res);
 
     // Premios por puntos
     const ptsEq = {};
@@ -681,6 +738,45 @@ async function efectosPublicacion(ctx, ev, res) {
             }
             ctx.sucios.pilotosPriv.add(f.pid);
         }
+    }
+}
+
+// Accidentes graves: el coche queda muy dañado. Si hay otra sesión en la jornada, el mánager elige:
+// reparación urgente (cara, llega a tiempo) o normal (barata, se pierde esa sesión). La IA decide sola.
+async function danosGraves(ctx, ev, res) {
+    const graves = res.filas.filter(f => f.accidente?.grave || (f.estado === 'DNF' && f.grave));
+    if (!graves.length) return;
+    const equipos = ctx.equipos, privs = ctx.privs, pilotos = await cargarPilotos(ctx);
+    const orden = sesionesOrdenadas(ev).map(s => s.tipo);
+    const siguiente = orden[orden.indexOf(res.tipo) + 1] || null;
+    for (const f of graves) {
+        const priv = privs[f.eq];
+        if (!priv) continue;
+        const nombre = nombrePiloto(pilotos[f.pid]);
+        const humano = !!duenoReal(ctx, f.eq);
+        ctx.sucios.privs.add(f.eq);
+        if (!siguiente) {
+            movimiento(priv, `Reparación de daños (${pilotos[f.pid]?.apellido})`, -ECO.reparacionNormal, ctx.ahora);
+            notificar(ctx, f.eq, { remitente: 'Taller', tipo: 'danos', titulo: `El coche de ${nombre} quedó destrozado`, texto: `Lo arreglamos con calma para la próxima jornada (${M(ECO.reparacionNormal)}).` });
+            continue;
+        }
+        const dano = { id: `${ev.id}_${res.tipo}_${f.pid}`, pid: f.pid, evId: ev.id, sesion: siguiente, lockAt: ev.sesiones[siguiente].lockAt, estado: 'pendiente', fecha: ctx.ahora };
+        if (!humano) {
+            const urgente = (priv.presupuesto || 0) > 4_000_000;
+            movimiento(priv, `Reparación ${urgente ? 'urgente' : ''} de daños (${pilotos[f.pid]?.apellido})`.replace('  ', ' '), -(urgente ? ECO.reparacionUrgente : ECO.reparacionNormal), ctx.ahora);
+            dano.estado = urgente ? 'reparado' : 'normal';
+            if (!urgente) noticia(ctx, { titulo: `${pilotos[f.pid]?.apellido} se pierde la ${SESION_INFO[siguiente].nombre}`, texto: `Los daños del accidente de ${nombre} son demasiado graves: ${equipos[f.eq]?.nombre} no llega a tiempo.`, liga: ev.liga, tipo: 'noticia' });
+        } else {
+            notificar(ctx, f.eq, {
+                remitente: 'Taller', tipo: 'danos', titulo: `Daños graves en el coche de ${nombre}`,
+                texto: `Reparación urgente (${M(ECO.reparacionUrgente)}): llega a la ${SESION_INFO[siguiente].nombre}. Reparación normal (${M(ECO.reparacionNormal)}): se pierde esa sesión. Decide en Mi escudería antes del cierre.`,
+            });
+            if (ctx.push) {
+                const doc = await ctx.store.get(`suscripciones/${duenoReal(ctx, f.eq)}`);
+                for (const sub of doc?.subs || []) await ctx.push(sub, { title: `Daños graves: ${nombre}`, body: `¿Reparación urgente para la ${SESION_INFO[siguiente].nombre}? Decide antes del cierre.`, url: ctx.sombra?.equipoId === f.eq ? 'sombra.html' : 'escuderia.html', tag: `danos_${dano.id}` });
+            }
+        }
+        priv.danos = [...(priv.danos || []).filter(x => x.estado === 'pendiente' || x.estado === 'normal' || x.estado === 'reparado').filter(x => x.id !== dano.id), dano].slice(-10);
     }
 }
 
@@ -1053,6 +1149,20 @@ const ACCIONES = {
         ctx.sucios.pilotosPriv.add(pid);
         priv.entrenos = { ...(priv.entrenos || {}), [pid]: ctx.ahora };
         return { ok: true, sube, attr, valor: pp.attrs[attr], piloto: pil[pid].apellido };
+    },
+
+    // Decidir la reparación de un coche con daños graves
+    async reparar(ctx, a) {
+        const priv = privDe(ctx, a.equipoId);
+        const dano = (priv.danos || []).find(x => x.id === a.params?.danoId);
+        if (!dano || dano.estado !== 'pendiente') throw new Error('No hay ninguna reparación pendiente.');
+        if (dano.lockAt <= ctx.ahora) throw new Error('Ya es tarde: la sesión ha cerrado.');
+        const urgente = !!a.params?.urgente;
+        const coste = urgente ? ECO.reparacionUrgente : ECO.reparacionNormal;
+        if ((priv.presupuesto || 0) < coste) throw new Error(`Presupuesto insuficiente (necesitas ${M(coste)}).`);
+        movimiento(priv, `Reparación ${urgente ? 'urgente ' : ''}de daños`, -coste, ctx.ahora);
+        dano.estado = urgente ? 'reparado' : 'normal';
+        return { ok: true, urgente, coste };
     },
 
     async draft(ctx, a) {

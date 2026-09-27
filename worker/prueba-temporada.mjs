@@ -189,6 +189,16 @@ const decis = await store.list('decisiones');
 ok(decis.every(d => d.aplicada), 'Hay decisiones sin aplicar');
 console.log('Noticias:', (await store.list('noticias')).length, '| lecturas', store.lecturas, 'escrituras', store.escrituras);
 
+const resultados = await store.list('resultados');
+const r3 = resultados.filter(r => r.tipo === 'R3');
+const paradas = r3.flatMap(r => r.eventos.filter(e => e.tipo === 'parada'));
+const dnfs = resultados.filter(r => r.tipo.startsWith('R')).map(r => r.filas.filter(f => f.estado === 'DNF').length);
+console.log('Carreras:', dnfs.length, '· abandonos por carrera', (dnfs.reduce((a, b) => a + b, 0) / dnfs.length).toFixed(2), '· máx', Math.max(...dnfs),
+  '| SC', resultados.filter(r => r.eventos?.some(e => e.tipo === 'sc')).length, 'VSC', resultados.filter(r => r.eventos?.some(e => e.tipo === 'vsc')).length,
+  '| paradas en C3', paradas.length, '| sin coche (taller)', resultados.reduce((s, r) => s + (r.dns?.length || 0), 0));
+const privAnaN = await store.get('equipos_priv/tramontana');
+console.log('Lectura neumáticos Ana (última):', JSON.stringify(Object.values(privAnaN.neumaticos || {}).at(-1)));
+ok(paradas.length > 0, 'Nadie ha parado en boxes en la Carrera 3');
 const palm = await nuevaTemporada(store, { ahora: FIN + D });
 const cfg2 = await store.get('config/juego');
 ok(cfg2.temporada === 2 && cfg2.fase === 'pretemporada', 'Nueva temporada mal iniciada');

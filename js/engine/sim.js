@@ -1,5 +1,6 @@
 // Simulador de sesiones Hyper Race X1 (BAC Mono)
-import { SESION_INFO, PUNTOS_QUALY, PUNTOS_CARRERA, PUNTOS_VR, esCarrera, esQualy, NEUMATICOS } from './constants.js';
+import { SESION_INFO, PUNTOS_QUALY, PUNTOS_CARRERA, PUNTOS_VR, esCarrera, esQualy } from './constants.js';
+import { COMPUESTOS, degradacion, factorVida, perdidaBoxes, limpiarEstrategia } from './neumaticos.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -57,8 +58,12 @@ function simularVueltasSueltas(tipo, circuito, pilotos, lluvia, rng) {
             if (rng.chance(0.08)) t += rng.range(300, 1200); // tráfico
             if (rng.chance(pr.pErr * multErr)) {
                 t += rng.range(1500, 6000); valida = false; f.errores++;
-                if (!fp && rng.chance(0.06 * riesgo)) {
-                    fuera = true; eventos.push({ v: v + 1, tipo: 'accidente', pid: p.id });
+                // Accidente: se acaba su sesión; si es grave, el coche queda dañado para la siguiente
+                if (rng.chance(fp ? 0.05 : 0.06 * riesgo)) {
+                    fuera = true;
+                    const grave = rng.chance(fp ? 0.3 : 0.25 + 0.1 * riesgo);
+                    f.accidente = { vuelta: v + 1, grave };
+                    eventos.push({ v: v + 1, tipo: 'accidente', pid: p.id, grave });
                 }
             }
             t = Math.round(t);
@@ -81,8 +86,12 @@ function simularVueltasSueltas(tipo, circuito, pilotos, lluvia, rng) {
 }
 
 // ---------- Carrera ----------
-function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng) {
+function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng, vidas) {
     const n = SESION_INFO[tipo].vueltas;
+    // Solo la carrera larga tiene estrategia de neumáticos y paradas (con lluvia se corre con neumático de agua: sin estrategia)
+    const conNeumaticos = !!SESION_INFO[tipo].estrategia && !lluvia;
+    const vidasEv = vidas || { blando: 6, medio: 11, duro: 17 };
+    const pit = perdidaBoxes(circuito);
     const porId = Object.fromEntries(pilotos.map(p => [p.id, p]));
     const orden0 = parrilla.filter(id => porId[id]);
     pilotos.forEach(p => { if (!orden0.includes(p.id)) orden0.push(p.id); });
@@ -96,95 +105,150 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng) {
         const pr = perfil(p, circuito, lluvia);
         const ritmo = p.estr?.ritmo || 'equilibrado';
         const actitud = p.estr?.actitud || 'normal';
-        const neu = NEUMATICOS[p.estr?.neumatico] || NEUMATICOS.medio;
-        pr.pace *= (ritmo === 'conservador' ? 1.0015 : ritmo === 'ataque' ? 0.998 : 1) * (lluvia ? 1 : neu.ritmo);
-        pr.deg = circuito.desgaste * 0.0007 * (ritmo === 'conservador' ? 0.7 : ritmo === 'ataque' ? 1.45 : 1) * (lluvia ? 0.6 : neu.desgaste);
+        pr.ritmo = ritmo;
+        pr.pace *= ritmo === 'conservador' ? 1.0015 : ritmo === 'ataque' ? 0.998 : 1;
+        pr.deg = circuito.desgaste * 0.0007 * (ritmo === 'conservador' ? 0.7 : ritmo === 'ataque' ? 1.45 : 1) * (lluvia ? 0.6 : 1);
         pr.pErr *= ritmo === 'conservador' ? 0.6 : ritmo === 'ataque' ? 1.5 : 1;
         const fiab = p.coche?.fiabilidad || 0;
-        pr.pFallo = 0.05 * (1 - fiab / 12) * (ritmo === 'ataque' ? 1.3 : ritmo === 'conservador' ? 0.7 : 1) * (p.riesgoFiab || 1);
+        pr.pFallo = 0.056 * (1 - fiab / 12) * (ritmo === 'ataque' ? 1.3 : ritmo === 'conservador' ? 0.7 : 1) * (p.riesgoFiab || 1);
         pr.pCrash = 0.0012 * (actitud === 'agresiva' ? 1.8 : actitud === 'defensiva' ? 0.6 : 1) * (lluvia ? 2.5 : 1);
         pr.ataque = p.attrs.agresividad * 0.6 + (p.attrs.adelantamiento ?? p.attrs.agresividad) * 0.4 + (actitud === 'agresiva' ? 10 : actitud === 'defensiva' ? -8 : 0);
         pr.defensa = (p.attrs.defensa ?? 70) + (actitud === 'defensiva' ? 8 : actitud === 'agresiva' ? -3 : 0);
         pr.actitud = actitud;
+        pr.dano = 0; // pérdida de ritmo por daños (toques)
+        if (conNeumaticos) {
+            const e = limpiarEstrategia(p.estr, n);
+            pr.comp = e.neumatico; pr.edad = 0; pr.plan = e.paradas;
+            filas[id].neumaticos = [e.neumatico];
+        }
         perfiles[id] = pr;
         cum[id] = i * 250;
     });
 
     let orden = orden0.slice();
     const fuera = new Set();
+    let neutral = null; // { tipo: 'sc' | 'vsc', hasta }
 
     for (let v = 1; v <= n; v++) {
+        if (neutral && v > neutral.hasta) { eventos.push({ v, tipo: 'reanudacion', de: neutral.tipo }); neutral = null; }
         const tent = {};
+        const accidentes = [];
         for (const id of orden) {
             const p = porId[id], pr = perfiles[id], f = filas[id];
-            let t = pr.pace * (1 + pr.deg * (v - 1)) + rng.gauss(0, pr.sd);
-            if (v === 1) {
-                t += 2500 + rng.gauss(0, 300) - ((p.attrs.experiencia ?? 50) - 50) * 4 - (p.attrs.agresividad - 60) * 3 - (pr.actitud === 'agresiva' ? 150 : 0);
-                const pos0 = orden.indexOf(id);
-                if (pos0 > 2 && rng.chance(0.025 * (pr.actitud === 'agresiva' ? 1.8 : 1) * (lluvia ? 1.5 : 1))) {
-                    if (rng.chance(0.2)) { fuera.add(id); f.estado = 'DNF'; f.motivo = 'Accidente en la salida'; eventos.push({ v, tipo: 'abandono', pid: id, motivo: f.motivo }); continue; }
-                    t += rng.range(2000, 8000); f.errores++;
-                    eventos.push({ v, tipo: 'toque', pid: id });
+            let base = pr.pace * (1 + pr.dano);
+            if (conNeumaticos) base *= COMPUESTOS[pr.comp].ritmo * (1 + degradacion(pr.edad, vidasEv[pr.comp] * factorVida(pr.ritmo)));
+            else base *= 1 + pr.deg * (v - 1);
+            let t;
+            if (neutral) {
+                // Coche de seguridad / VSC: todos ruedan despacio, sin errores ni adelantamientos
+                t = pr.pace * (neutral.tipo === 'sc' ? 1.38 : 1.3) + rng.gauss(0, pr.sd * 0.3);
+            } else {
+                t = base + rng.gauss(0, pr.sd);
+                if (v === 1) {
+                    t += 2500 + rng.gauss(0, 300) - ((p.attrs.experiencia ?? 50) - 50) * 4 - (p.attrs.agresividad - 60) * 3 - (pr.actitud === 'agresiva' ? 150 : 0);
+                    const pos0 = orden.indexOf(id);
+                    if (pos0 > 2 && rng.chance(0.02 * (pr.actitud === 'agresiva' ? 1.8 : 1) * (lluvia ? 1.5 : 1))) {
+                        if (rng.chance(0.2)) {
+                            const grave = rng.chance(0.4);
+                            fuera.add(id); f.estado = 'DNF'; f.motivo = 'Accidente en la salida'; f.grave = grave;
+                            eventos.push({ v, tipo: 'abandono', pid: id, motivo: f.motivo, accidente: true, grave });
+                            accidentes.push(grave); continue;
+                        }
+                        t += rng.range(2000, 8000); f.errores++;
+                        eventos.push({ v, tipo: 'toque', pid: id });
+                    }
+                }
+                if (rng.chance(pr.pErr)) {
+                    const perd = rng.range(700, 3500);
+                    t += perd; f.errores++;
+                    if (perd > 2000) eventos.push({ v, tipo: 'error', pid: id, ms: Math.round(perd) });
+                }
+                if (rng.chance(pr.pCrash)) {
+                    const grave = rng.chance(0.35 + (lluvia ? 0.1 : 0));
+                    fuera.add(id); f.estado = 'DNF'; f.motivo = 'Accidente'; f.grave = grave;
+                    eventos.push({ v, tipo: 'abandono', pid: id, motivo: f.motivo, accidente: true, grave });
+                    accidentes.push(grave); continue;
+                }
+                if (rng.chance(pr.pFallo / n)) {
+                    fuera.add(id); f.estado = 'DNF';
+                    f.motivo = rng.pick(['Avería de motor', 'Fallo de caja de cambios', 'Suspensión rota', 'Problema eléctrico', 'Fallo de frenos']);
+                    eventos.push({ v, tipo: 'abandono', pid: id, motivo: f.motivo });
+                    accidentes.push(null); continue;
                 }
             }
-            if (rng.chance(pr.pErr)) {
-                const perd = rng.range(700, 3500);
-                t += perd; f.errores++;
-                if (perd > 2000) eventos.push({ v, tipo: 'error', pid: id, ms: Math.round(perd) });
-            }
-            if (rng.chance(pr.pCrash)) {
-                fuera.add(id); f.estado = 'DNF'; f.motivo = 'Accidente';
-                eventos.push({ v, tipo: 'abandono', pid: id, motivo: f.motivo }); continue;
-            }
-            if (rng.chance(pr.pFallo / n)) {
-                fuera.add(id); f.estado = 'DNF';
-                f.motivo = rng.pick(['Avería de motor', 'Fallo de caja de cambios', 'Suspensión rota', 'Problema eléctrico', 'Fallo de frenos']);
-                eventos.push({ v, tipo: 'abandono', pid: id, motivo: f.motivo }); continue;
+            // Parada en boxes al final de esta vuelta
+            if (conNeumaticos) {
+                // si hay coche de seguridad y tocaba parar pronto, se adelanta la parada para perder menos
+                const parada = pr.plan.find(x => x.vuelta === v) || (neutral ? pr.plan.find(x => x.vuelta > v && x.vuelta <= v + 3) : null);
+                if (parada && v < n) {
+                    pr.plan = pr.plan.filter(x => x !== parada);
+                    t += pit * (neutral?.tipo === 'sc' ? 0.45 : neutral?.tipo === 'vsc' ? 0.65 : 1) + rng.range(-800, 1500);
+                    pr.comp = parada.neumatico; pr.edad = 0;
+                    f.neumaticos.push(parada.neumatico); f.paradas = (f.paradas || 0) + 1;
+                    eventos.push({ v, tipo: 'parada', pid: id, neumatico: parada.neumatico, neutral: neutral?.tipo || null });
+                } else pr.edad++;
             }
             tent[id] = cum[id] + t;
         }
 
-        // Resolver tráfico y adelantamientos respetando el orden en pista
         const nuevo = [];
-        for (const id of orden) {
-            if (fuera.has(id)) continue;
-            let idx = nuevo.length, pases = 0;
-            while (idx > 0) {
-                const a = nuevo[idx - 1];
-                if (tent[id] < tent[a]) {
-                    const venta = Math.min(tent[a] - tent[id], 1500);
-                    const pd = perfiles[id], pa = perfiles[a];
-                    let prob = 0.08 + circuito.adelantar * 0.35 + (venta / 1500) * 0.35 + (pd.ataque - pa.defensa) / 100 * 0.6 + (lluvia ? 0.05 : 0);
-                    prob = clamp(prob, 0.03, 0.9);
-                    if (pases < 2 && rng.chance(prob)) {
-                        pases++;
-                        filas[id].adel++;
-                        tent[a] += 150;
-                        tent[id] = Math.min(tent[id], tent[a] - 60);
-                        eventos.push({ v, tipo: 'adelantamiento', pid: id, pid2: a });
-                        const pToque = 0.02 * (pd.actitud === 'agresiva' ? 2 : 1) * (pa.actitud === 'defensiva' ? 1.5 : 1);
-                        if (rng.chance(pToque)) {
-                            const perdedor = rng.chance(0.5) ? id : a;
-                            tent[perdedor] += rng.range(1500, 5000);
-                            filas[perdedor].errores++;
-                            eventos.push({ v, tipo: 'toque', pid: id, pid2: a, perjudicado: perdedor });
+        if (neutral) {
+            // Sin adelantamientos. Con coche de seguridad el pelotón se agrupa detrás del líder.
+            const vivos = orden.filter(id => !fuera.has(id));
+            vivos.sort((a, b) => tent[a] - tent[b]);
+            vivos.forEach((id, k) => {
+                if (k > 0) {
+                    const prev = vivos[k - 1];
+                    const hueco = tent[id] - tent[prev];
+                    tent[id] = tent[prev] + (neutral.tipo === 'sc' ? Math.max(450, hueco * 0.35) : Math.max(250, hueco));
+                }
+                nuevo.push(id);
+            });
+        } else {
+            // Resolver tráfico y adelantamientos respetando el orden en pista
+            for (const id of orden) {
+                if (fuera.has(id)) continue;
+                let idx = nuevo.length, pases = 0;
+                while (idx > 0) {
+                    const a = nuevo[idx - 1];
+                    if (tent[id] < tent[a]) {
+                        const venta = Math.min(tent[a] - tent[id], 1500);
+                        const pd = perfiles[id], pa = perfiles[a];
+                        let prob = 0.08 + circuito.adelantar * 0.35 + (venta / 1500) * 0.35 + (pd.ataque - pa.defensa) / 100 * 0.6 + (lluvia ? 0.05 : 0);
+                        prob = clamp(prob, 0.03, 0.9);
+                        if (pases < 2 && rng.chance(prob)) {
+                            pases++;
+                            filas[id].adel++;
+                            tent[a] += 150;
+                            tent[id] = Math.min(tent[id], tent[a] - 60);
+                            eventos.push({ v, tipo: 'adelantamiento', pid: id, pid2: a });
+                            const pToque = 0.02 * (pd.actitud === 'agresiva' ? 2 : 1) * (pa.actitud === 'defensiva' ? 1.5 : 1);
+                            if (rng.chance(pToque)) {
+                                const perdedor = rng.chance(0.5) ? id : a;
+                                tent[perdedor] += rng.range(1500, 5000);
+                                filas[perdedor].errores++;
+                                // A veces el toque deja daños: el coche va más lento el resto de la carrera
+                                const dano = rng.chance(0.4) ? Math.round(rng.range(0.002, 0.006) * 10000) / 10000 : 0;
+                                if (dano) perfiles[perdedor].dano += dano;
+                                eventos.push({ v, tipo: 'toque', pid: id, pid2: a, perjudicado: perdedor, dano: dano || null });
+                            }
+                            idx--;
+                            continue;
                         }
-                        idx--;
-                        continue;
+                        tent[id] = tent[a] + 250 + rng.next() * 200;
+                        break;
+                    } else if (tent[id] < tent[a] + 200) {
+                        tent[id] = tent[a] + 200 + rng.next() * 100;
+                        break;
                     }
-                    tent[id] = tent[a] + 250 + rng.next() * 200;
-                    break;
-                } else if (tent[id] < tent[a] + 200) {
-                    tent[id] = tent[a] + 200 + rng.next() * 100;
                     break;
                 }
-                break;
+                nuevo.splice(idx, 0, id);
             }
-            nuevo.splice(idx, 0, id);
-        }
-        // Coherencia: nadie puede ir "por delante" en tiempo de quien le precede
-        for (let k = 1; k < nuevo.length; k++) {
-            if (tent[nuevo[k]] < tent[nuevo[k - 1]] + 100) tent[nuevo[k]] = tent[nuevo[k - 1]] + 100;
+            // Coherencia: nadie puede ir "por delante" en tiempo de quien le precede
+            for (let k = 1; k < nuevo.length; k++) {
+                if (tent[nuevo[k]] < tent[nuevo[k - 1]] + 100) tent[nuevo[k]] = tent[nuevo[k - 1]] + 100;
+            }
         }
         nuevo.forEach((id, k) => {
             const f = filas[id];
@@ -192,10 +256,24 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng) {
             f.laps.push(t);
             f.vueltas = v;
             f.posLap.push(k + 1);
-            if (v > 1 && (f.mejor == null || t < f.mejor)) f.mejor = t;
+            if (v > 1 && !neutral && (f.mejor == null || t < f.mejor)) f.mejor = t;
             cum[id] = tent[id];
         });
         orden = nuevo;
+        // Tras un accidente o un coche parado en pista puede salir el coche de seguridad o el VSC
+        if (!neutral && accidentes.length && v < n - 1) {
+            const grave = accidentes.some(g => g === true), choque = accidentes.some(g => g === false);
+            const r = rng.next();
+            let tipoN = null;
+            if (grave) tipoN = r < 0.7 ? 'sc' : r < 0.95 ? 'vsc' : null;
+            else if (choque) tipoN = r < 0.25 ? 'sc' : r < 0.7 ? 'vsc' : null;
+            else tipoN = r < 0.3 ? 'vsc' : null;
+            if (tipoN) {
+                const dur = tipoN === 'sc' ? 2 + (rng.chance(0.4) ? 1 : 0) : 1 + (rng.chance(0.4) ? 1 : 0);
+                neutral = { tipo: tipoN, hasta: Math.min(n - 1, v + dur) };
+                eventos.push({ v: v + 1, tipo: tipoN, hasta: neutral.hasta });
+            }
+        }
     }
 
     // Clasificación final
@@ -210,9 +288,10 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng) {
     return { filas: todas, eventos };
 }
 
-export function simularSesion({ tipo, circuito, pilotos, parrilla, lluvia, rng }) {
+// vidas: vida real de los neumáticos en este evento (solo la usa la carrera con estrategia)
+export function simularSesion({ tipo, circuito, pilotos, parrilla, lluvia, rng, vidas = null }) {
     let r;
-    if (esCarrera(tipo)) r = simularCarrera(tipo, circuito, pilotos, parrilla || [], lluvia, rng);
+    if (esCarrera(tipo)) r = simularCarrera(tipo, circuito, pilotos, parrilla || [], lluvia, rng, vidas);
     else r = simularVueltasSueltas(tipo, circuito, pilotos, lluvia, rng);
     const res = { tipo, lluvia: !!lluvia, filas: r.filas, eventos: r.eventos, vr: null };
     puntuar(res);

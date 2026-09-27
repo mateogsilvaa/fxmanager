@@ -95,11 +95,17 @@ function eventosCarrera(r, modelo, d) {
     const ap = (pid) => d.apellido(pid);
     const porPid = Object.fromEntries(modelo.coches.map(x => [x.f.pid, x]));
     const tEn = (pid, v, frac = 0.5) => { const x = porPid[pid]; const k = Math.max(0, Math.min(v - 1, x.f.laps.length - 1)); return x.c[k] + frac * (x.f.laps[k] || x.media); };
+    // instante en que el líder empieza la vuelta v
+    const tVuelta = (v) => Math.min(...modelo.coches.filter(x => x.c.length > v - 1).map(x => x.c[v - 1]));
+    const COMP = { blando: 'blandos', medio: 'medios', duro: 'duros' };
     const out = [];
     for (const e of r.eventos || []) {
         if (e.tipo === 'adelantamiento') out.push({ t: tEn(e.pid, e.v, 0.6), tipo: 'adel', pid: e.pid, pid2: e.pid2, txt: frase(rng, [`${ap(e.pid)} adelanta a ${ap(e.pid2)}`, `¡Adelantamiento! ${ap(e.pid)} se pone por delante de ${ap(e.pid2)}`, `${ap(e.pid)} se tira por dentro y supera a ${ap(e.pid2)}`, `${ap(e.pid2)} no puede defenderse de ${ap(e.pid)}`]) });
         else if (e.tipo === 'abandono') out.push({ t: porPid[e.pid]?.retiro ?? tEn(e.pid, e.v), tipo: 'aband', pid: e.pid, fuerte: true, txt: `Abandono de ${ap(e.pid)}${e.motivo ? `: ${e.motivo.toLowerCase()}` : ''}` });
         else if (e.tipo === 'error') out.push({ t: tEn(e.pid, e.v, 0.4), tipo: 'err', pid: e.pid, txt: frase(rng, [`${ap(e.pid)} se va largo y pierde ${(e.ms / 1000).toFixed(1)} s`, `Error de ${ap(e.pid)}: trompo y ${(e.ms / 1000).toFixed(1)} s perdidos`, `${ap(e.pid)} pisa la grava`]) });
+        else if (e.tipo === 'parada') out.push({ t: tEn(e.pid, e.v, 0.97), tipo: 'pit', pid: e.pid, txt: `${ap(e.pid)} entra en boxes y monta ${COMP[e.neumatico] || e.neumatico}${e.neutral ? ` aprovechando el ${e.neutral === 'sc' ? 'coche de seguridad' : 'VSC'}` : ''}` });
+        else if (e.tipo === 'sc' || e.tipo === 'vsc') out.push({ t: tVuelta(e.v), tipo: e.tipo, fin: tVuelta(e.hasta + 1), txt: e.tipo === 'sc' ? 'Sale el coche de seguridad: el pelotón se agrupa' : 'Coche de seguridad virtual: todos a ritmo neutralizado' });
+        else if (e.tipo === 'reanudacion') out.push({ t: tVuelta(e.v), tipo: 'verde', txt: 'Bandera verde: ¡se reanuda la carrera!' });
         else if (e.tipo === 'toque') out.push({ t: tEn(e.pid, e.v, 0.5), tipo: 'err', pid: e.pid, txt: e.pid2 ? `Toque entre ${ap(e.pid)} y ${ap(e.pid2)}${e.perjudicado ? `; sale perdiendo ${ap(e.perjudicado)}` : ''}` : `${ap(e.pid)} se toca en la salida` });
     }
     // Vueltas rápidas a medida que se completan
@@ -197,6 +203,7 @@ export function montarDirecto(cont, { r, ses, ev, d, miEq, repeticion = false, a
     }));
     cont.querySelector('#d-final').addEventListener('click', () => { parado = true; alFinal?.(); });
 
+    let neutral = null;
     let ultimoOrden = [], lider = null, idxEvento = 0, avisoUltima = false, avisoFin = false, ultimaTorre = 0, luzEncendida = -1;
     const mejorSes = { t: Infinity, pid: null }, mejores = {}, vueltasVistas = {};
 
@@ -224,15 +231,19 @@ export function montarDirecto(cont, { r, ses, ev, d, miEq, repeticion = false, a
             const lid = estados.filter(s => !s.fuera).sort((a, b) => b.p - a.p)[0];
             const vueltaLider = Math.min(modelo.n, Math.floor(lid?.p ?? 0) + 1);
             cont.querySelector('#d-barra').style.width = `${frac * 100}%`;
-            if (e >= LUCES_MS) cont.querySelector('#d-estado').textContent = frac >= 1 ? 'Bandera a cuadros' : `Vuelta ${vueltaLider}/${modelo.n}`;
+            if (neutral && T >= neutral.fin) neutral = null;
+            cont.querySelector('.directo').classList.toggle('neutral', !!neutral && frac < 1);
+            if (e >= LUCES_MS) cont.querySelector('#d-estado').textContent = frac >= 1 ? 'Bandera a cuadros' : `${neutral ? (neutral.tipo === 'sc' ? 'Safety car · ' : 'VSC · ') : ''}Vuelta ${vueltaLider}/${modelo.n}`;
             // Coches en pista
             for (const s of estados) {
                 const nd = nodos[s.x.f.pid];
                 // Formación de parrilla: separación visual que desaparece durante la primera vuelta
                 const hueco = ((s.x.f.parrilla || 1) - 1) * 0.0045 * Math.max(0, 1 - s.p);
+                nd.g.classList.toggle('fuera', !!s.fuera);
+                // los retirados salen de la pista (no se quedan como fantasmas)
+                if (s.fuera) { nd.g.setAttribute('transform', 'translate(-60,-60)'); continue; }
                 const pt = punto(s.p - hueco);
                 nd.g.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`);
-                nd.g.classList.toggle('fuera', !!s.fuera);
             }
             // Orden y diferencias
             filas = estados.slice().sort((a, b) => (a.fuera - b.fuera) || (a.fuera ? b.p - a.p : (b.p - a.p)));
@@ -249,6 +260,8 @@ export function montarDirecto(cont, { r, ses, ev, d, miEq, repeticion = false, a
                 const ev2 = eventos[idxEvento++];
                 narrar(ev2.txt, ev2.tipo);
                 if (ev2.tipo === 'aband') mostrarRotulo(ev2.txt, 'rotulo-rojo');
+                else if (ev2.tipo === 'sc' || ev2.tipo === 'vsc') { mostrarRotulo(ev2.tipo === 'sc' ? 'SAFETY CAR' : 'VIRTUAL SAFETY CAR', 'rotulo-amarillo', 4000); neutral = { tipo: ev2.tipo, fin: ev2.fin }; }
+                else if (ev2.tipo === 'verde') { mostrarRotulo('Bandera verde', 'rotulo-acento', 2400); neutral = null; }
                 else if (ev2.tipo === 'vr') { mostrarRotulo(ev2.txt, 'rotulo-morado', 2400); mejorSes.pid = ev2.pid; }
             }
             // Líder, última vuelta y final
