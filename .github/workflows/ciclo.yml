@@ -19,7 +19,7 @@ permissions:
   actions: write   # para relanzarse al acabar el turno
 
 concurrency:
-  group: ciclo-juego
+  group: ciclo-juego-2
   cancel-in-progress: false
 
 jobs:
