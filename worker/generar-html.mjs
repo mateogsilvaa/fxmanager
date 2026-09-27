@@ -28,6 +28,10 @@ for (const [archivo, [titulo, js]] of Object.entries(PAGINAS)) {
     <meta name="description" content="Hyper Race X1: campeonato global de gestión de escuderías con BAC Mono.">
     <meta name="theme-color" content="#0a0c11">
     <link rel="icon" href="${icono}">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="img/icono-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Hyper Race">
     <link rel="stylesheet" href="css/app.css">
     <script type="importmap">
     {

@@ -2,6 +2,7 @@ import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, limpiarCache } from '../core/datos.js';
 import { store, ahora, encolar, escuchar, escucharConsulta, reclamarEquipo, refrescarPerfil, enSombra } from '../core/app.js';
 import { reconstruirCatalogo } from '../jobs/catalogo.js';
+import { estadoAvisos, activarAvisos } from '../core/avisos.js';
 import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal, pestanas, $, $$, dinero, barra, cuentaAtras } from '../core/ui.js';
 import {
     LIGAS, LIGAS_NACIONALES, SESIONES, SESION_INFO, esCarrera, esQualy, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST,
@@ -27,7 +28,8 @@ const eqId = u.perfil.equipoId;
 const eq = d.equipo(eqId) || (await store().get(`equipos/${eqId}`));
 const liga = eq.liga;
 const misPilotos = Object.entries(d.cat.pilotos).filter(([, p]) => p.equipoId === eqId).map(([id, p]) => ({ id, ...p })).sort((a) => (a.rol === 'P1' ? -1 : 1));
-const E = { priv: null, pp: {}, acciones: [], notifs: [], decision: null, estrategias: [], prensa: [] };
+const E = { priv: null, pp: {}, acciones: [], notifs: [], decision: null, estrategias: [], prensa: [], avisos: 'no-soportado' };
+estadoAvisos().then(e => { E.avisos = e; if (E.priv && e !== 'no-soportado' && e !== 'activo') repintar('hoy'); }).catch(() => { });
 const hoy = () => diaMadrid(ahora());
 const cadencia = d.cfg.cadenciaMin || 10;
 const proximoCiclo = () => {
@@ -190,6 +192,7 @@ function pintarHoy() {
       </div>
       <aside class="pila">
         ${plazaHtml()}
+        ${avisosHtml()}
         <div class="tarjeta">
           <div class="tarjeta-titulo"><h2>Recompensa diaria</h2><span class="muted peq">${rachaN} ${rachaN === 1 ? 'día' : 'días'} seguidos</span></div>
           <div class="racha">${Array.from({ length: 7 }, (_, i) => `<i class="${i < Math.min(rachaN, 7) ? 'on' : ''}">${i + 1}</i>`).join('')}</div>
@@ -205,6 +208,11 @@ function pintarHoy() {
     $$('[data-ir]', el).forEach(b => b.addEventListener('click', () => irA(b.dataset.ir)));
     $('#btn-checkin', el)?.addEventListener('click', () => lanzar('checkin', {}, 'Recompensa en cola'));
     activarPlaza(el);
+    $('#activar-avisos', el)?.addEventListener('click', async (e) => {
+        e.target.disabled = true;
+        try { await activarAvisos(); E.avisos = 'activo'; toast('Avisos activados'); pintarHoy(); }
+        catch (err) { toast(err.message, 'error'); e.target.disabled = false; }
+    });
     activarPrensa(el);
     $('#ver-resumen', el)?.addEventListener('click', () => verResumen(E.priv.resumenes.at(-1)));
     $('#ver-avisos', el)?.addEventListener('click', () => { modal(`<h2>Avisos</h2>${E.notifs.slice(0, 80).map(notifHtml).join('')}`, { ancho: 620 }); marcarLeidas(); });
@@ -589,6 +597,18 @@ function activarPlaza(el) {
         if (!await confirmar(aceptar ? `¿Dejar <b>${esc(eq.nombre)}</b> y dirigir <b>${esc(o.nombre)}</b>? No hay vuelta atrás.` : `¿Rechazar la oferta de <b>${esc(o.nombre)}</b>?`)) return;
         await lanzar('plaza_responder', { ofertaId: o.id, aceptar }, aceptar ? 'Aceptada' : 'Rechazada');
     }));
+}
+
+// ---------- Avisos en el móvil ----------
+function avisosHtml() {
+    const e = E.avisos;
+    if (e === 'activo' || e === 'no-soportado') return '';
+    const cuerpo = e === 'ios-instalar'
+        ? '<p class="muted peq" style="margin:0">En iPhone, primero añade la web a tu pantalla de inicio: botón Compartir → «Añadir a pantalla de inicio». Ábrela desde ese icono y activa aquí los avisos.</p>'
+        : e === 'bloqueado'
+            ? '<p class="muted peq" style="margin:0">Los avisos están bloqueados para esta web. Actívalos en los ajustes del navegador (icono del candado junto a la dirección).</p>'
+            : '<p class="muted peq" style="margin:0 0 10px">Te avisamos cuando hay carrera, si la estrategia está a punto de cerrar o si tienes algo pendiente.</p><button class="btn btn-peq" id="activar-avisos">Activar avisos</button>';
+    return `<div class="tarjeta"><div class="tarjeta-titulo"><h2>Avisos en el móvil</h2></div>${cuerpo}</div>`;
 }
 
 // ---------- Rueda de prensa ----------

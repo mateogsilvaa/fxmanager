@@ -3,7 +3,7 @@ import {
     SESION_INFO, esCarrera, esQualy, ECO, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST, SLOTS_ID,
     costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion,
     ESTRATEGIA_DEF, diaMadrid, finDiaMadrid, LIGAS, LIGAS_NACIONALES, SETUP_PARAMS, SETUP_BASE, identidadAbierta,
-    costeMejoraFinal, bonusExitoTunel, ENTRENO, probEntreno,
+    costeMejoraFinal, bonusExitoTunel, ENTRENO, probEntreno, horaMadrid,
 } from '../engine/constants.js';
 import { preguntaTrasCarrera, preguntaOpinion, efectosRespuesta, MAX_PREGUNTAS_JORNADA } from '../engine/rueda-prensa.js';
 import { validarNombreEscuderia } from '../engine/badwords.js';
@@ -12,7 +12,7 @@ import { simularSesion } from '../engine/sim.js';
 import { compactar, descompactar, construirTemporada, proyeccionMundial } from '../engine/stats.js';
 import {
     setupIdeal, calidadSetup, informeSetup, tandasDisponibles, cartaDelDia, rellenarTexto, efectosOpcion,
-    ofertasSponsor, pagoSponsor, deltaMoral, decisionIA, setupIA, rangoAprox, CARTAS, textoLectura,
+    ofertasSponsor, pagoSponsor, deltaMoral, decisionIA, setupIA, rangoAprox, TODAS_CARTAS, textoLectura,
 } from '../engine/juego.js';
 import {
     crearContexto, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, cargarEventos, sesionesOrdenadas,
@@ -28,7 +28,8 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const M = (v) => `${(v / 1e6).toFixed(2).replace('.', ',')} M€`;
 
 // precarga: {eventos, equipos, privs} ya leídos (el worker continuo los mantiene con listeners y así no gasta lecturas)
-export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker', log = console.log, forzar = false, precarga = null, extra = {} } = {}) {
+// push: función (sub, payload) => 'ok' | 'caducada' | 'error' para los avisos en el móvil (solo el worker la tiene)
+export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker', log = console.log, forzar = false, precarga = null, extra = {}, push = null } = {}) {
     const inicio = Date.now();
     const cfg = await store.get('config/juego');
     if (!cfg) { log('No existe config/juego: inicializa la temporada desde el panel admin.'); return { ok: false }; }
@@ -45,6 +46,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
     const ctx = crearContexto(store, { ahora, log });
     ctx.cfg = cfg; ctx.secreto = secreto; ctx.temporada = cfg.temporada || 1;
     ctx.sombra = await store.get('secreto/sombra');
+    ctx.push = push;
     if (precarga) {
         const copia = (v) => structuredClone(v);
         if (precarga.eventos) ctx.eventos = precarga.eventos.filter(e => e.temporada === ctx.temporada).map(copia);
@@ -52,7 +54,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
         if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
     }
 
-    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, diario, transicionesFase];
+    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, diario, transicionesFase, recordatorios];
     const errores = [];
     for (const paso of pasos) {
         try { await paso(ctx); await volcar(ctx); }
@@ -318,6 +320,105 @@ async function procesarPrensa(ctx) {
         ctx.ops.push({ op: 'update', path: `prensa/${d.id}`, data: { aplicada: true, resultado: { fans: ef.fans, sinRespuesta: !!ef.sinRespuesta } } });
     }
     ctx.nota(`Prensa: ${aplicar.length} respuesta(s)`);
+}
+
+// ======================================================================
+// Avisos en el móvil (Web Push). Solo en el worker (ctx.push).
+//  · Cada día, entre las 9 y las 13 (a una hora distinta para cada mánager): si hay carrera ese día,
+//    aviso de carrera; si no, lo que tenga pendiente (prensa, mejoras terminadas, decisión, recompensa…).
+//  · Si una sesión cierra en menos de 80 min y no ha guardado estrategia, aviso de cierre.
+// ======================================================================
+const horaTexto = (ms) => new Date(ms).toLocaleTimeString('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' });
+
+async function recordatorios(ctx) {
+    if (!ctx.push) return;
+    const hora = horaMadrid(ctx.ahora), dia = diaMadrid(ctx.ahora);
+    const eventos = await cargarEventos(ctx, ctx.temporada);
+    const cierres = [];
+    for (const ev of eventos) for (const s of sesionesOrdenadas(ev)) {
+        if (s.estado === 'programada' && s.lockAt > ctx.ahora && s.lockAt - ctx.ahora <= 80 * 60_000) cierres.push({ ev, s });
+    }
+    const ventana = hora >= 9 && hora < 13;
+    if (!ventana && !cierres.length) return;
+    const docs = (await ctx.store.list('suscripciones')).filter(d => d.subs?.length);
+    if (!docs.length) return;
+    const equipos = await cargarEquipos(ctx);
+    const privs = await cargarPrivs(ctx);
+    const pilotos = await cargarPilotos(ctx);
+    const participantes = new Set(ctx.cfg.mundial?.participantes || []);
+    const orden = Object.keys(SESION_INFO);
+    let enviados = 0;
+    for (const doc of docs) {
+        const uid = doc.id;
+        const eqId = Object.keys(equipos).find(id => duenoReal(ctx, id) === uid);
+        if (!eqId) continue;
+        const eq = equipos[eqId];
+        const url = ctx.sombra?.equipoId === eqId ? 'sombra.html' : 'escuderia.html';
+        const enMundial = Object.values(pilotos).some(p => p.equipoId === eqId && participantes.has(p.id));
+        const mios = eventos.filter(e => e.liga === eq.liga || (e.liga === 'INT' && enMundial));
+        const mensajes = [];
+        const cambios = {};
+        // 1. Estrategia a punto de cerrar (un aviso por jornada como mucho)
+        const avisadoEv = new Set();
+        for (const { ev, s } of cierres.slice().sort((a, b) => a.s.lockAt - b.s.lockAt)) {
+            if (!mios.includes(ev)) continue;
+            const clave = `${ev.id}_${s.tipo}`;
+            if (doc.cierres?.[clave]) continue;
+            (cambios.cierres ||= {})[clave] = true;
+            const est = await ctx.store.list('estrategias', [['eventoId', '==', ev.id], ['equipoId', '==', eqId]]);
+            if (est.some(e => orden.indexOf(e.tipo) <= orden.indexOf(s.tipo)) || avisadoEv.has(ev.id)) continue;
+            avisadoEv.add(ev.id);
+            mensajes.push({ title: `${SESION_INFO[s.tipo].nombre} · ${ev.circuito.nombre}`, body: `La estrategia cierra a las ${horaTexto(s.lockAt)} y todavía no la has guardado.`, url, tag: clave });
+        }
+        // 2. Aviso del día, a una hora propia entre las 9 y las 13
+        const slot = 9 + crearRng(`${uid}|${dia}|aviso`).next() * 3.75;
+        if (ventana && doc.ultimoDiario !== dia && hora >= slot) {
+            cambios.ultimoDiario = dia;
+            const m = await mensajeDelDia(ctx, { uid, eqId, eq, priv: privs[eqId] || {}, mios, dia, url, desde: doc.ultimoPush || 0 });
+            if (m) mensajes.push(m);
+        }
+        if (!Object.keys(cambios).length) continue;
+        let subs = doc.subs;
+        for (const msg of mensajes.slice(0, 2)) {
+            for (const sub of doc.subs) {
+                const r = await ctx.push(sub, msg);
+                if (r === 'caducada') subs = subs.filter(x => x.endpoint !== sub.endpoint);
+                else if (r === 'ok') enviados++;
+            }
+        }
+        ctx.ops.push({ op: 'merge', path: `suscripciones/${uid}`, data: { ...cambios, ...(subs.length !== doc.subs.length ? { subs } : {}), ...(mensajes.length ? { ultimoPush: ctx.ahora } : {}) } });
+    }
+    if (enviados) ctx.nota(`Avisos enviados: ${enviados}`);
+}
+
+async function mensajeDelDia(ctx, { uid, eqId, eq, priv, mios, dia, url, desde }) {
+    // Día de carrera
+    const hoy = mios.flatMap(ev => sesionesOrdenadas(ev).filter(s => s.tipo !== 'FP' && diaMadrid(s.publishAt) === dia).map(s => ({ ev, s }))).sort((a, b) => a.s.publishAt - b.s.publishAt);
+    if (hoy.length) {
+        const { ev } = hoy[0];
+        const guardada = (await ctx.store.list('estrategias', [['eventoId', '==', ev.id], ['equipoId', '==', eqId]])).length > 0;
+        const primeraAbierta = guardada ? null : hoy.find(x => x.s.lockAt > ctx.ahora);
+        return {
+            title: `Hoy hay carrera en ${ev.circuito.nombre}`,
+            body: `${hoy.map(x => `${SESION_INFO[x.s.tipo].corto} a las ${horaTexto(x.s.publishAt)}`).join(' · ')}.${primeraAbierta ? ` Guarda tu estrategia antes de las ${horaTexto(primeraAbierta.s.lockAt)}.` : ''}`,
+            url, tag: `carrera_${dia}`,
+        };
+    }
+    // Día sin carrera: lo que tenga pendiente
+    const pend = [];
+    const prensa = (await ctx.store.list('prensa', [['uid', '==', uid], ['aplicada', '==', false]])).filter(p => p.equipoId === eqId && !p.eleccion && p.disponible <= ctx.ahora);
+    if (prensa.length) pend.push(`la prensa te espera (${prensa.length} pregunta${prensa.length > 1 ? 's' : ''})`);
+    const noLeidas = (await ctx.store.list('notificaciones', [['uid', '==', uid], ['leida', '==', false]], { limit: 30 })).filter(n => (n.tipo === 'id' || n.tipo === 'inst') && n.fecha > desde);
+    if (noLeidas.length) pend.push(noLeidas.length === 1 ? noLeidas[0].titulo.toLowerCase() : `${noLeidas.length} mejoras terminadas`);
+    const dec = await ctx.store.get(`decisiones/${dia}_${eqId}`);
+    if (dec && !dec.eleccion && !dec.aplicada) pend.push('tienes una decisión pendiente');
+    const ayer = diaMadrid(ctx.ahora - 864e5);
+    if (priv.racha?.ultimoDia !== dia) pend.push(priv.racha?.ultimoDia === ayer && priv.racha.n >= 2 ? `no pierdas tu racha de ${priv.racha.n} días` : 'recoge tu recompensa diaria');
+    const libres = (priv.proyectos || []).filter(p => p.tipo === 'area').length < SLOTS_ID;
+    if (libres && pend.length < 3) pend.push('tienes la fábrica parada');
+    if (!pend.length) return null;
+    const texto = pend.slice(0, 3).join(', ');
+    return { title: eq.nombre, body: texto.charAt(0).toUpperCase() + texto.slice(1) + '.', url, tag: `dia_${dia}` };
 }
 
 // ======================================================================
@@ -1004,7 +1105,7 @@ async function procesarDecisiones(ctx) {
     await cargarEquipos(ctx); await cargarPrivs(ctx);
     const pilotos = await cargarPilotos(ctx);
     for (const d of aplicar) {
-        const carta = CARTAS.find(c => c.id === d.cartaId);
+        const carta = TODAS_CARTAS.find(c => c.id === d.cartaId);
         const priv = ctx.privs[d.equipoId];
         if (!carta || !priv) { ctx.ops.push({ op: 'update', path: `decisiones/${d.id}`, data: { aplicada: true } }); continue; }
         const opcion = carta.opciones.find(o => o.id === d.eleccion) || carta.opciones.find(o => o.defecto) || carta.opciones[carta.opciones.length - 1];
@@ -1015,10 +1116,10 @@ async function procesarDecisiones(ctx) {
         if (ef.fans) { const eq = ctx.equipos[d.equipoId]; eq.fans = Math.max(0, (eq.fans || 0) + ef.fans); ctx.sucios.equipos.add(d.equipoId); partes.push(`${ef.fans > 0 ? '+' : ''}${ef.fans} fans`); }
         if (ef.horasID) {
             const proy = (priv.proyectos || []).filter(p => p.tipo === 'area').sort((a, b) => a.fin - b.fin)[0];
-            if (proy) { proy.fin -= ef.horasID * 3600_000; partes.push(`I+D −${ef.horasID} h`); } else partes.push('(sin I+D activo que acelerar)');
+            if (proy) { proy.fin -= ef.horasID * 3600_000; partes.push(ef.horasID > 0 ? `I+D ${ef.horasID} h antes` : `I+D se retrasa ${-ef.horasID} h`); } else if (ef.horasID > 0) partes.push('(sin I+D activo que acelerar)');
         }
         if (ef.riesgoFiab) { priv.riesgoFiab = (priv.riesgoFiab || 1) * ef.riesgoFiab; partes.push(ef.riesgoFiab > 1 ? 'más riesgo de avería' : 'menos riesgo de avería'); }
-        if (ef.tandas) { const dia = diaMadrid(ctx.ahora); priv.tandasExtra = { dia, n: (priv.tandasExtra?.dia === dia ? priv.tandasExtra.n : 0) + ef.tandas }; partes.push(`+${ef.tandas} tanda(s) de simulador hoy`); }
+        if (ef.tandas) { const dia = diaMadrid(ctx.ahora); priv.tandasExtra = { dia, n: (priv.tandasExtra?.dia === dia ? priv.tandasExtra.n : 0) + ef.tandas }; partes.push(ef.tandas > 0 ? `+${ef.tandas} prueba(s) de simulador hoy` : `${ef.tandas} prueba(s) de simulador hoy`); }
         const ids = [...new Set([...Object.keys(ef.moral), ...Object.keys(ef.forma)])];
         if (ids.length) {
             const pp = await cargarPilotosPriv(ctx, ids);
@@ -1060,7 +1161,9 @@ async function diario(ctx) {
         const misPilotos = Object.values(pilotos).filter(p => p.equipoId === eqId).sort((a, b) => (a.rol === 'P1' ? -1 : 1) - (b.rol === 'P1' ? -1 : 1));
         const dueno = duenoReal(ctx, eqId);
         if (dueno && activos) {
-            const carta = cartaDelDia(ctx.secreto, dia, eqId);
+            const carta = cartaDelDia(ctx.secreto, dia, eqId, priv.cartasRecientes || []);
+            priv.cartasRecientes = [carta.id, ...(priv.cartasRecientes || []).filter(x => x !== carta.id)].slice(0, 25);
+            ctx.sucios.privs.add(eqId);
             const rivales = Object.values(equipos).filter(e => e.liga === eq.liga && e.id !== eqId);
             const rival = crearRng(`${ctx.secreto}|rival|${dia}|${eqId}`).pick(rivales)?.nombre || 'un rival';
             const nombres = { p1: nombrePiloto(misPilotos[0]), p2: nombrePiloto(misPilotos[1] || misPilotos[0]), rival, equipo: eq.nombre };

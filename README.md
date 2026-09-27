@@ -55,3 +55,13 @@ La página **Cómo funciona** (`reglamento.html`) explica el formato, el mercado
 | `data/` | Parrilla ficticia y datos de la demo |
 
 Para cambiar el HTML común de todas las páginas edita `worker/generar-html.mjs` y ejecuta `node worker/generar-html.mjs`.
+
+## Avisos en el móvil
+
+Una sola vez, en tu ordenador (con `gh` con sesión iniciada):
+
+```
+node worker/configurar-avisos.mjs
+```
+
+Crea las claves de Web Push, guarda la privada como secret `VAPID_PRIVATE_KEY` del repositorio y la pública en `js/config.js`, y sube el cambio. Después cada mánager activa los avisos en Mi escudería (en iPhone, antes hay que añadir la web a la pantalla de inicio).

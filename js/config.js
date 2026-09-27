@@ -7,3 +7,6 @@ export const FIREBASE_CONFIG = {
     messagingSenderId: '652487009924',
     appId: '1:652487009924:web:c976804d6b48c4dda004d1',
 };
+
+// Clave pública de los avisos en el móvil (Web Push). La pone worker/configurar-avisos.mjs
+export const VAPID_PUBLIC_KEY = '';

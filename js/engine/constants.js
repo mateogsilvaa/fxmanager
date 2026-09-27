@@ -160,6 +160,11 @@ export const NEUMATICOS = {
 };
 
 export const TZ = 'Europe/Madrid';
+// Hora de Madrid como número (9.5 = 9:30)
+export function horaMadrid(ms = Date.now()) {
+    const p = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms));
+    return +p.find(x => x.type === 'hour').value + +p.find(x => x.type === 'minute').value / 60;
+}
 export function diaMadrid(ms = Date.now()) {
     return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
 }

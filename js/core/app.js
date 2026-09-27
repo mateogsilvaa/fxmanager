@@ -55,12 +55,23 @@ export function iniciar() {
                         await _store.set(`usuarios/${u.uid}`, perfil).catch(() => { });
                     }
                     _usuario = { uid: u.uid, email: u.email, perfil };
+                    marcarVisita(u.uid);
                 } else _usuario = null;
                 if (primera) { primera = false; res(); } else oyentes.forEach(f => f(_usuario));
             });
         });
     })();
     return listo;
+}
+
+// Última visita (como mucho una escritura cada 10 minutos por navegador)
+function marcarVisita(uid) {
+    try {
+        const clave = `fx-v-${uid}`;
+        if (Date.now() - (+localStorage.getItem(clave) || 0) < 10 * 60_000) return;
+        localStorage.setItem(clave, String(Date.now()));
+    } catch { }
+    _fb.updateDoc(_fb.doc(_store.db, `usuarios/${uid}`), { ultimoAcceso: Date.now() }).catch(() => { });
 }
 
 export const store = () => _store;

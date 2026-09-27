@@ -7,7 +7,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
-import { FIREBASE_CONFIG } from '../js/config.js';
+import { FIREBASE_CONFIG, VAPID_PUBLIC_KEY } from '../js/config.js';
 import { FirestoreStore } from '../js/core/store.js';
 import { ejecutarTick } from '../js/jobs/tick.js';
 import { finDiaMadrid } from '../js/engine/constants.js';
@@ -46,9 +46,20 @@ if (!perfil.exists() || perfil.data().isAdmin !== true) {
 }
 
 const store = new FirestoreStore(db);
+
+// Avisos en el móvil: solo si están configurados (clave pública en js/config.js y privada en el secret VAPID_PRIVATE_KEY)
+let push = null;
+if (VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    const webpush = (await import('web-push')).default;
+    webpush.setVapidDetails('https://fxmanager.es', VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+    push = async (sub, payload) => {
+        try { await webpush.sendNotification(sub, JSON.stringify(payload), { TTL: 6 * 3600 }); return 'ok'; }
+        catch (e) { return e.statusCode === 404 || e.statusCode === 410 ? 'caducada' : 'error'; }
+    };
+}
 const iArg = process.argv.indexOf('--continuo');
 if (iArg < 0) {
-    const r = await ejecutarTick(store, { origen: 'worker', forzar: process.argv.includes('--forzar') });
+    const r = await ejecutarTick(store, { origen: 'worker', forzar: process.argv.includes('--forzar'), push });
     console.log(JSON.stringify({ ok: r.ok, errores: r.errores, notas: r.notas, lecturas: store.lecturas, escrituras: store.escrituras }, null, 2));
     process.exit(r.ok === false && !r.omitido ? 1 : 0);
 }
@@ -120,7 +131,7 @@ while (Date.now() < hasta) {
         try {
             const r = await ejecutarTick(store, {
                 ahora, origen: 'worker', log: () => {}, precarga: { eventos: vivo.eventos, equipos: vivo.equipos, privs: vivo.privs },
-                extra: { continuoHasta: hasta },
+                extra: { continuoHasta: hasta }, push,
             });
             ciclos++;
             if (r.errores?.length) { fallos++; log(`Ciclo (${m}) con errores: ${r.errores.join(' | ')}`); }

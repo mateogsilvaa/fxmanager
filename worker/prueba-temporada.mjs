@@ -56,6 +56,10 @@ const accion = (h, tipo, params, t) => store.set(`acciones/a${n++}`, { uid: h.ui
 const FIN = T0 + 8 * 4 * D + 4 * D;
 let t = T0 - 3 * D;
 let demoGuardado = false;
+// Avisos en el móvil simulados: Ana tiene una suscripción
+const avisos = [];
+const pushFalso = async (sub, msg) => { avisos.push({ t: 0, ...msg }); return 'ok'; };
+await store.set('suscripciones/u_ana', { uid: 'u_ana', subs: [{ endpoint: 'https://push.ejemplo/ana', keys: {} }] });
 let ofertaValida = null;
 while (t < FIN) {
     const hora = new Date(t).getUTCHours(), min = new Date(t).getUTCMinutes();
@@ -115,7 +119,7 @@ while (t < FIN) {
             console.log('Oferta válida de', eqTop, 'por', galac.id, 'con', tact.id);
         } else { ofertaValida = 'ninguna'; console.log('No hay combinación elegible para la oferta de prueba'); }
     }
-    const r = await ejecutarTick(store, { ahora: t, log: () => {} });
+    const r = await ejecutarTick(store, { ahora: t, log: () => {}, push: pushFalso });
     if (r.errores?.length) ok(false, `Errores en tick ${new Date(t).toISOString()}: ${r.errores.join(' | ')}`);
     if (DEMO && !demoGuardado && t >= T0 + 2 * 4 * D + D + 2 * H + 30 * 60_000) {
         const dia = diaMadrid(t);
@@ -173,6 +177,8 @@ console.log('Acciones:', acciones.length, 'errores:', errs.length, [...new Set(e
 ok(acciones.every(a => a.estado !== 'pendiente'), 'Quedan acciones pendientes');
 const notifs = await store.list('notificaciones', [['uid', '==', 'u_ana']]);
 console.log('Notificaciones Ana:', notifs.length, '| tipos:', [...new Set(notifs.map(x => x.tipo))].join(','));
+console.log('Avisos al móvil de Ana:', avisos.length, '· ejemplos:'); [...new Map(avisos.map(a => [a.title.split(' ')[0], a])).values()].slice(0, 4).forEach(a => console.log('   🔔', a.title, '—', a.body));
+ok(avisos.length > 10, 'Casi no se han enviado avisos');
 const prensa = await store.list('prensa');
 const noticiasPrensa = (await store.list('noticias')).filter(x => x.tipo === 'prensa');
 console.log('Prensa:', prensa.length, 'preguntas ·', noticiasPrensa.length, 'declaraciones/plantones · ej:', noticiasPrensa.slice(0, 2).map(x => x.titulo).join(' | '));

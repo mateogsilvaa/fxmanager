@@ -1,6 +1,7 @@
 // Reglas de gestión: reglajes, decisiones diarias, patrocinadores, moral, IA
 import { crearRng } from './rng.js';
 import { SETUP_PARAMS, tandasSimulador, NIVELES_LECTURA, nivelLectura } from './constants.js';
+import { CARTAS_EXTRA, OPCIONES_EXTRA } from './cartas.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -193,9 +194,18 @@ export const CARTAS = [
     },
 ];
 
-export function cartaDelDia(secreto, dia, equipoId) {
+// Todas las decisiones (las de base con una opción más si solo tenían dos, y las extra)
+export const TODAS_CARTAS = [
+    ...CARTAS.map(c => OPCIONES_EXTRA[c.id] ? { ...c, opciones: [...c.opciones.filter(o => !o.defecto), OPCIONES_EXTRA[c.id], ...c.opciones.filter(o => o.defecto)] } : c),
+    ...CARTAS_EXTRA,
+];
+
+// recientes: ids de las últimas decisiones de ese equipo, para no repetir
+export function cartaDelDia(secreto, dia, equipoId, recientes = []) {
     const rng = crearRng(`${secreto}|carta|${dia}|${equipoId}`);
-    return rng.pick(CARTAS);
+    const vistas = new Set(recientes);
+    const libres = TODAS_CARTAS.filter(c => !vistas.has(c.id));
+    return rng.pick(libres.length ? libres : TODAS_CARTAS);
 }
 
 export function rellenarTexto(txt, ctx) {

@@ -73,6 +73,7 @@ service cloud.firestore {
       allow update: if esAdmin() || (
         autenticado() && uid() == userId && (
           soloCambian(['nombre'])
+          || (soloCambian(['ultimoAcceso']) && request.resource.data.ultimoAcceso is number)
           || (soloCambian(['equipoId']) && resource.data.get('equipoId', null) == null
               && getAfter(/databases/$(database)/documents/equipos/$(request.resource.data.equipoId)).data.ownerId == uid())
         )
@@ -149,6 +150,11 @@ service cloud.firestore {
         && request.resource.data.fecha > ahora() - 600000 && request.resource.data.fecha < ahora() + 600000
         && request.resource.data.keys().hasOnly(['uid', 'nombre', 'equipoId', 'liga', 'texto', 'fecha', 'dia']);
       allow delete: if esAdmin() || (autenticado() && resource.data.uid == uid());
+    }
+
+    // Suscripciones a avisos en el móvil: cada uno la suya
+    match /suscripciones/{userId} {
+      allow read, write: if autenticado() && (uid() == userId || esAdmin());
     }
 
     // Solo servidor / admin

@@ -339,21 +339,24 @@ async function editarPiloto(p, equipos) {
 async function pintarUsuarios() {
     const el = $('#p-usuarios');
     const us = await store().list('usuarios');
+    const subs = new Set((await store().list('suscripciones').catch(() => [])).filter(s => s.subs?.length).map(s => s.id));
+    const visita = (x) => x.ultimoAcceso ? `<span title="${esc(new Date(x.ultimoAcceso).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' }))}">${hace(x.ultimoAcceso)}</span>` : '<span class="tenue">nunca</span>';
     const aprobado = (x) => x.isAdmin || x.estado === 'aprobado';
     const pendientes = us.filter(x => !aprobado(x) && x.estado !== 'denegado').sort((a, b) => (b.creado || 0) - (a.creado || 0));
-    const resto = us.filter(x => !pendientes.includes(x)).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    const resto = us.filter(x => !pendientes.includes(x)).sort((a, b) => (b.ultimoAcceso || 0) - (a.ultimoAcceso || 0) || (a.nombre || '').localeCompare(b.nombre || ''));
     const estadoTxt = (x) => x.isAdmin ? 'admin' : x.estado === 'aprobado' ? 'aprobado' : x.estado === 'denegado' ? '<span class="mal">denegado</span>' : 'pendiente';
     el.innerHTML = `
     <div class="tarjeta" style="margin-bottom:12px"><div class="tarjeta-titulo"><h2>Solicitudes pendientes</h2><span class="muted">${pendientes.length}</span></div>
-      ${pendientes.length ? `<div class="tabla-scroll"><table class="tabla"><tbody>${pendientes.map(x => `<tr><td><b>${esc(x.nombre || '—')}</b><div class="muted peq">${esc(x.email || '')}${x.creado ? ` · ${hace(x.creado)}` : ''}</div></td>
+      ${pendientes.length ? `<div class="tabla-scroll"><table class="tabla"><tbody>${pendientes.map(x => `<tr><td><b>${esc(x.nombre || '—')}</b><div class="muted peq">${esc(x.email || '')}${x.creado ? ` · pidió acceso ${hace(x.creado)}` : ''} · última visita: ${visita(x)}</div></td>
         <td class="der"><button class="btn btn-peq btn-sec" data-estado="denegado" data-uid="${esc(x.id)}">Denegar</button> <button class="btn btn-peq" data-estado="aprobado" data-uid="${esc(x.id)}">Aprobar</button></td></tr>`).join('')}</tbody></table></div>`
         : vacio('No hay cuentas esperando aprobación.')}
       <p class="muted peq" style="margin:8px 0 0">Una cuenta aprobada puede elegir cualquier escudería libre. La cuenta del bot (BOT_EMAIL) solo necesita la casilla Admin.</p>
     </div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h2>Todas las cuentas</h2><span class="muted">${resto.length}</span></div>
-      <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Nombre</th><th>Estado</th><th>Escudería</th><th class="cen">Admin</th><th></th></tr></thead><tbody>
-      ${resto.map(x => `<tr><td>${esc(x.nombre || '—')}<div class="muted peq">${esc(x.email || '')}</div></td><td class="peq">${estadoTxt(x)}</td>
+      <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Nombre</th><th>Última visita</th><th>Estado</th><th>Escudería</th><th class="cen">Avisos</th><th class="cen">Admin</th><th></th></tr></thead><tbody>
+      ${resto.map(x => `<tr><td>${esc(x.nombre || '—')}<div class="muted peq">${esc(x.email || '')}</div></td><td class="peq">${visita(x)}</td><td class="peq">${estadoTxt(x)}</td>
         <td>${x.equipoId ? esc(d.nombreEquipo(x.equipoId)) : '<span class="tenue">—</span>'}</td>
+        <td class="cen peq">${subs.has(x.id) ? 'Sí' : '<span class="tenue">—</span>'}</td>
         <td class="cen"><input type="checkbox" data-admin="${esc(x.id)}" ${x.isAdmin ? 'checked' : ''} ${x.id === usuario().uid ? 'disabled' : ''}></td>
         <td class="der">${x.estado === 'denegado' ? `<button class="btn btn-peq btn-sec" data-estado="aprobado" data-uid="${esc(x.id)}">Aprobar</button>` : !x.isAdmin && x.id !== usuario().uid ? `<button class="btn btn-peq btn-sec" data-estado="denegado" data-uid="${esc(x.id)}">Bloquear</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div></div>`;
