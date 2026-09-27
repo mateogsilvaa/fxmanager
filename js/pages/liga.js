@@ -8,6 +8,7 @@ import {
 import { LIGAS, LIGAS_NACIONALES, SESION_INFO, PAISES } from '../engine/constants.js';
 import { CATEGORIAS_PILOTO, CATEGORIAS_EQUIPO, calcularRiesgo, construirTemporada } from '../engine/stats.js';
 import { generarCronica } from '../engine/cronica.js';
+import { bloqueLiga, tiraLigas, destacadosMundial, tarjetasDestacados } from '../core/preview-liga.js';
 
 const liga = (new URLSearchParams(location.search).get('l') || 'ESP').toUpperCase();
 if (!LIGAS[liga]) location.replace('liga.html?l=ESP');
@@ -28,12 +29,14 @@ ${selectorLigas(liga)}
   <p class="sub">${esInt ? `${d.cfg.mundial?.nombre ? `Sede: ${esc(d.cfg.mundial.nombre)} · ` : ''}top 3 de cada liga + 5 mejores del resto` : `Temporada ${d.temporada} · 10 escuderías · 5 jornadas`}</p></div>
 </div>
 <div class="pestanas" id="tabs">
+  <button data-tab="resumen">Resumen</button>
   <button data-tab="clasificacion">Clasificación</button>
   <button data-tab="calendario">Calendario</button>
   <button data-tab="equipos">Escuderías</button>
   <button data-tab="estadisticas">Estadísticas</button>
   ${esInt ? '' : '<button data-tab="riesgo">Mundial y mercado</button>'}
 </div>
+<section data-panel="resumen" id="p-resumen"></section>
 <section data-panel="clasificacion" id="p-clasificacion"></section>
 <section data-panel="calendario" id="p-calendario"></section>
 <section data-panel="equipos" id="p-equipos"></section>
@@ -52,24 +55,20 @@ pestanas($('#tabs').parentElement, {
 // ---------------------------------------------------------------- Resumen
 function resumen() {
     const el = $('#p-resumen');
-    const prox = d.proximas(1, liga)[0];
-    const evProx = prox ? eventos.find(e => e.id === prox.evId) : eventos.find(e => Object.values(e.sesiones).some(s => d.estadoSesion(s) !== 'final'));
     const ultimoCompleto = eventos.filter(e => Object.values(e.sesiones).every(s => d.estadoSesion(s) === 'final')).pop();
-    const news = noticias.filter(n => n.liga === liga).slice(0, 8);
     const proy = !esInt ? d.clasificadosMundial() : null;
+    const destacados = esInt ? destacadosMundial(d, 6) : [];
     el.innerHTML = `
-    <div class="rejilla rejilla-lado">
-      <div class="pila">
-        ${evProx ? `<div><div class="etiqueta" style="margin-bottom:8px">${prox ? 'Próxima jornada' : 'Jornada en curso'}</div>${tarjetaEvento(d, evProx)}</div>` : ''}
-        <div class="tarjeta"><div class="tarjeta-titulo"><h2>Clasificación</h2><button class="btn btn-sec btn-peq" data-ir="clasificacion">Completa →</button></div>${tablaClasificacionPilotos(d, liga, { limite: 10 })}</div>
-        ${ultimoCompleto ? podiosEvento(ultimoCompleto) : ''}
-      </div>
-      <aside class="pila">
-        <div class="tarjeta"><div class="tarjeta-titulo"><h3>Escuderías</h3></div>${miniEquipos()}</div>
-        ${!esInt && proy ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Zona Mundial</h3><button class="btn btn-sec btn-peq" data-ir="riesgo">Ver →</button></div>${zonaMundialLiga(proy)}</div>` : ''}
-        <div class="tarjeta"><div class="tarjeta-titulo"><h3>Noticias</h3></div>${listaNoticias(news)}</div>
-      </aside>
-    </div>`;
+    ${bloqueLiga(d, liga, noticias, { enlace: false, titulo: false })}
+    ${esInt && destacados.length ? `<section class="portada-seccion"><div class="tarjeta-titulo"><h2>Pilotos a seguir</h2></div>${tarjetasDestacados(d, destacados)}</section>` : ''}
+    <div class="rejilla rejilla-2 portada-seccion">
+      ${ultimoCompleto ? `<div class="pila">${podiosEvento(ultimoCompleto)}</div>` : ''}
+      ${!esInt && proy ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Zona Mundial</h3><button class="btn btn-sec btn-peq" data-ir="riesgo">Ver →</button></div>${zonaMundialLiga(proy)}</div>` : ''}
+    </div>
+    <section class="portada-seccion">
+      <div class="tarjeta-titulo"><h2>Las otras ligas</h2></div>
+      ${tiraLigas(d, { ancla: false })}
+    </section>`;
     $$('[data-ir]', el).forEach(b => b.addEventListener('click', () => $(`[data-tab="${b.dataset.ir}"]`).click()));
 }
 
