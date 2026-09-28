@@ -44,11 +44,15 @@ const mundiales = (d.cfg.palmares || []).filter(p => p.mundial === pid).length;
 const temporadas = new Set(historico.filter(s => s.filas.some(f => f.pid === pid)).map(s => s.sid.split('_')[0])).size;
 main.innerHTML = `
 <section class="hero">
-  <div class="fila" style="gap:20px;align-items:flex-end">
-    <div style="font-size:40px;font-weight:700;line-height:1;color:${esc(eq?.color || 'var(--acento)')}">${pl.numero ?? ''}</div>
-    <div><div class="fila">${bandera(pl.nac, { ancho: 30 })}<span class="muted">${esc(PAISES[pl.nac] || '')} · ${pl.edad ?? '?'} años</span>${pl.rookie ? '<span class="insignia rookie">Rookie</span>' : ''}${enMundial ? `<span class="insignia mundial">${proy.fijado ? 'Clasificado al Mundial' : 'En zona Mundial'}</span>` : ''}</div>
-    <h1 style="margin:6px 0 0">${esc(pl.nombre)} ${esc(pl.apellido)}</h1>
-    <div class="fila" style="margin-top:6px">${eq ? celdaEquipo(d, pl.equipoId) : '<span class="muted">Sin equipo</span>'} ${liga ? `<a href="liga.html?l=${liga}">${banderaLiga(liga)} ${esc(LIGAS[liga]?.nombre)}</a>` : ''}</div></div>
+  <div class="ficha-cab">
+    ${pl.numero != null ? `<div class="dorsal-grande" style="color:${esc(eq?.color || 'var(--accent)')}">${pl.numero}</div>` : '<div></div>'}
+    <div><div class="etiqueta">${pl.rookie ? 'Rookie · ' : ''}${pl.edad ?? '?'} años</div><h1>${esc(pl.nombre)} ${esc(pl.apellido)}</h1></div>
+    <div class="ficha-meta">
+      <span class="con-bandera">${bandera(pl.nac, { ancho: 22 })}<span class="txt">${esc(PAISES[pl.nac] || '')}</span></span>
+      ${eq ? celdaEquipo(d, pl.equipoId) : '<span class="muted">Sin equipo</span>'}
+      ${liga ? `<a class="con-bandera" href="liga.html?l=${liga}">${banderaLiga(liga, { ancho: 18 })}<span class="txt muted">Liga ${esc(LIGAS[liga]?.nombre)}</span></a>` : ''}
+      ${enMundial ? `<span class="insignia mundial">${proy.fijado ? 'Clasificado al Mundial' : 'En zona Mundial'}</span>` : ''}
+    </div>
   </div>
 </section>
 <div class="rejilla rejilla-lado">
@@ -66,7 +70,7 @@ main.innerHTML = `
   </div>
   <aside class="pila">
     ${compId ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Duelo con su compañero</h3></div>
-      <p><a href="piloto.html?id=${esc(compId)}">${bandera(d.piloto(compId)?.nac)} ${esc(d.nombre(compId))}</a></p>
+      <p><a class="con-bandera" href="piloto.html?id=${esc(compId)}">${bandera(d.piloto(compId)?.nac)}<span class="txt">${esc(d.nombre(compId))}</span></a></p>
       ${duelo('Carreras', st?.h2hC, stComp?.h2hC)}${duelo('Clasificaciones', st?.h2hQ, stComp?.h2hQ)}
       <div class="fila-entre" style="margin-top:10px"><span class="muted">Puntos</span><b>${st?.pts ?? 0} · ${stComp?.pts ?? 0}</b></div></div>` : ''}
     ${zona ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Situación contractual</h3></div>
@@ -99,13 +103,13 @@ function tablaResultados() {
             const txt = h.estado === 'DNF' ? '<span class="insignia dnf">DNF</span>' : h.estado === 'SIN TIEMPO' ? '<span class="muted">ST</span>' : pos(h.pos);
             return `<td class="cen"><a href="sesion.html?id=${esc(h.sid)}">${txt}</a>${h.vr && c.startsWith('R') ? '<span class="insignia vr">VR</span>' : ''}</td>`;
         }).join('');
-        return `<tr><td>${bandera(ev.circuito?.pais)} R${ev.ronda} <span class="muted">${esc(ev.circuito?.nombre || '')}</span></td>${celdas}<td class="pts">${st.ptsEvento[ev.id] ?? ''}</td></tr>`;
+        return `<tr><td><div class="celda-jornada">${bandera(ev.circuito?.pais, { ancho: 18 })}<b>R${ev.ronda}</b><span class="circ" title="${esc(ev.circuito?.nombre || '')}">${esc(ev.circuito?.nombre || '')}</span></div></td>${celdas}<td class="pts">${st.ptsEvento[ev.id] ?? ''}</td></tr>`;
     }).join('')}</tbody></table></div>`;
 }
 function historia() {
     const h = pub?.historia || [];
     if (!h.length) return `<p class="muted">${pl.rookie ? 'Primera temporada en Hyper Race X1.' : 'Sin temporadas anteriores registradas.'}</p>`;
     return `<table class="tabla"><thead><tr><th>Temporada</th><th>Liga</th><th>Escudería</th><th class="cen">Pos</th><th class="cen">V</th><th class="der">Pts</th></tr></thead><tbody>
-    ${h.slice().reverse().map(x => `<tr><td>T${x.temporada}</td><td>${banderaLiga(x.liga)} ${esc(LIGAS[x.liga]?.nombre || x.liga)}</td><td>${celdaEquipo(d, x.equipoId)}</td><td class="cen">${pos(x.pos)}</td><td class="cen">${x.victorias || 0}</td><td class="pts">${x.pts}</td></tr>`).join('')}</tbody></table>`;
+    ${h.slice().reverse().map(x => `<tr><td>T${x.temporada}</td><td><span class="con-bandera">${banderaLiga(x.liga, { ancho: 16 })}<span class="txt">${esc(LIGAS[x.liga]?.nombre || x.liga)}</span></span></td><td>${celdaEquipo(d, x.equipoId)}</td><td class="cen">${pos(x.pos)}</td><td class="cen">${x.victorias || 0}</td><td class="pts">${x.pts}</td></tr>`).join('')}</tbody></table>`;
 }
 void $;

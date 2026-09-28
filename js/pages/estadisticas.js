@@ -2,7 +2,7 @@ import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, cargarHistorico } from '../core/datos.js';
 import { store, usuario } from '../core/app.js';
 import { esc, banderaLiga, vacio, $, $$, bandera } from '../core/ui.js';
-import { tarjetasRecords, activarRecords, celdaPiloto, celdaEquipo, pos, managerDe } from '../core/componentes.js';
+import { tarjetasRecords, activarRecords, celdaPiloto, celdaEquipo, pos, managerDe, leyendaZonas } from '../core/componentes.js';
 import { LIGAS, LIGAS_NACIONALES } from '../engine/constants.js';
 import { CATEGORIAS_PILOTO, CATEGORIAS_EQUIPO, ranking, construirTemporada } from '../engine/stats.js';
 
@@ -65,6 +65,10 @@ function global(cuerpo) {
     const miEq = usuario()?.perfil?.equipoId;
     const P = t.clasPilotos, E = t.clasEquipos;
     const ligaDe = (pid, eq) => d.piloto(pid)?.liga || d.equipo(eq)?.liga;
+    // Sombreado: top 3 de cada liga y los 5 wildcards (solo tiene sentido en la temporada actual)
+    const proy = !globalHistorico && P.some(p => p.pts > 0) ? d.clasificadosMundial() : null;
+    const via = Object.fromEntries((proy?.clasificados || []).map(c => [c.pid, c.via]));
+    const zona = (pid) => via[pid] === 'top3' ? 'zona-top3' : via[pid] === 'repesca' ? 'zona-wc' : '';
     cuerpo.innerHTML = `
     <div class="sub-pestanas"><button data-g="0" class="${globalHistorico ? '' : 'activa'}">Temporada ${d.temporada}</button><button data-g="1" class="${globalHistorico ? 'activa' : ''}">Histórico</button></div>
     <p class="muted" style="margin:0 0 18px;max-width:70ch">Las cinco ligas nacionales en una sola tabla: todas corren el mismo número de carreras con el mismo sistema de puntos. ${globalHistorico ? 'Suma todas las temporadas.' : ''}</p>
@@ -72,15 +76,15 @@ function global(cuerpo) {
     <div class="rejilla rejilla-lado">
       <section class="tarjeta"><div class="tarjeta-titulo"><h2>Pilotos</h2><span>${P.length}</span></div>
         <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Piloto</th><th class="ancho">Liga</th><th class="ancho">Escudería</th><th class="cen" title="Carreras">Car</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="cen ancho" title="Poles">Pole</th><th class="cen ancho" title="Puntos por carrera">Pts/C</th><th class="der">Pts</th></tr></thead><tbody>
-        ${P.map((p, i) => `<tr class="${d.piloto(p.pid)?.equipoId === miEq ? 'yo' : ''} ${i < 3 ? 'zona-top3' : ''}"><td>${pos(i + 1)}</td><td>${celdaPiloto(d, p.pid)}</td>
+        ${P.map((p, i) => `<tr class="${d.piloto(p.pid)?.equipoId === miEq ? 'yo' : ''} ${zona(p.pid)}"><td>${pos(i + 1)}</td><td><div class="fila" style="flex-wrap:nowrap;gap:6px">${celdaPiloto(d, p.pid)}${zona(p.pid) === 'zona-wc' ? '<span class="insignia wc" title="Wildcard: uno de los 5 mejores del resto">WC</span>' : ''}</div></td>
           <td class="ancho">${ligaDe(p.pid, p.eq) ? banderaLiga(ligaDe(p.pid, p.eq), { ancho: 16 }) : ''}</td><td class="ancho">${celdaEquipo(d, d.piloto(p.pid)?.equipoId || p.eq)}</td>
           <td class="cen num">${p.carreras || 0}</td><td class="cen num">${p.victorias || 0}</td><td class="cen num">${p.podios || 0}</td><td class="cen num ancho">${p.poles || 0}</td>
           <td class="cen num ancho">${p.carreras ? (p.ptsCarrera / p.carreras).toFixed(1).replace('.', ',') : '—'}</td><td class="pts">${p.pts}</td></tr>`).join('')}
-        </tbody></table></div></section>
+        </tbody></table></div>${proy ? leyendaZonas() : ''}</section>
       <section class="tarjeta"><div class="tarjeta-titulo"><h2>Escuderías</h2><span>${E.length}</span></div>
         <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Escudería</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="der">Pts</th></tr></thead><tbody>
         ${E.map((e, i) => { const eq = d.equipo(e.eq); return `<tr class="${e.eq === miEq ? 'yo' : ''} ${i < 3 ? 'zona-top3' : ''}"><td>${pos(i + 1)}</td>
-          <td>${eq?.liga ? banderaLiga(eq.liga, { ancho: 14 }) + ' ' : ''}${celdaEquipo(d, e.eq)}<div class="muted peq">${managerDe(eq)}</div></td>
+          <td><span class="con-bandera">${eq?.liga ? banderaLiga(eq.liga, { ancho: 16 }) : ''}${celdaEquipo(d, e.eq)}</span><div class="muted peq">${managerDe(eq)}</div></td>
           <td class="cen num">${e.victorias || 0}</td><td class="cen num">${e.podios || 0}</td><td class="pts">${e.pts}</td></tr>`; }).join('')}
         </tbody></table></div></section>
     </div>`}`;

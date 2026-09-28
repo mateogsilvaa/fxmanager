@@ -32,7 +32,7 @@ const mejorRemontada = filasEq.filter(f => f.s.tipo.startsWith('R') && f.estado 
 
 main.innerHTML = `
 <section class="hero">
-  <div class="etiqueta">${banderaLiga(liga)} ${esc(LIGAS[liga]?.nombre)}${e.grupo ? ` · Grupo ${esc(e.grupo)}` : ''}</div>
+  <div class="etiqueta">${banderaLiga(liga, { ancho: 18 })} ${esc(LIGAS[liga]?.nombre)}${e.grupo ? ` · Grupo ${esc(e.grupo)}` : ''}</div>
   <h1 style="margin:6px 0">${esc(e.nombre)}</h1>
   <p>Mánager: <b style="color:var(--texto)">${managerDe(e)}</b>${esMio ? ' (tú) · <a href="escuderia.html">Ir al panel</a>' : !e.ownerNombre && e.inscribible !== false ? ' · <a href="escuderia.html">¿La quieres?</a>' : ''} · ${e.fans || 0} fans</p>
 </section>
@@ -44,9 +44,13 @@ main.innerHTML = `
     </div></div>
     <div class="rejilla rejilla-2">${pilotos.map(p => {
         const s = d.tabla(liga).pilotos[p.id];
-        return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}"><div class="fila-entre"><span class="dorsal" style="font-size:20px;color:${esc(e.color)}">${p.numero ?? ''}</span>${p.rookie ? '<span class="insignia rookie">Rookie</span>' : ''}</div>
-        <div class="fila">${bandera(p.nac, { ancho: 24 })}<div><div>${esc(p.nombre)}</div><b style="font-size:16px">${esc(p.apellido)}</b></div></div>
-        <div class="muted" style="font-size:.85rem;margin-top:6px">${esc(PAISES[p.nac] || '')} · ${s?.pts ?? 0} pts · ${s?.victorias ?? 0} victorias</div></a>`;
+        const v = s?.victorias ?? 0;
+        return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}"><div class="piloto-tarjeta">
+          <span class="dorsal" style="color:${esc(e.color)}">${p.numero ?? ''}</span>
+          <div class="nom"><span>${esc(p.nombre)}</span><b>${esc(p.apellido)}</b></div>
+          ${p.rookie ? '<span class="insignia rookie">Rookie</span>' : '<span></span>'}
+        </div>
+        <div class="fila muted" style="font-size:.85rem;margin-top:10px"><span class="con-bandera">${bandera(p.nac, { ancho: 18 })}<span class="txt">${esc(PAISES[p.nac] || '')}</span></span><span>· ${s?.pts ?? 0} pts · ${v} victoria${v === 1 ? '' : 's'}</span></div></a>`;
     }).join('')}</div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Puntos por jornada</h3></div>${porRonda()}</div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Palmarés e historia</h3></div>${historia()}</div>
@@ -63,7 +67,7 @@ main.innerHTML = `
       <li class="fila-entre"><span class="muted">Errores de pilotaje</span><b>${st?.errores ?? 0}</b></li>
     </ul></div>
     ${stInt ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Mundial de Escuderías</h3></div><div class="datos">${dato(stInt.pts, 'Puntos')}${dato(stInt.victorias, 'Victorias')}</div></div>` : ''}
-    ${hermanos.length ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Grupo ${esc(e.grupo)}</h3></div><p class="muted" style="font-size:.88rem">Franquicia con equipos en varios países.</p><ul class="lista">${hermanos.map(([id, x]) => `<li>${banderaLiga(x.liga)} ${celdaEquipo(d, id)}</li>`).join('')}</ul></div>` : ''}
+    ${hermanos.length ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Grupo ${esc(e.grupo)}</h3></div><p class="muted" style="font-size:.88rem">Franquicia con equipos en varios países.</p><ul class="lista">${hermanos.map(([id, x]) => `<li><span class="con-bandera">${banderaLiga(x.liga, { ancho: 18 })}${celdaEquipo(d, id)}</span></li>`).join('')}</ul></div>` : ''}
   </aside>
 </div>`;
 
@@ -71,7 +75,7 @@ function dato(v, t) { return `<div class="dato"><b>${v}</b><span>${t}</span></di
 function porRonda() {
     if (!eventos.length) return vacio('Sin calendario.');
     const max = Math.max(1, ...eventos.map(ev => st?.ptsEvento?.[ev.id] || 0));
-    return `<div style="display:grid;gap:8px">${eventos.map(ev => { const v = st?.ptsEvento?.[ev.id]; return `<div class="fila" style="flex-wrap:nowrap"><span style="min-width:170px;font-size:.88rem">${bandera(ev.circuito?.pais)} R${ev.ronda} ${esc(ev.circuito?.nombre?.split(' ').slice(0, 3).join(' ') || '')}</span><div class="barra" style="flex:1;height:14px"><div class="barra-relleno" style="width:${((v || 0) / max) * 100}%;background:${esc(e.color)}"></div></div><b class="num" style="min-width:34px;text-align:right">${v ?? '·'}</b></div>`; }).join('')}</div>`;
+    return `<div style="display:grid;gap:8px">${eventos.map(ev => { const v = st?.ptsEvento?.[ev.id]; return `<div class="pts-jornada"><span class="con-bandera" title="${esc(ev.circuito?.nombre || '')}">${bandera(ev.circuito?.pais, { ancho: 18 })}<span class="txt"><b>R${ev.ronda}</b> <span class="solo-ancho">${esc(ev.circuito?.nombre || '')}</span></span></span><div class="barra" style="height:14px"><div class="barra-relleno" style="width:${((v || 0) / max) * 100}%;background:${esc(e.color)}"></div></div><b class="num" style="text-align:right">${v ?? '·'}</b></div>`; }).join('')}</div>`;
 }
 function historia() {
     const h = pub?.historia || [];

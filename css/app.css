@@ -55,7 +55,7 @@ h3 { font-size: 17px; letter-spacing: .04em; }
 h4 { font-family: var(--sans); text-transform: none; font-size: 14px; font-weight: 600; line-height: 1.3; }
 p { margin: 0 0 .8em; color: var(--body); }
 code { font-family: var(--mono); font-size: 11px; background: var(--note); padding: 1px 5px; border-radius: 2px; }
-img.bandera { border-radius: 0; vertical-align: -2px; flex-shrink: 0; object-fit: cover; outline: 1px solid var(--hair); }
+img.bandera { border-radius: 0; vertical-align: middle; position: relative; top: -1px; display: inline-block; flex-shrink: 0; object-fit: cover; outline: 1px solid var(--hair); }
 .bandera-int { display: inline-flex; vertical-align: -3px; color: var(--muted); }
 .muted { color: var(--muted); }
 .tenue { color: var(--dim); }
@@ -574,3 +574,34 @@ a.sesion-fila:hover { background: var(--panel-warm); color: var(--ink); }
 .leyenda-zonas i { width: 14px; height: 10px; display: inline-block; }
 .leyenda-zonas i.zona-top3 { background: var(--acc-bg); box-shadow: inset 3px 0 0 var(--accent); }
 .leyenda-zonas i.zona-wc { background: var(--wc-bg); box-shadow: inset 3px 0 0 var(--purple); }
+
+/* Bandera + texto alineados en una línea */
+.con-bandera { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; vertical-align: middle; }
+.con-bandera img.bandera, .con-bandera .bandera-int { top: 0; }
+.con-bandera > .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.con-bandera a { color: inherit; }
+.solo-ancho { display: none; }
+@media (min-width: 760px) { .solo-ancho { display: inline; } }
+
+/* Ficha de piloto: cabecera */
+.ficha-cab { display: grid; grid-template-columns: auto 1fr; gap: 4px 18px; align-items: end; }
+.ficha-cab .dorsal-grande { font: 700 64px/0.85 var(--cond); font-variant-numeric: tabular-nums; }
+.ficha-cab h1 { margin: 4px 0 0; }
+.ficha-cab .ficha-meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 10px; font-size: 14px; }
+@media (max-width: 759px) { .ficha-cab .dorsal-grande { font-size: 48px; } }
+
+/* Celda de jornada en tablas (bandera + ronda + circuito recortado) */
+.celda-jornada { display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0; }
+.celda-jornada .circ { overflow: hidden; text-overflow: ellipsis; max-width: 200px; color: var(--muted); }
+@media (max-width: 759px) { .celda-jornada .circ { display: none; } }
+
+/* Puntos por jornada (ficha de escudería) */
+.pts-jornada { display: grid; grid-template-columns: minmax(0, 190px) 1fr 34px; gap: 10px; align-items: center; font-size: .88rem; }
+.pts-jornada .con-bandera { overflow: hidden; }
+@media (max-width: 759px) { .pts-jornada { grid-template-columns: 56px 1fr 30px; } }
+
+/* Tarjeta de piloto en la ficha de escudería */
+.piloto-tarjeta { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+.piloto-tarjeta .dorsal { font: 700 28px/1 var(--cond); }
+.piloto-tarjeta .nom { min-width: 0; }
+.piloto-tarjeta .nom b { display: block; font-size: 16px; text-transform: uppercase; letter-spacing: .02em; }

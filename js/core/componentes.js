@@ -63,7 +63,7 @@ export function tablaClasificacionEquipos(d, liga, { limite = null } = {}) {
     const miEq = usuario()?.perfil?.equipoId;
     return `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Escudería</th><th class="ancho">Mánager</th><th class="cen">V</th><th class="cen ancho">Dobletes</th><th class="cen">Pod</th><th class="der">Pts</th></tr></thead><tbody>${lista.map((s, i) => {
         const e = d.equipo(s.eq);
-        return `<tr class="${s.eq === miEq ? 'yo' : ''}"><td>${pos(i + 1)}</td><td>${celdaEquipo(d, s.eq)} ${e?.grupo ? `<span class="muted" title="Grupo multinacional">· ${esc(e.grupo)}</span>` : ''}</td><td class="muted ancho">${managerDe(e)}</td><td class="cen num">${s.victorias || 0}</td><td class="cen num ancho">${s.dobletes || 0}</td><td class="cen num">${s.podios || 0}</td><td class="pts">${s.pts}</td></tr>`;
+        return `<tr class="${s.eq === miEq ? 'yo' : ''}"><td>${pos(i + 1)}</td><td>${celdaEquipo(d, s.eq)} ${e?.grupo ? `<span class="muted solo-ancho" title="Grupo multinacional">· ${esc(e.grupo)}</span>` : ''}</td><td class="muted ancho">${managerDe(e)}</td><td class="cen num">${s.victorias || 0}</td><td class="cen num ancho">${s.dobletes || 0}</td><td class="cen num">${s.podios || 0}</td><td class="pts">${s.pts}</td></tr>`;
     }).join('')}</tbody></table></div>`;
 }
 

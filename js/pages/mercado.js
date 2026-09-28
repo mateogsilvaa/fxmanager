@@ -67,7 +67,7 @@ function mercadoReal() {
     ${misVacantes.length && abierto ? draftUI(misVacantes) : ''}
     <section class="tarjeta" style="margin-bottom:42px"><div class="tarjeta-titulo"><h2>Traspasos internacionales</h2><span>${ops.length} operaciones</span></div>
       ${ops.length ? `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Galáctico</th><th>Destino</th><th>A cambio</th><th class="der">Importe</th><th class="ancho">Origen</th></tr></thead><tbody>
-      ${ops.map(o => `<tr><td>${nom(o.pid, o.nombre)} <span class="muted peq">${o.pos ? `${o.pos}º` : ''}</span></td><td class="peq">${banderaLiga(o.de)} → ${banderaLiga(o.a)} ${celdaEquipo(d, o.eq)}</td><td>${nom(o.tactico, o.nombreTactico)} <span class="insignia">Táctico</span></td><td class="der">${dinero(o.importe)}</td><td class="ancho peq muted">${o.humano ? 'Oferta de mánager' : 'Decidido por la liga'}</td></tr>`).join('')}
+      ${ops.map(o => `<tr><td>${nom(o.pid, o.nombre)} <span class="muted peq">${o.pos ? `${o.pos}º` : ''}</span></td><td class="peq"><span class="con-bandera">${banderaLiga(o.de, { ancho: 16 })}→${banderaLiga(o.a, { ancho: 16 })}${celdaEquipo(d, o.eq)}</span></td><td>${nom(o.tactico, o.nombreTactico)} <span class="insignia">Táctico</span></td><td class="der">${dinero(o.importe)}</td><td class="ancho peq muted">${o.humano ? 'Oferta de mánager' : 'Decidido por la liga'}</td></tr>`).join('')}
       </tbody></table></div>` : vacio('Sin traspasos.')}
       <p class="muted peq" style="margin:10px 0 0">La escudería que pierde a su Galáctico recibe al Táctico del comprador y el importe.</p>
     </section>

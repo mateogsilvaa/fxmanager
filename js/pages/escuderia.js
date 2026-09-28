@@ -524,7 +524,7 @@ function identidadHtml() {
       <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--hair2)">
         <div class="fila-entre"><b>Filiales</b><span class="muted peq">${filiales.length}/${ECO.maxFiliales}</span></div>
         <p class="muted peq">Compra una escudería de otro país sin mánager. La sigue llevando la IA, pero forma grupo contigo: compartís tecnología (−25% en I+D cuando una mejora un área) y te paga ${dinero(ECO.dividendoFilial)} al día.</p>
-        ${filiales.length ? `<ul class="lista">${filiales.map(([id, e]) => `<li>${banderaLiga(e.liga)} <span class="chip-equipo" style="color:var(--texto)"><i style="background:${esc(e.color)}"></i>${esc(e.nombre)}</span>${abierto ? `<button class="btn btn-sec btn-peq" data-filial-editar="${esc(id)}">Editar</button>` : ''}</li>`).join('')}</ul>` : ''}
+        ${filiales.length ? `<ul class="lista">${filiales.map(([id, e]) => `<li class="fila-entre"><span class="con-bandera">${banderaLiga(e.liga, { ancho: 18 })}<span class="chip-equipo" style="color:var(--texto)"><i style="background:${esc(e.color)}"></i>${esc(e.nombre)}</span></span>${abierto ? `<button class="btn btn-sec btn-peq" data-filial-editar="${esc(id)}">Editar</button>` : ''}</li>`).join('')}</ul>` : ''}
         ${abierto && puedeComprar ? (comprables.length ? `<form id="f-filial" class="fila" style="margin-top:10px;gap:8px;flex-wrap:wrap">
             <select name="equipoId" style="flex:1;min-width:200px">${LIGAS_NACIONALES.filter(l => l !== liga).map(l => {
                 const cs = comprables.filter(([, e]) => e.liga === l);
@@ -596,7 +596,7 @@ function plazaHtml() {
       <div class="tarjeta-titulo"><h2>Te quieren fichar</h2></div>
       <p class="muted peq">Tu temporada ha llamado la atención. Si aceptas, dejas ${esc(eq.nombre)} (la llevará la IA) y pasas a dirigir la nueva escudería con su presupuesto, su coche y sus pilotos.</p>
       ${ofertas.map(o => `<div class="fila-entre" style="padding:10px 0;border-top:1px solid var(--hair2)">
-        <div>${banderaLiga(o.liga)} <b>${esc(d.nombreEquipo(o.equipoId) || o.nombre)}</b>${o.grupo ? ` <span class="muted peq">· grupo ${esc(o.grupo)}</span>` : ''}<div class="tenue peq">Caduca en ${cuentaAtras(o.expira, true)}</div></div>
+        <div><span class="con-bandera">${banderaLiga(o.liga, { ancho: 18 })}<b>${esc(d.nombreEquipo(o.equipoId) || o.nombre)}</b></span>${o.grupo ? ` <span class="muted peq">· grupo ${esc(o.grupo)}</span>` : ''}<div class="tenue peq">Caduca en ${cuentaAtras(o.expira, true)}</div></div>
         <div class="fila" style="gap:6px"><button class="btn btn-sec btn-peq" data-plaza="${esc(o.id)}" data-aceptar="0" ${enCola ? 'disabled' : ''}>Rechazar</button><button class="btn btn-peq" data-plaza="${esc(o.id)}" data-aceptar="1" ${enCola ? 'disabled' : ''}>Aceptar</button></div>
       </div>`).join('')}
     </div>`;
@@ -830,7 +830,7 @@ function elegirEquipo() {
         <div class="tarjeta">${eqs.length ? eqs.map(([id, e]) => {
             const ps = Object.values(d.cat.pilotos).filter(p => p.equipoId === id);
             return `<div class="fila-entre" style="padding:12px 0;border-top:1px solid var(--hair2)">
-              <div><div class="chip-equipo" style="color:var(--texto)"><i style="background:${esc(e.color)}"></i><b>${esc(e.nombre)}</b></div><div class="muted peq" style="margin-top:3px">${ps.map(p => `${bandera(p.nac, { ancho: 14 })} ${esc(p.apellido)}`).join(' · ')}</div></div>
+              <div><div class="chip-equipo" style="color:var(--texto)"><i style="background:${esc(e.color)}"></i><b>${esc(e.nombre)}</b></div><div class="muted peq" style="margin-top:3px">${ps.map(p => `<span class="con-bandera">${bandera(p.nac, { ancho: 14 })}<span class="txt">${esc(p.apellido)}</span></span>`).join(' <span class="tenue">·</span> ')}</div></div>
               <button class="btn btn-peq" data-reclamar="${esc(id)}" ${abierta ? '' : 'disabled'}>Elegir</button></div>`;
         }).join('') : vacio('No quedan escuderías libres en esta liga.')}</div>`;
         $$('[data-liga]').forEach(a => a.addEventListener('click', (e) => { e.preventDefault(); ligaSel = a.dataset.liga; pintar(); }));
