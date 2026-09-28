@@ -340,7 +340,9 @@ async function editarPiloto(p, equipos) {
 async function pintarUsuarios() {
     const el = $('#p-usuarios');
     const us = await store().list('usuarios');
-    const subs = new Set((await store().list('suscripciones').catch(() => [])).filter(s => s.subs?.length).map(s => s.id));
+    const docsAvisos = Object.fromEntries((await store().list('suscripciones').catch(() => [])).map(s => [s.id, s]));
+    const subs = new Set(Object.values(docsAvisos).filter(s => s.subs?.length).map(s => s.id));
+    const avisoTxt = (x) => subs.has(x.id) ? 'Sí' : docsAvisos[x.id]?.rechazo ? `<span class="mal" title="${esc(docsAvisos[x.id].rechazo)}${docsAvisos[x.id].rechazoFecha ? ' · ' + esc(new Date(docsAvisos[x.id].rechazoFecha).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })) : ''}">No</span>` : '<span class="tenue">—</span>';
     const visita = (x) => x.ultimoAcceso ? `<span title="${esc(new Date(x.ultimoAcceso).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' }))}">${hace(x.ultimoAcceso)}</span>` : '<span class="tenue">nunca</span>';
     const aprobado = (x) => x.isAdmin || x.estado === 'aprobado';
     const pendientes = us.filter(x => !aprobado(x) && x.estado !== 'denegado').sort((a, b) => (b.creado || 0) - (a.creado || 0));
@@ -357,7 +359,7 @@ async function pintarUsuarios() {
       <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Nombre</th><th>Última visita</th><th>Estado</th><th>Escudería</th><th class="cen">Avisos</th><th class="cen">Admin</th><th></th></tr></thead><tbody>
       ${resto.map(x => `<tr><td>${esc(x.nombre || '—')}<div class="muted peq">${esc(x.email || '')}</div></td><td class="peq">${visita(x)}</td><td class="peq">${estadoTxt(x)}</td>
         <td>${x.equipoId ? esc(d.nombreEquipo(x.equipoId)) : '<span class="tenue">—</span>'}</td>
-        <td class="cen peq">${subs.has(x.id) ? 'Sí' : '<span class="tenue">—</span>'}</td>
+        <td class="cen peq">${avisoTxt(x)}</td>
         <td class="cen"><input type="checkbox" data-admin="${esc(x.id)}" ${x.isAdmin ? 'checked' : ''} ${x.id === usuario().uid ? 'disabled' : ''}></td>
         <td class="der">${x.estado === 'denegado' ? `<button class="btn btn-peq btn-sec" data-estado="aprobado" data-uid="${esc(x.id)}">Aprobar</button>` : !x.isAdmin && x.id !== usuario().uid ? `<button class="btn btn-peq btn-sec" data-estado="denegado" data-uid="${esc(x.id)}">Bloquear</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div></div>`;

@@ -25,7 +25,7 @@ export async function montar({ activo = '', liga = null } = {}) {
 async function proponerAvisos() {
     const CLAVE = 'fx-avisos-luego';
     try { if (Date.now() - (+localStorage.getItem(CLAVE) || 0) < 3 * 864e5) return; } catch { }
-    const { estadoAvisos, activarAvisos } = await import('./avisos.js');
+    const { estadoAvisos, activarAvisos, marcarRechazo } = await import('./avisos.js');
     const estado = await estadoAvisos();
     if (estado !== 'inactivo' && estado !== 'ios-instalar') return;
     const { modal, toast } = await import('./ui.js');
@@ -35,7 +35,7 @@ async function proponerAvisos() {
       ${ios ? '<p class="muted peq">En iPhone: pulsa Compartir → «Añadir a pantalla de inicio», abre la web desde ese icono y actívalos desde ahí.</p>' : ''}
       <div class="fila-botones"><button class="btn btn-sec" data-av="luego">Ahora no</button>${ios ? '<button class="btn" data-av="ok">Entendido</button>' : '<button class="btn" data-av="si">Activar avisos</button>'}</div>`, { ancho: 440 });
     const posponer = () => { try { localStorage.setItem(CLAVE, String(Date.now())); } catch { } };
-    m.el.querySelector('[data-av="luego"]').addEventListener('click', () => { posponer(); m.cerrar(); });
+    m.el.querySelector('[data-av="luego"]').addEventListener('click', () => { posponer(); marcarRechazo('ahora no'); m.cerrar(); });
     m.el.querySelector('[data-av="ok"]')?.addEventListener('click', () => { posponer(); m.cerrar(); });
     m.el.querySelector('[data-av="si"]')?.addEventListener('click', async (e) => {
         e.target.disabled = true;
