@@ -1,6 +1,6 @@
 // Simulador de sesiones Hyper Race X1 (BAC Mono)
 import { SESION_INFO, PUNTOS_QUALY, PUNTOS_CARRERA, PUNTOS_VR, esCarrera, esQualy } from './constants.js';
-import { COMPUESTOS, degradacion, factorVida, perdidaBoxes, limpiarEstrategia } from './neumaticos.js';
+import { COMPUESTOS, degradacion, factorVida, perdidaBoxes, limpiarEstrategia, paradaEnBoxes } from './neumaticos.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -182,10 +182,12 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng, vidas) {
                 const parada = pr.plan.find(x => x.vuelta === v) || (neutral ? pr.plan.find(x => x.vuelta > v && x.vuelta <= v + 3) : null);
                 if (parada && v < n) {
                     pr.plan = pr.plan.filter(x => x !== parada);
-                    t += pit * (neutral?.tipo === 'sc' ? 0.45 : neutral?.tipo === 'vsc' ? 0.65 : 1) + rng.range(-800, 1500);
+                    // pérdida en el pit lane (menor con coche de seguridad) + tiempo parado, que puede salir muy bien o muy mal
+                    const pb = paradaEnBoxes(rng, p.boxes || 0);
+                    t += (pit - 2_600) * (neutral?.tipo === 'sc' ? 0.45 : neutral?.tipo === 'vsc' ? 0.65 : 1) + pb.ms;
                     pr.comp = parada.neumatico; pr.edad = 0;
                     f.neumaticos.push(parada.neumatico); f.paradas = (f.paradas || 0) + 1;
-                    eventos.push({ v, tipo: 'parada', pid: id, neumatico: parada.neumatico, neutral: neutral?.tipo || null });
+                    eventos.push({ v, tipo: 'parada', pid: id, neumatico: parada.neumatico, neutral: neutral?.tipo || null, parado: pb.ms, calidad: pb.calidad, motivo: pb.motivo || null });
                 } else pr.edad++;
             }
             tent[id] = cum[id] + t;

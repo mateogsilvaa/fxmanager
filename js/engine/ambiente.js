@@ -1,3 +1,5 @@
+import { rasgoNeumaticos } from './neumaticos.js';
+
 // Noticias de ambiente: una al día por liga, a partir de datos reales de la temporada.
 // Así todas las ligas tienen actividad parecida y la prensa no se llena siempre de lo mismo.
 
@@ -19,7 +21,7 @@ export function noticiaAmbiente(rng, c) {
                         : ci.lluvia > 0.25 ? ['la lluvia aparece a menudo', 'habrá que mirar el cielo hasta el último minuto']
                             : ci.motor > 0.45 ? ['manda la potencia', 'los coches con buen motor parten con ventaja']
                                 : ['todo tiene que estar en su sitio', 'un reglaje fino marcará la diferencia'];
-            return { titulo: `${ci.nombre}: donde ${rasgo[0]}`, texto: `La jornada ${c.prox.ronda} de ${c.nombreLiga} llega a ${ci.nombre}, un trazado de ${String(ci.km).replace('.', ',')} km en el que ${rasgo[1]}.`, tipo: 'previa' };
+            return { titulo: `${ci.nombre}: donde ${rasgo[0]}`, texto: `La jornada ${c.prox.ronda} de ${c.nombreLiga} llega a ${ci.nombre}, un trazado de ${String(ci.km).replace('.', ',')} km en el que ${rasgo[1]}. Para la Carrera 3, ojo: ${rasgoNeumaticos(ci)}.`, tipo: 'previa' };
         });
     }
     if (hay) {

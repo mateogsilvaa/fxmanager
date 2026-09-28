@@ -3,20 +3,36 @@
 import { crearRng } from './rng.js';
 
 export const COMPUESTOS = {
-    blando: { nombre: 'Blando', corto: 'B', ritmo: 0.9945, vidaBase: 6 },
+    blando: { nombre: 'Blando', corto: 'B', ritmo: 0.9962, vidaBase: 5 },
     medio: { nombre: 'Medio', corto: 'M', ritmo: 1, vidaBase: 11 },
-    duro: { nombre: 'Duro', corto: 'D', ritmo: 1.003, vidaBase: 17 },
+    duro: { nombre: 'Duro', corto: 'D', ritmo: 1.0015, vidaBase: 18 },
 };
 export const MAX_PARADAS = 2;
 
 // Vida real (vueltas) de cada compuesto en un evento: depende del circuito y de un factor secreto del día
 export function vidaNeumaticos(secreto, eventoId, circuito) {
     const rng = crearRng(`${secreto}|neumaticos|${eventoId}`);
-    const circ = 1.25 - 0.5 * (circuito.desgaste ?? 0.5);
+    const circ = 1.4 - 0.8 * (circuito.desgaste ?? 0.5);
+    const perfil = perfilNeumaticos(circuito);
     const out = {};
-    for (const [k, c] of Object.entries(COMPUESTOS)) out[k] = Math.max(3, Math.round(c.vidaBase * circ * (0.85 + rng.next() * 0.3)));
+    for (const [k, c] of Object.entries(COMPUESTOS)) out[k] = Math.max(3, Math.round(c.vidaBase * circ * perfil[k] * (0.9 + rng.next() * 0.2)));
     return out;
 }
+// Carácter de cada circuito con cada compuesto (siempre el mismo en ese trazado):
+// hay pistas que se comen el blando, otras donde el duro no llega a su temperatura y dura menos…
+export function perfilNeumaticos(circuito) {
+    const rng = crearRng(`perfil-neumaticos|${circuito.id || circuito.nombre}`);
+    const out = {};
+    for (const k of Object.keys(COMPUESTOS)) out[k] = Math.round((0.72 + rng.next() * 0.56) * 100) / 100;
+    return out;
+}
+// Frase para la previa: el rasgo más marcado del circuito
+export function rasgoNeumaticos(circuito) {
+    const p = perfilNeumaticos(circuito);
+    const [k, v] = Object.entries(p).sort((a, b) => Math.abs(b[1] - 1) - Math.abs(a[1] - 1))[0];
+    return v < 1 ? `aquí el ${COMPUESTOS[k].nombre.toLowerCase()} se degrada más rápido de lo normal` : `aquí el ${COMPUESTOS[k].nombre.toLowerCase()} aguanta más de lo habitual`;
+}
+
 // El ritmo de carrera cambia cuánto aguantan
 export const factorVida = (ritmo) => ritmo === 'conservador' ? 1.15 : ritmo === 'ataque' ? 0.85 : 1;
 // Pérdida por parar en boxes (ms)
@@ -42,12 +58,15 @@ export function costeEstrategia({ neumatico = 'medio', paradas = [] }, vidas, n,
 }
 
 // La mejor estrategia (0, 1 o 2 paradas) para unas vidas dadas
+// Reglamento de la Carrera 3 (en seco): al menos una parada y al menos dos compuestos distintos
+export const MIN_PARADAS = 1;
+export const cumpleReglamento = (e) => (e.paradas?.length || 0) >= MIN_PARADAS && new Set([e.neumatico, ...(e.paradas || []).map(p => p.neumatico)]).size >= 2;
+
 export function mejorEstrategia(vidas, n, circuito, ritmo = 'equilibrado') {
     const comps = Object.keys(COMPUESTOS);
     let mejor = null;
-    const probar = (e) => { const c = costeEstrategia(e, vidas, n, circuito, ritmo); if (!mejor || c < mejor.coste) mejor = { ...e, coste: c }; };
+    const probar = (e) => { if (!cumpleReglamento(e)) return; const c = costeEstrategia(e, vidas, n, circuito, ritmo); if (!mejor || c < mejor.coste) mejor = { ...e, coste: c }; };
     for (const a of comps) {
-        probar({ neumatico: a, paradas: [] });
         for (let v1 = 3; v1 <= n - 3; v1++) for (const b of comps) {
             probar({ neumatico: a, paradas: [{ vuelta: v1, neumatico: b }] });
             for (let v2 = v1 + 3; v2 <= n - 3; v2++) for (const c of comps) probar({ neumatico: a, paradas: [{ vuelta: v1, neumatico: b }, { vuelta: v2, neumatico: c }] });
@@ -82,5 +101,19 @@ export function limpiarEstrategia(e, n) {
         .sort((a, b) => a.vuelta - b.vuelta)
         .filter((p, i, arr) => !i || p.vuelta !== arr[i - 1].vuelta)
         .slice(0, MAX_PARADAS);
+    // Si no cumple el reglamento, se corrige: parada a mitad de carrera y/o un compuesto distinto
+    const otro = neumatico === 'duro' ? 'medio' : 'duro';
+    if (!paradas.length) paradas.push({ vuelta: Math.round(n / 2), neumatico: otro });
+    if (new Set([neumatico, ...paradas.map(p => p.neumatico)]).size < 2) paradas[paradas.length - 1].neumatico = otro;
     return { neumatico, paradas };
+}
+
+// Tiempo parado en boxes (ms) y calidad de la parada. boxes: nivel del Taller y mecánicos (menos paradas malas)
+export function paradaEnBoxes(rng, boxes = 0) {
+    const r = rng.next();
+    const pMala = 0.1 * (1 - 0.1 * boxes), pDesastre = 0.006 * (1 - 0.12 * boxes), pTop = 0.1 + 0.02 * boxes;
+    if (r < pDesastre) return { ms: Math.round(rng.range(10_000, 16_000)), calidad: 'desastre', motivo: rng.pick(['la pistola se atasca', 'una tuerca no entra', 'sale sin una rueda bien apretada y vuelve a entrar', 'el gato delantero falla']) };
+    if (r < pDesastre + pMala) return { ms: Math.round(rng.range(4_500, 8_500)), calidad: 'mala', motivo: rng.pick(['la rueda trasera se resiste', 'un mecánico se enreda con la manguera', 'problema con la tuerca delantera', 'el semáforo de salida tarda en ponerse verde']) };
+    if (r < pDesastre + pMala + pTop) return { ms: Math.round(rng.range(2_000, 2_300)), calidad: 'top' };
+    return { ms: Math.round(2_600 + rng.gauss(0, 250)), calidad: 'normal' };
 }

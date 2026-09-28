@@ -587,7 +587,7 @@ export async function simularUna(ctx, ev, tipo) {
         return {
             id: p.id, equipoId: p.equipoId, attrs: pp.attrs || { ritmo: 70, consistencia: 70, agresividad: 65, defensa: 70 },
             moral: pp.moral ?? 60, forma: pp.forma ?? 0, coche: priv.coche || {}, setupQ: calidadSetup(setup, ideal),
-            estr, riesgoFiab: (priv.riesgoFiab || 1) * (1 - 0.08 * (priv.inst?.boxes || 0)), _setup: setup,
+            estr, riesgoFiab: (priv.riesgoFiab || 1) * (1 - 0.08 * (priv.inst?.boxes || 0)), boxes: priv.inst?.boxes || 0, _setup: setup,
         };
     });
 

@@ -621,11 +621,11 @@ function estrategiaNeumaticosHtml(tp, e, abierta) {
       <div class="estr-neu-lectura">${lec ? `<span class="muted peq">Lectura de los libres (${textoPrecision(lec.precision)}):</span> ${Object.entries(lec.rangos).map(([k, [a, b]]) => `<span class="neu neu-${k}">${COMPUESTOS[k].corto}</span> ${a === b ? a : `${a}–${b}`} v.`).join(' · ')}` : '<span class="muted peq">La lectura de neumáticos llega con el informe de los libres.</span>'}
         ${abierta ? `<button type="button" class="btn btn-sec btn-peq" data-propuesta="${tp}">Propuesta del ingeniero</button>` : ''}</div>
       <div class="fila" style="flex-wrap:wrap;gap:6px;align-items:center"><span class="muted peq">Salida</span>${compSeg(`neumatico_${tp}`, e.neumatico || 'medio')}
-        <span class="muted peq">Paradas</span>${seg(`nparadas_${tp}`, Array.from({ length: MAX_PARADAS + 1 }, (_, i) => [i, String(i)]), Array.isArray(e.paradas) ? paradas.length : 1, abierta)}</div>
+        <span class="muted peq">Paradas</span>${seg(`nparadas_${tp}`, Array.from({ length: MAX_PARADAS }, (_, i) => [i + 1, String(i + 1)]), Math.max(1, Array.isArray(e.paradas) ? paradas.length : 1), abierta)}</div>
       ${Array.from({ length: MAX_PARADAS }, (_, i) => `<div class="fila estr-parada" data-parada="${tp}_${i}" style="flex-wrap:wrap;gap:6px;align-items:center">
         <span class="muted peq">Parada ${i + 1} en la vuelta</span><input type="number" min="1" max="${n - 1}" name="vuelta_${tp}_${i}" value="${paradas[i]?.vuelta ?? Math.round(n / (MAX_PARADAS + 1) * (i + 1))}" ${abierta ? '' : 'disabled'} style="width:64px">
         ${compSeg(`comp_${tp}_${i}`, paradas[i]?.neumatico || 'duro')}</div>`).join('')}
-      <p class="muted peq" style="margin:4px 0 0">${n} vueltas. Parar cuesta unos ${Math.round((ev.circuito?.tiempoBase || 100000) * 0.16 / 1000)} s (menos si coincide con el coche de seguridad). Ataque gasta los neumáticos un 15% antes; suave, un 15% después.</p>
+      <p class="muted peq" style="margin:4px 0 0"><b>Obligatorio:</b> al menos una parada y dos compuestos distintos. ${n} vueltas. Parar cuesta unos ${Math.round((ev.circuito?.tiempoBase || 100000) * 0.16 / 1000)} s (menos si coincide con el coche de seguridad). Ataque gasta los neumáticos un 15% antes; suave, un 15% después.</p>
     </div>`;
 }
 function mostrarParadas(el) {
@@ -641,7 +641,9 @@ function leerEstrategiaNeumaticos(tp) {
     const nPar = +(v(`nparadas_${tp}`) || 0);
     const paradas = [];
     for (let i = 0; i < nPar; i++) paradas.push({ vuelta: +$(`[name="vuelta_${tp}_${i}"]`, el).value, neumatico: v(`comp_${tp}_${i}`) || 'medio' });
-    return { neumatico: v(`neumatico_${tp}`) || 'medio', paradas: paradas.sort((a, b) => a.vuelta - b.vuelta) };
+    const e = { neumatico: v(`neumatico_${tp}`) || 'medio', paradas: paradas.sort((a, b) => a.vuelta - b.vuelta) };
+    if (new Set([e.neumatico, ...e.paradas.map(p => p.neumatico)]).size < 2) toast('Ojo: tienes que usar al menos dos compuestos distintos. Si no, el equipo cambiará el de tu última parada.', 'error');
+    return e;
 }
 function aplicarPropuesta(el, tp) {
     const lec = lecturaNeumaticos();

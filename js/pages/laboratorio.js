@@ -125,7 +125,7 @@ function pintarMio() {
       </div>
       <div class="lab-controles" style="margin-top:10px">
         <label>Carrera 20 v · salida${sel('salida', [['auto', 'Lo que diga el ingeniero'], ...Object.entries(COMPUESTOS).map(([k, c]) => [k, c.nombre])], miPlan.salida)}</label>
-        <label>Parada en la vuelta<input type="number" min="0" max="19" data-mio="parada" value="${miPlan.parada}"><small class="muted">0 = sin parar</small></label>
+        <label>Parada en la vuelta<input type="number" min="1" max="19" data-mio="parada" value="${miPlan.parada}"><small class="muted">obligatorio parar y cambiar de compuesto</small></label>
         <label>Neumático tras parar${sel('tras', Object.entries(COMPUESTOS).map(([k, c]) => [k, c.nombre]), miPlan.tras)}</label>
       </div>
       <p class="muted peq">Pilotos: ${pil.map(p => `${bandera(p.nac, { ancho: 14 })} ${esc(p.apellido)} (ritmo ${p.attrs.ritmo})`).join(' · ')}</p>`;
@@ -167,7 +167,7 @@ function simular() {
             const mio = p.equipoId === mioId && miPlan.salida !== 'auto';
             const leidas = Object.fromEntries(Object.entries(vidas).map(([k, v]) => [k, Math.max(2, v + Math.round((Math.random() - 0.5) * 4))]));
             const m = mejorEstrategia(leidas, n, circuito, p.estr.ritmo);
-            x.estr = { ...p.estr, ...(mio ? { neumatico: miPlan.salida, paradas: miPlan.parada > 0 ? [{ vuelta: miPlan.parada, neumatico: miPlan.tras }] : [] } : { neumatico: m.neumatico, paradas: m.paradas }) };
+            x.estr = { ...p.estr, ...(mio ? { neumatico: miPlan.salida, paradas: [{ vuelta: Math.max(1, miPlan.parada), neumatico: miPlan.tras }] } : { neumatico: m.neumatico, paradas: m.paradas }) };
         }
         return x;
     });

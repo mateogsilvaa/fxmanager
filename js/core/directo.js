@@ -105,7 +105,14 @@ function eventosCarrera(r, modelo, d) {
         if (e.tipo === 'adelantamiento') out.push({ t: tEn(e.pid, e.v, 0.6), tipo: 'adel', pid: e.pid, pid2: e.pid2, txt: frase(rng, [`${ap(e.pid)} adelanta a ${ap(e.pid2)}`, `¡Adelantamiento! ${ap(e.pid)} se pone por delante de ${ap(e.pid2)}`, `${ap(e.pid)} se tira por dentro y supera a ${ap(e.pid2)}`, `${ap(e.pid2)} no puede defenderse de ${ap(e.pid)}`]) });
         else if (e.tipo === 'abandono') out.push({ t: porPid[e.pid]?.retiro ?? tEn(e.pid, e.v), tipo: 'aband', pid: e.pid, fuerte: true, txt: `Abandono de ${ap(e.pid)}${e.motivo ? `: ${e.motivo.toLowerCase()}` : ''}` });
         else if (e.tipo === 'error') out.push({ t: tEn(e.pid, e.v, 0.4), tipo: 'err', pid: e.pid, txt: frase(rng, [`${ap(e.pid)} se va largo y pierde ${(e.ms / 1000).toFixed(1)} s`, `Error de ${ap(e.pid)}: trompo y ${(e.ms / 1000).toFixed(1)} s perdidos`, `${ap(e.pid)} pisa la grava`]) });
-        else if (e.tipo === 'parada') out.push({ t: tEn(e.pid, e.v, 0.97), tipo: 'pit', pid: e.pid, txt: `${ap(e.pid)} entra en boxes y monta ${COMP[e.neumatico] || e.neumatico}${e.neutral ? ` aprovechando el ${e.neutral === 'sc' ? 'coche de seguridad' : 'VSC'}` : ''}` });
+        else if (e.tipo === 'parada') {
+            const seg = e.parado ? `${(e.parado / 1000).toFixed(1).replace('.', ',')} s` : '';
+            const txt = e.calidad === 'desastre' ? `¡Desastre en el box de ${ap(e.pid)}! ${e.motivo}: ${seg} parado`
+                : e.calidad === 'mala' ? `Parada lenta de ${ap(e.pid)} (${seg}): ${e.motivo}`
+                    : e.calidad === 'top' ? `¡Parada perfecta de ${ap(e.pid)}! ${seg} y ${COMP[e.neumatico] || e.neumatico}`
+                        : `${ap(e.pid)} entra en boxes (${seg}) y monta ${COMP[e.neumatico] || e.neumatico}${e.neutral ? ` aprovechando el ${e.neutral === 'sc' ? 'coche de seguridad' : 'VSC'}` : ''}`;
+            out.push({ t: tEn(e.pid, e.v, 0.97), tipo: e.calidad === 'desastre' || e.calidad === 'mala' ? 'err' : e.calidad === 'top' ? 'vr' : 'pit', pid: e.pid, txt, rotulo: e.calidad === 'desastre' || e.calidad === 'top' });
+        }
         else if (e.tipo === 'sc' || e.tipo === 'vsc') out.push({ t: tVuelta(e.v), tipo: e.tipo, fin: tVuelta(e.hasta + 1), txt: e.tipo === 'sc' ? 'Sale el coche de seguridad: el pelotón se agrupa' : 'Coche de seguridad virtual: todos a ritmo neutralizado' });
         else if (e.tipo === 'reanudacion') out.push({ t: tVuelta(e.v), tipo: 'verde', txt: 'Bandera verde: ¡se reanuda la carrera!' });
         else if (e.tipo === 'toque') out.push({ t: tEn(e.pid, e.v, 0.5), tipo: 'err', pid: e.pid, txt: e.pid2 ? `Toque entre ${ap(e.pid)} y ${ap(e.pid2)}${e.perjudicado ? `; sale perdiendo ${ap(e.perjudicado)}` : ''}` : `${ap(e.pid)} se toca en la salida` });
@@ -262,6 +269,7 @@ export function montarDirecto(cont, { r, ses, ev, d, miEq, repeticion = false, a
                 const ev2 = eventos[idxEvento++];
                 narrar(ev2.txt, ev2.tipo);
                 if (ev2.tipo === 'aband') mostrarRotulo(ev2.txt, 'rotulo-rojo');
+                else if (ev2.rotulo) mostrarRotulo(ev2.txt, ev2.tipo === 'err' ? 'rotulo-rojo' : 'rotulo-morado', 3000);
                 else if (ev2.tipo === 'sc' || ev2.tipo === 'vsc') { mostrarRotulo(ev2.tipo === 'sc' ? 'SAFETY CAR' : 'VIRTUAL SAFETY CAR', 'rotulo-amarillo', 4000); neutral = { tipo: ev2.tipo, fin: ev2.fin }; }
                 else if (ev2.tipo === 'verde') { mostrarRotulo('Bandera verde', 'rotulo-acento', 2400); neutral = null; }
                 else if (ev2.tipo === 'vr') { mostrarRotulo(ev2.txt, 'rotulo-morado', 2400); mejorSes.pid = ev2.pid; }
