@@ -1,7 +1,8 @@
 import { montar, barraDirecto } from '../core/layout.js';
-import { cargarDatos, cargarHistorico } from '../core/datos.js';
+import { cargarDatos, cargarHistorico, cargarManagers } from '../core/datos.js';
+import { ratingCarrera } from '../engine/rating.js';
 import { store, usuario } from '../core/app.js';
-import { esc, banderaLiga, vacio, $, $$, bandera } from '../core/ui.js';
+import { esc, banderaLiga, vacio, $, $$, bandera, barra } from '../core/ui.js';
 import { tarjetasRecords, activarRecords, celdaPiloto, celdaEquipo, pos, managerDe, leyendaZonas } from '../core/componentes.js';
 import { LIGAS, LIGAS_NACIONALES } from '../engine/constants.js';
 import { CATEGORIAS_PILOTO, CATEGORIAS_EQUIPO, ranking, construirTemporada } from '../engine/stats.js';
@@ -14,7 +15,7 @@ barraDirecto(d);
 main.innerHTML = `
 <div class="cabecera-pagina"><div><div class="etiqueta">Desde la temporada 1</div><h1>Estadísticas</h1><p class="sub">Récords históricos acumulados. Pulsa cualquiera para ver el ranking completo.</p></div></div>
 <div class="barra-opciones">
-  <div class="sub-pestanas" style="margin:0"><button data-modo="historico" class="activa">Histórico</button><button data-modo="temporada">Temporada ${d.temporada}</button><button data-modo="global">Clasificación global</button><button data-modo="palmares">Palmarés</button></div>
+  <div class="sub-pestanas" style="margin:0"><button data-modo="historico" class="activa">Histórico</button><button data-modo="temporada">Temporada ${d.temporada}</button><button data-modo="global">Clasificación global</button><button data-modo="managers">Mánagers</button><button data-modo="palmares">Palmarés</button></div>
   <select id="filtro"><option value="TODAS">Todas las ligas</option><optgroup label="Ligas nacionales">${LIGAS_NACIONALES.map(l => `<option value="${l}">${esc(LIGAS[l].nombre)}</option>`).join('')}</optgroup><optgroup label="Final"><option value="INT">Intercontinental</option></optgroup></select>
 </div>
 <div id="cuerpo"></div>`;
@@ -24,9 +25,10 @@ let modo = 'historico';
 const pintar = () => {
     const l = $('#filtro').value;
     $$('[data-modo]').forEach(b => b.classList.toggle('activa', b.dataset.modo === modo));
-    $('#filtro').hidden = modo === 'palmares' || modo === 'global';
+    $('#filtro').hidden = modo === 'palmares' || modo === 'global' || modo === 'managers';
     const cuerpo = $('#cuerpo');
     if (modo === 'palmares') return palmares(cuerpo);
+    if (modo === 'managers') return managers(cuerpo);
     if (modo === 'global') return global(cuerpo);
     const base = modo === 'historico' ? historico : d.sesiones;
     const sesionesSel = base.filter(s => l === 'TODAS' ? s.liga !== 'INT' : s.liga === l);
@@ -84,7 +86,7 @@ function global(cuerpo) {
       <section class="tarjeta"><div class="tarjeta-titulo"><h2>Escuderías</h2><span>${E.length}</span></div>
         <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Escudería</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="der">Pts</th></tr></thead><tbody>
         ${E.map((e, i) => { const eq = d.equipo(e.eq); return `<tr class="${e.eq === miEq ? 'yo' : ''} ${i < 3 ? 'zona-top3' : ''}"><td>${pos(i + 1)}</td>
-          <td><span class="con-bandera">${eq?.liga ? banderaLiga(eq.liga, { ancho: 16 }) : ''}${celdaEquipo(d, e.eq)}</span><div class="muted peq">${managerDe(eq)}</div></td>
+          <td><span class="con-bandera">${eq?.liga ? banderaLiga(eq.liga, { ancho: 16 }) : ''}${celdaEquipo(d, e.eq)}</span><div class="muted peq">${managerDe(eq, { enlace: true })}</div></td>
           <td class="cen num">${e.victorias || 0}</td><td class="cen num">${e.podios || 0}</td><td class="pts">${e.pts}</td></tr>`; }).join('')}
         </tbody></table></div></section>
     </div>`}`;
@@ -107,4 +109,35 @@ async function palmares(cuerpo) {
       <table class="tabla"><thead><tr><th>Liga</th><th>Campeón</th><th>Escudería campeona</th><th class="der">Pts</th></tr></thead><tbody>
       ${Object.entries(p.ligas).map(([l, x]) => `<tr><td>${banderaLiga(l)} ${esc(LIGAS[l].nombre)}</td><td>${nom(x.piloto)}</td><td>${celdaEquipo(d, x.equipo)}</td><td class="pts">${x.pts}</td></tr>`).join('')}</tbody></table></div>`).join('');
     void pos;
+}
+
+// Ranking de mánagers: rating de la temporada en curso y de toda su carrera
+async function managers(cuerpo) {
+    const hist = Object.fromEntries((await cargarManagers()).map(m => [m.id, m]));
+    const actuales = d.rankingManagers();
+    const vistos = new Set(actuales.map(m => m.uid));
+    // Mánagers con historia que ahora no dirigen ninguna escudería
+    const retirados = Object.values(hist).filter(m => !vistos.has(m.id)).map(m => ({ uid: m.id, nombre: m.nombre, rating: null, retirado: true }));
+    const filas = [...actuales, ...retirados].map(m => {
+        const h = (hist[m.uid]?.historial || []).filter(x => x.temporada !== d.temporada);
+        const conActual = m.rating != null ? [...h, { temporada: d.temporada, rating: m.rating }] : h;
+        return { ...m, carrera: ratingCarrera(conActual), temporadas: h.length + (m.retirado ? 0 : 1), titulos: h.filter(x => x.pos === 1).length };
+    });
+    let orden = 'rating';
+    const miUid = usuario()?.uid;
+    const pintarM = () => {
+        const lista = filas.slice().sort((a, b) => (b[orden] ?? -1) - (a[orden] ?? -1) || (b.carrera ?? -1) - (a.carrera ?? -1));
+        cuerpo.innerHTML = `
+        <div class="sub-pestanas"><button data-o="rating" class="${orden === 'rating' ? 'activa' : ''}">Temporada ${d.temporada}</button><button data-o="carrera" class="${orden === 'carrera' ? 'activa' : ''}">Carrera</button></div>
+        <p class="muted" style="margin:0 0 18px;max-width:70ch">Rating de 0 a 100: posición final, puntos respecto al líder, pilotos en el Mundial, éxitos y fans. Así se puede comparar a mánagers de ligas distintas. Pulsa un nombre para ver su perfil.</p>
+        ${!lista.length ? vacio('Todavía no hay mánagers.') : `<section class="tarjeta"><div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Mánager</th><th class="ancho">Escudería</th><th class="cen ancho">Pos liga</th><th class="cen ancho" title="Temporadas">Temp.</th><th class="cen ancho" title="Títulos de liga">Títulos</th><th>${orden === 'rating' ? 'Rating' : 'Carrera'}</th><th class="der">${orden === 'rating' ? 'Carrera' : 'Temp.'}</th></tr></thead><tbody>
+        ${lista.map((m, i) => { const v = m[orden]; const otro = orden === 'rating' ? m.carrera : m.rating; return `<tr class="${m.uid === miUid ? 'yo' : ''}"><td>${pos(i + 1)}</td>
+          <td><a href="manager.html?id=${esc(m.uid)}"><b>${esc(m.nombre)}</b></a>${m.retirado ? ' <span class="tenue peq">sin escudería</span>' : ''}</td>
+          <td class="ancho">${m.eq ? `<span class="con-bandera">${banderaLiga(m.liga, { ancho: 16 })}${celdaEquipo(d, m.eq)}</span>` : '—'}</td>
+          <td class="cen num ancho">${m.pos ? `${m.pos}º` : '—'}</td><td class="cen num ancho">${m.temporadas}</td><td class="cen num ancho">${m.titulos}</td>
+          <td><div class="celda-rating"><b>${v ?? '—'}</b>${v != null ? barra(v) : ''}</div></td><td class="der muted">${otro ?? '—'}</td></tr>`; }).join('')}
+        </tbody></table></div></section>`}`;
+        $$('[data-o]', cuerpo).forEach(b => b.addEventListener('click', () => { orden = b.dataset.o; pintarM(); }));
+    };
+    pintarM();
 }

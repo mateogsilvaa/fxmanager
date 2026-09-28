@@ -5,8 +5,9 @@ import { ranking } from '../engine/stats.js';
 import { usuario } from './app.js';
 
 // Mánager de una escudería: el real, o el ficticio de la IA ("Nombre (IA)")
-export function managerDe(e) {
-    if (e?.ownerNombre) return esc(e.ownerNombre);
+// enlace: el nombre de un mánager real lleva a su perfil (no usarlo dentro de otro <a>)
+export function managerDe(e, { enlace = false } = {}) {
+    if (e?.ownerNombre) return enlace && e.ownerId ? `<a href="manager.html?id=${esc(e.ownerId)}">${esc(e.ownerNombre)}</a>` : esc(e.ownerNombre);
     if (e?.managerIA) return `${esc(e.managerIA)} <span class="tenue">(IA)</span>`;
     return '<span class="tenue">IA</span>';
 }
@@ -63,7 +64,7 @@ export function tablaClasificacionEquipos(d, liga, { limite = null } = {}) {
     const miEq = usuario()?.perfil?.equipoId;
     return `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Escudería</th><th class="ancho">Mánager</th><th class="cen">V</th><th class="cen ancho">Dobletes</th><th class="cen">Pod</th><th class="der">Pts</th></tr></thead><tbody>${lista.map((s, i) => {
         const e = d.equipo(s.eq);
-        return `<tr class="${s.eq === miEq ? 'yo' : ''}"><td>${pos(i + 1)}</td><td>${celdaEquipo(d, s.eq)} ${e?.grupo ? `<span class="muted solo-ancho" title="Grupo multinacional">· ${esc(e.grupo)}</span>` : ''}</td><td class="muted ancho">${managerDe(e)}</td><td class="cen num">${s.victorias || 0}</td><td class="cen num ancho">${s.dobletes || 0}</td><td class="cen num">${s.podios || 0}</td><td class="pts">${s.pts}</td></tr>`;
+        return `<tr class="${s.eq === miEq ? 'yo' : ''}"><td>${pos(i + 1)}</td><td>${celdaEquipo(d, s.eq)} ${e?.grupo ? `<span class="muted solo-ancho" title="Grupo multinacional">· ${esc(e.grupo)}</span>` : ''}</td><td class="muted ancho">${managerDe(e, { enlace: true })}</td><td class="cen num">${s.victorias || 0}</td><td class="cen num ancho">${s.dobletes || 0}</td><td class="cen num">${s.podios || 0}</td><td class="pts">${s.pts}</td></tr>`;
     }).join('')}</tbody></table></div>`;
 }
 

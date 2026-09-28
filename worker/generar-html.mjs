@@ -11,6 +11,7 @@ const PAGINAS = {
     estadisticas: ['Estadísticas · Hyper Race X1', 'estadisticas'],
     mercado: ['Mercado · Hyper Race X1', 'mercado'],
     paddock: ['Paddock · Hyper Race X1', 'paddock'],
+    manager: ['Mánager · Hyper Race X1', 'manager'],
     reglamento: ['Cómo funciona · Hyper Race X1', 'reglamento'],
     entrar: ['Entrar · Hyper Race X1', 'entrar'],
     escuderia: ['Mi escudería · Hyper Race X1', 'escuderia'],

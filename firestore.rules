@@ -23,6 +23,8 @@ service cloud.firestore {
     match /pilotos/{id} { allow read: if true; allow write: if esAdmin(); }
     match /mercado/{id} { allow read: if true; allow write: if esAdmin(); }
     match /mercado_ofertas/{id} { allow read: if true; allow write: if esAdmin(); }
+    // Historial público de los mánagers (rating por temporada)
+    match /managers/{id} { allow read: if true; allow write: if esAdmin(); }
 
     // Resultados: se guardan antes y solo se pueden leer a partir de su hora de publicación
     match /resultados/{id} {

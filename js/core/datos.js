@@ -2,6 +2,7 @@
 import { store, ahora, DEMO } from './app.js';
 import { compactar, descompactar, construirTemporada, proyeccionMundial } from '../engine/stats.js';
 import { LIGAS_NACIONALES, SESIONES, SESION_INFO } from '../engine/constants.js';
+import { ratingsLiga } from '../engine/rating.js';
 
 const TTL = 60_000;
 function cacheGet(k) {
@@ -154,20 +155,40 @@ export async function cargarNoticias(limite = 30, antesDe = null) {
     } catch (e) { console.warn('noticias', e); return []; }
 }
 
-// Ranking global de mánagers: puntos de su escudería respecto a la media de su liga (100 = media)
-Datos.prototype.rankingManagers = function () {
-    const out = [];
+// Rating de cada escudería en la temporada en curso (0–100, ver engine/rating.js)
+Datos.prototype.ratingsTemporada = function () {
+    if (this._ratings) return this._ratings;
+    const mundial = {};
+    for (const c of this.clasificadosMundial().clasificados || []) {
+        const eq = this.piloto(c.pid)?.equipoId || c.eq;
+        if (eq) mundial[eq] = (mundial[eq] || 0) + 1;
+    }
+    const out = {};
     for (const liga of LIGAS_NACIONALES) {
         const clas = this.clasificacionEquipos(liga);
-        const media = clas.reduce((s, e) => s + e.pts, 0) / Math.max(1, clas.length);
-        clas.forEach(e => {
-            const eq = this.equipo(e.eq);
-            if (!eq?.ownerId) return;
-            out.push({ uid: eq.ownerId, nombre: eq.ownerNombre || 'Mánager', eq: e.eq, liga, pos: e.posicion, pts: e.pts, indice: media ? Math.round(e.pts / media * 100) : 100 });
-        });
+        const fans = Object.fromEntries(clas.map(e => [e.eq, this.equipo(e.eq)?.fans || 0]));
+        const r = ratingsLiga(clas, { fans, mundial });
+        clas.forEach(e => { out[e.eq] = { eq: e.eq, liga, pos: e.posicion, n: clas.length, pts: e.pts, victorias: e.victorias || 0, podios: e.podios || 0, mundial: mundial[e.eq] || 0, fans: fans[e.eq], rating: r[e.eq]?.rating ?? null, partes: r[e.eq]?.partes || null }; });
     }
-    return out.sort((a, b) => b.indice - a.indice || a.pos - b.pos);
+    return (this._ratings = out);
 };
+
+// Ranking de mánagers (personas reales) por rating de la temporada en curso
+Datos.prototype.rankingManagers = function () {
+    const r = this.ratingsTemporada();
+    return Object.entries(this.cat.equipos).filter(([, e]) => e.ownerId)
+        .map(([id, e]) => ({ uid: e.ownerId, nombre: e.ownerNombre || 'Mánager', ...r[id], eq: id, liga: e.liga }))
+        .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || (a.pos || 99) - (b.pos || 99));
+};
+
+// Historial público de los mánagers (rating y resultados de cada temporada terminada)
+export async function cargarManagers() {
+    const k = 'fx:managers';
+    const c = cacheGet(k);
+    if (c) return c;
+    try { const l = await store().list('managers'); cacheSet(k, l); return l; }
+    catch (e) { console.warn('managers', e); return []; }
+}
 
 export async function cargarPaddock(limite = 40) {
     try { return await store().list('paddock', [], { orden: ['fecha', 'desc'], limit: limite }); }

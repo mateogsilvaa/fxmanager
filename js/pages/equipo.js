@@ -34,7 +34,7 @@ main.innerHTML = `
 <section class="hero">
   <div class="etiqueta">${banderaLiga(liga, { ancho: 18 })} ${esc(LIGAS[liga]?.nombre)}${e.grupo ? ` · Grupo ${esc(e.grupo)}` : ''}</div>
   <h1 style="margin:6px 0">${esc(e.nombre)}</h1>
-  <p>Mánager: <b style="color:var(--texto)">${managerDe(e)}</b>${esMio ? ' (tú) · <a href="escuderia.html">Ir al panel</a>' : !e.ownerNombre && e.inscribible !== false ? ' · <a href="escuderia.html">¿La quieres?</a>' : ''} · ${e.fans || 0} fans</p>
+  <p>Mánager: <b style="color:var(--texto)">${managerDe(e, { enlace: true })}</b>${esMio ? ' (tú) · <a href="escuderia.html">Ir al panel</a>' : !e.ownerNombre && e.inscribible !== false ? ' · <a href="escuderia.html">¿La quieres?</a>' : ''} · ${e.fans || 0} fans</p>
 </section>
 <div class="rejilla rejilla-lado">
   <div class="pila">

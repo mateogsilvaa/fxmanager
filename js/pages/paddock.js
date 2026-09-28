@@ -30,8 +30,8 @@ main.innerHTML = `
   </div>
   <aside class="tarjeta">
     <div class="tarjeta-titulo"><h2>Ranking de mánagers</h2></div>
-    <p class="muted peq">Puntos de su escudería respecto a la media de su liga (100 = media), para poder comparar entre ligas.</p>
-    ${ranking.length ? ranking.map((r, i) => `<div class="ranking-fila"><span class="n">${String(i + 1).padStart(2, '0')}</span><span>${r.eq === miEq ? '<b>' : ''}${esc(r.nombre)}${r.eq === miEq ? '</b>' : ''} <span class="muted peq">${banderaLiga(r.liga, { ancho: 12 })} ${esc(d.nombreEquipo(r.eq))} · ${r.pos}º</span></span><span class="v">${r.indice}</span><div class="barra"><div class="barra-relleno" style="width:${Math.min(100, r.indice / Math.max(...ranking.map(x => x.indice)) * 100)}%"></div></div></div>`).join('') : vacio('Todavía no hay mánagers con escudería.')}
+    <p class="muted peq">Rating de 0 a 100 de la temporada. <a href="estadisticas.html">Ranking completo en Estadísticas</a>.</p>
+    ${ranking.length ? ranking.map((r, i) => `<div class="ranking-fila"><span class="n">${String(i + 1).padStart(2, '0')}</span><span><a href="manager.html?id=${esc(r.uid)}">${r.eq === miEq ? '<b>' : ''}${esc(r.nombre)}${r.eq === miEq ? '</b>' : ''}</a> <span class="muted peq">${banderaLiga(r.liga, { ancho: 12 })} ${esc(d.nombreEquipo(r.eq))}${r.pos ? ` · ${r.pos}º` : ''}</span></span><span class="v">${r.rating ?? '—'}</span><div class="barra"><div class="barra-relleno" style="width:${r.rating || 0}%"></div></div></div>`).join('') : vacio('Todavía no hay mánagers con escudería.')}
   </aside>
 </div>`;
 

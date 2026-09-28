@@ -417,6 +417,8 @@ async function pintarTemporada() {
       <div class="tarjeta"><h3>Mercado</h3><p class="muted">${m ? `Estado: <b>${esc(m.estado)}</b>${m.deadline ? ` · cierre ${fecha(m.deadline)}` : ''}` : 'Se abre solo al terminar el Mundial.'}</p>
         <div class="fila"><button class="btn btn-sec" id="b-mercado" ${m ? 'disabled' : ''}>Abrir mercado ahora</button><button class="btn btn-sec" id="b-cerrar" ${m?.estado === 'draft' ? '' : 'disabled'}>Cerrar draft ahora</button><a class="btn btn-sec" href="mercado.html">Ver</a></div></div>
       <div class="tarjeta"><h3>Nueva temporada</h3><p class="muted">Guarda el palmarés y la historia, reinicia presupuestos (50% + 8 M€), baja 2 niveles cada área del coche y pasa a pretemporada. Haz esto con el mercado cerrado.</p>
+        <label style="display:block;margin:10px 0">Cambio de reglamento<select id="reglamento"><option value="no">No</option><option value="si">Sí</option><option value="azar">Al azar (20%)</option></select></label>
+        <p class="muted peq">Con cambio de reglamento el coche conserva solo una cuarta parte de su desarrollo, el túnel de viento pierde 2 niveles, el simulador 1 y otra instalación al azar 1. Todos reciben 2 M€ de ayuda.</p>
         <button class="btn" id="b-nueva">Empezar temporada ${(cfg?.temporada || 1) + 1}</button></div>
       <div class="tarjeta"><h3>Mantenimiento</h3><p class="muted">Útil si algo se ve desactualizado.</p>
         <div class="fila"><button class="btn btn-sec" id="b-cat">Regenerar catálogo</button><button class="btn btn-sec" id="b-res">Reconstruir clasificaciones</button></div></div>
@@ -441,7 +443,7 @@ async function pintarTemporada() {
     }));
     $('#b-nueva').addEventListener('click', (e) => ocupado(e.target, async () => {
         if (!await confirmar(`¿Cerrar la temporada ${cfg.temporada} y empezar la ${cfg.temporada + 1}?`, { peligro: true })) return;
-        await nuevaTemporada(store(), { ahora: ahora() }); await recargar(); pintarTemporada(); toast('¡Nueva temporada!');
+        const pal = await nuevaTemporada(store(), { ahora: ahora(), reglamento: $('#reglamento').value }); await recargar(); pintarTemporada(); toast(pal.cambioReglamento ? '¡Nueva temporada con cambio de reglamento!' : '¡Nueva temporada!');
     }));
     $('#b-cat').addEventListener('click', (e) => ocupado(e.target, async () => { await reconstruirCatalogo(store(), cfg); await recargar(); toast('Catálogo regenerado'); }));
     $('#b-res').addEventListener('click', (e) => ocupado(e.target, async () => {

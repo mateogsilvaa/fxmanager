@@ -1,5 +1,5 @@
 // Operaciones de temporada (panel admin y cambios de fase automáticos)
-import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL, SESIONES, ECO, esCarrera } from '../engine/constants.js';
+import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL, SESIONES, ECO, INSTALACIONES, esCarrera } from '../engine/constants.js';
 import { crearRng } from '../engine/rng.js';
 import { atributosAleatorios, salarioPiloto } from '../engine/juego.js';
 import { descompactar, construirTemporada } from '../engine/stats.js';
@@ -10,6 +10,7 @@ import {
     nombrePiloto, volcar, idResumen, sinId, movimiento, duenoReal,
 } from './comun.js';
 import { reconstruirCatalogo } from './catalogo.js';
+import { ratingsLiga } from '../engine/rating.js';
 
 export const COLECCIONES_JUEGO = ['equipos', 'equipos_priv', 'pilotos', 'pilotos_priv', 'eventos', 'resultados', 'resumen', 'estrategias', 'acciones', 'notificaciones', 'decisiones', 'pronosticos', 'ranking', 'noticias', 'mercado', 'mercado_priv', 'mercado_ofertas', 'paddock', 'prensa', 'logs', 'catalogo'];
 // Colecciones de la temporada pasada (versión anterior de FX Manager)
@@ -186,6 +187,7 @@ export async function prepararMercado(ctx) {
     }
     ofertasDePlaza(ctx, { tablas, equipos, privs, rng: crearRng(`${ctx.secreto}|plaza|${temporada}`) });
     resumenesTemporada(ctx, { tablas, equipos, privs, pilotos: pilotosMap });
+    await historialManagers(ctx, { tablas, equipos });
 
     const conNombre = (x) => ({ ...x, nombre: nombre(x.pid) });
     await store.set(`mercado/T${temporada}`, {
@@ -287,12 +289,21 @@ export async function cerrarMercado(ctx) {
 }
 
 // ---------- Nueva temporada ----------
-export async function nuevaTemporada(store, { ahora = Date.now() } = {}) {
+// reglamento: 'no' | 'si' | 'azar' (20% de probabilidad). Con cambio de reglamento el reinicio del coche es mucho
+// más duro y algunas instalaciones pierden nivel (sus datos dejan de servir con las normas nuevas).
+export const PROB_CAMBIO_REGLAMENTO = 0.2;
+export async function nuevaTemporada(store, { ahora = Date.now(), reglamento = 'no' } = {}) {
     const cfg = await store.get('config/juego');
     const temporada = cfg.temporada || 1;
+    const secreto = (await store.get('secreto/juego').catch(() => null))?.clave || 'sin-secreto';
+    const rngReg = crearRng(`${secreto}|reglamento|${temporada}`);
+    const cambio = reglamento === 'si' || (reglamento === 'azar' && rngReg.chance(PROB_CAMBIO_REGLAMENTO));
+    // Instalaciones afectadas: el túnel siempre (la aerodinámica cambia), el simulador casi siempre y una más al azar
+    const afectadas = cambio ? [['tunel', 2], ['simulador', 1], [rngReg.pick(['fabrica', 'boxes', 'academia']), 1]] : [];
     const tablas = await tablasTemporada(store, temporada);
     const ctx = crearContexto(store, { ahora });
     ctx.cfg = cfg;
+    ctx.sombra = await store.get('secreto/sombra').catch(() => null);
     const pilotos = await cargarPilotos(ctx);
     const equipos = await cargarEquipos(ctx);
     const privs = await cargarPrivs(ctx);
@@ -323,20 +334,42 @@ export async function nuevaTemporada(store, { ahora = Date.now() } = {}) {
     for (const p of Object.values(pilotos)) {
         if (p.equipoId) { p.edad = (p.edad || 20) + 1; p.rookie = p.temporadaDebut === temporada + 1; ctx.sucios.pilotos.add(p.id); }
     }
+    ctx.equipos = equipos;
     for (const [id, priv] of Object.entries(privs)) {
-        priv.presupuesto = Math.round((priv.presupuesto || 0) * 0.5 + 8_000_000);
+        priv.presupuesto = Math.round((priv.presupuesto || 0) * 0.5 + 8_000_000 + (cambio ? AYUDA_REGLAMENTO : 0));
         const coche = priv.coche || {};
-        priv.coche = Object.fromEntries(Object.entries(coche).map(([k, v]) => [k, Math.max(0, v - 2)]));
+        // Normal: cada área baja 2 niveles. Cambio de reglamento: se conserva solo una cuarta parte.
+        priv.coche = Object.fromEntries(Object.entries(coche).map(([k, v]) => [k, cambio ? Math.floor(v * 0.25) : Math.max(0, v - 2)]));
+        const perdidas = [];
+        if (cambio) {
+            priv.inst = { ...(priv.inst || {}) };
+            for (const [inst, n] of afectadas) {
+                const antes = priv.inst[inst] || 0;
+                if (antes > 0) { priv.inst[inst] = Math.max(0, antes - n); perdidas.push(`${INSTALACIONES[inst].nombre} ${antes}→${priv.inst[inst]}`); }
+            }
+            priv.descuentos = {};
+        }
         priv.proyectos = [];
         priv.sponsor = null; priv.ofertasSponsor = [];
-        priv.finanzas = [{ t: ahora, c: `Inicio de la temporada ${temporada + 1}`, v: 0 }, ...(priv.finanzas || [])].slice(0, 60);
+        priv.finanzas = [{ t: ahora, c: `Inicio de la temporada ${temporada + 1}`, v: 0 }, ...(cambio ? [{ t: ahora, c: 'Ayuda de la liga por el cambio de reglamento', v: AYUDA_REGLAMENTO }] : []), ...(priv.finanzas || [])].slice(0, 60);
         ctx.sucios.privs.add(id);
+        if (cambio) notificar(ctx, id, {
+            remitente: 'Dirección de la liga', tipo: 'reglamento', titulo: `Cambio de reglamento para la temporada ${temporada + 1}`,
+            texto: `Las normas técnicas cambian: tu coche conserva solo una cuarta parte de su desarrollo.${perdidas.length ? ` Instalaciones afectadas: ${perdidas.join(', ')}.` : ''} La liga te ingresa ${(AYUDA_REGLAMENTO / 1e6).toFixed(0)} M€ de ayuda. Todos empiezan casi de cero: es el momento de dar el golpe.`,
+        });
     }
+    if (cambio) noticia(ctx, {
+        titulo: `Revolución técnica: nuevo reglamento para la temporada ${temporada + 1}`,
+        texto: `La liga cambia las normas técnicas. Los coches pierden casi todo su desarrollo, el túnel de viento pierde dos niveles y ${afectadas.slice(1).map(([i]) => INSTALACIONES[i].nombre.toLowerCase()).join(' y ')} uno. Cada escudería recibe ${(AYUDA_REGLAMENTO / 1e6).toFixed(0)} M€ de ayuda. La parrilla se aprieta: cualquiera puede ganar.`,
+        tipo: 'fase',
+    });
     await volcar(ctx);
-    await store.merge('config/juego', { temporada: temporada + 1, fase: 'pretemporada', mundial: { pais: cfg.mundial?.pais || null, nombre: cfg.mundial?.nombre || null, participantes: [] }, palmares: [...(cfg.palmares || []), palmares], ultimoDiario: null });
+    await store.merge('config/juego', { temporada: temporada + 1, fase: 'pretemporada', mundial: { pais: cfg.mundial?.pais || null, nombre: cfg.mundial?.nombre || null, participantes: [] }, palmares: [...(cfg.palmares || []), palmares], ultimoDiario: null, reglamento: { temporada: temporada + 1, cambio, afectadas: afectadas.map(([i, n]) => ({ inst: i, niveles: n })) } });
     await reconstruirCatalogo(store, await store.get('config/juego'));
+    palmares.cambioReglamento = cambio;
     return palmares;
 }
+export const AYUDA_REGLAMENTO = 2_000_000;
 
 void esCarrera; void sinId;
 
@@ -418,5 +451,41 @@ export function resumenesTemporada(ctx, { tablas, equipos, privs, pilotos }) {
             texto: `${r.pts} puntos, ${r.victorias} victorias y ${r.podios} podios.${mejor ? ` ${nombre(mejor.pid)} fue su mejor piloto (${mejor.posicion}º).` : ''}`,
             liga: eq.liga, tipo: 'cronica',
         });
+    }
+}
+
+// ---------- Historial público de mánagers (rating por temporada) ----------
+// Se guarda al acabar el Mundial, antes de que nadie cambie de escudería en el mercado.
+export async function historialManagers(ctx, { tablas, equipos }) {
+    const temporada = ctx.cfg.temporada;
+    const mundial = {};
+    for (const s of tablas.INT?.clasPilotos || []) if (s.eq) mundial[s.eq] = (mundial[s.eq] || 0) + 1;
+    const titulos = {};
+    for (const liga of LIGAS_NACIONALES) {
+        const t = tablas[liga];
+        if (!t) continue;
+        const ids = Object.entries(equipos).filter(([, e]) => e.liga === liga).map(([id]) => id);
+        const clas = t.clasEquipos.slice();
+        for (const id of ids) if (!clas.some(e => e.eq === id)) clas.push({ eq: id, pts: 0, victorias: 0, podios: 0 });
+        clas.forEach((e, i) => { e.posicion = i + 1; });
+        const fans = Object.fromEntries(clas.map(e => [e.eq, equipos[e.eq]?.fans || 0]));
+        const r = ratingsLiga(clas, { fans, mundial });
+        for (const e of clas) {
+            const eq = equipos[e.eq];
+            if (!eq?.ownerId) continue;
+            const posMundial = tablas.INT?.clasEquipos?.find(x => x.eq === e.eq)?.posicion ?? null;
+            const entrada = {
+                temporada, equipoId: e.eq, equipo: eq.nombre, color: eq.color || null, liga, pos: e.posicion, n: clas.length,
+                pts: e.pts || 0, victorias: e.victorias || 0, podios: e.podios || 0, mundial: mundial[e.eq] || 0, posMundial,
+                campeonMundial: tablas.INT?.clasPilotos?.[0]?.eq === e.eq, fans: fans[e.eq], rating: r[e.eq]?.rating ?? null,
+            };
+            const prev = titulos[eq.ownerId] || (titulos[eq.ownerId] = { nombre: eq.ownerNombre || 'Mánager', entradas: [] });
+            prev.entradas.push(entrada);
+        }
+    }
+    for (const [uid, { nombre, entradas }] of Object.entries(titulos)) {
+        const doc = await ctx.store.get(`managers/${uid}`).catch(() => null);
+        const historial = [...(doc?.historial || []).filter(x => x.temporada !== temporada), ...entradas].sort((a, b) => a.temporada - b.temporada);
+        ctx.ops.push({ op: 'set', path: `managers/${uid}`, data: { nombre, historial, actualizado: ctx.ahora } });
     }
 }
