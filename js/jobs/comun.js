@@ -44,6 +44,18 @@ export async function cargarEventos(ctx, temporada) {
     return ctx.eventos;
 }
 
+// Parque cerrado: jornada en curso (desde el cierre de estrategia de la primera sesión hasta la publicación de la última)
+export function jornadaEnCurso(eventos, ligas, t) {
+    for (const ev of eventos) {
+        if (!ligas.includes(ev.liga)) continue;
+        const ses = sesionesOrdenadas(ev);
+        if (!ses.length) continue;
+        const ini = Math.min(...ses.map(s => s.lockAt)), fin = Math.max(...ses.map(s => s.revealAt));
+        if (ini <= t && t < fin) return { ev, ini, fin };
+    }
+    return null;
+}
+
 export function sesionesOrdenadas(evento) {
     return SESIONES.filter(t => evento.sesiones?.[t]).map(t => ({ tipo: t, ...evento.sesiones[t] }));
 }

@@ -104,7 +104,7 @@ function proximoVencimiento(ahora) {
         if (s.estado === 'programada') t = Math.min(t, s.lockAt);
         else if (s.estado === 'simulada') t = Math.min(t, s.revealAt);
     }
-    for (const p of vivo.privs) for (const pr of p.proyectos || []) t = Math.min(t, pr.fin);
+    for (const p of vivo.privs) for (const pr of p.proyectos || []) t = Math.min(t, pr.retenida || pr.fin);
     for (const d of vivo.decisiones) t = Math.min(t, d.expira);
     for (const d of vivo.prensa) t = Math.min(t, d.expira);
     return t;

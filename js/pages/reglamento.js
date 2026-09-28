@@ -108,6 +108,7 @@ ${tablaTexto(['Sale dinero por', 'Cuánto'], [
     ['Nombre / colores / filial', `${dinero(ECO.cambioNombre)} / ${dinero(ECO.cambioColor)} / ${dinero(ECO.compraFilial)} (solo fuera del periodo de carreras)`],
 ])}
 <p>El coche tiene cuatro áreas (motor, aerodinámica, chasis y fiabilidad) con 10 niveles. Puedes tener ${SLOTS_ID} mejoras en marcha a la vez; tardan horas y pueden fallar (si fallan recuperas la mitad). Cada circuito premia más unas áreas que otras.</p>
+<p><b>Parque cerrado:</b> desde que cierra la estrategia de los libres hasta que se publica la última carrera de la jornada no se puede encargar ninguna mejora del coche. Si una mejora termina durante la jornada, la pieza espera en fábrica y se monta al acabar.</p>
 <p>Instalaciones (${dinero(costeInstalacion(0))} el primer nivel, hasta 5): ${Object.values(INSTALACIONES).map(i => `<b>${i.nombre}</b> (${i.desc.replace(/[.]$/, '').toLowerCase()})`).join('; ')}.</p>
 <p>Al acabar la temporada recibes un resumen con tu posición, puntos, victorias, podios, tus pilotos, el Mundial y el dinero.</p>
 <p>Al empezar una temporada nueva cada área baja 2 niveles por el cambio de reglamento, y el presupuesto se queda en la mitad más 8 M€.</p>`)}

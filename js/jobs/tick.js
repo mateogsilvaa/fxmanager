@@ -16,7 +16,7 @@ import {
 } from '../engine/juego.js';
 import {
     crearContexto, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, cargarEventos, sesionesOrdenadas,
-    notificar, noticia, movimiento, nombrePiloto, volcar, idResultado, idEstrategia, idResumen, duenoReal,
+    notificar, noticia, movimiento, nombrePiloto, volcar, idResultado, idEstrategia, idResumen, duenoReal, jornadaEnCurso,
 } from './comun.js';
 import { nombreManagerIA, noticiaManagerIA, conIA } from '../engine/prensa-ia.js';
 import { noticiaAmbiente, rumorMejora } from '../engine/ambiente.js';
@@ -885,6 +885,8 @@ const ACCIONES = {
         const priv = privDe(ctx, a.equipoId);
         const area = a.params?.area;
         if (!AREAS[area]) throw new Error('Área no válida');
+        const pc = await parqueCerrado(ctx, a.equipoId);
+        if (pc) throw new Error(`Parque cerrado: no se puede tocar el coche hasta que acabe la jornada (${new Date(pc.fin).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', weekday: 'short', hour: '2-digit', minute: '2-digit' })}).`);
         const nivel = priv.coche?.[area] || 0;
         if (nivel >= NIVEL_MAX_AREA) throw new Error('Esa área ya está al máximo.');
         const activos = (priv.proyectos || []).filter(p => p.tipo === 'area');
@@ -1173,6 +1175,14 @@ const ACCIONES = {
     },
 };
 
+// ¿Está la escudería en parque cerrado ahora? (su liga, o el Mundial si tiene pilotos allí)
+async function parqueCerrado(ctx, eq) {
+    const eventos = await cargarEventos(ctx, ctx.temporada);
+    const ligas = [ctx.equipos[eq]?.liga];
+    if (ctx.cfg.fase === 'mundial' && await participaEnMundial(ctx, eq)) ligas.push('INT');
+    return jornadaEnCurso(eventos, ligas, ctx.ahora);
+}
+
 async function participaEnMundial(ctx, eq) {
     const pil = await cargarPilotos(ctx);
     return (ctx.cfg.mundial?.participantes || []).some(id => pil[id]?.equipoId === eq);
@@ -1185,9 +1195,23 @@ async function completarProyectos(ctx) {
     const privs = await cargarPrivs(ctx);
     const equipos = await cargarEquipos(ctx);
     for (const [eq, priv] of Object.entries(privs)) {
-        const listos = (priv.proyectos || []).filter(p => p.fin <= ctx.ahora);
+        let listos = (priv.proyectos || []).filter(p => p.fin <= ctx.ahora);
         if (!listos.length) continue;
-        priv.proyectos = priv.proyectos.filter(p => p.fin > ctx.ahora);
+        // Parque cerrado: una mejora del coche que termina durante la jornada espera en fábrica hasta que acabe
+        if (listos.some(p => p.tipo === 'area')) {
+            const pc = await parqueCerrado(ctx, eq);
+            if (pc) {
+                for (const p of listos.filter(x => x.tipo === 'area' && !x.retenida)) {
+                    p.retenida = pc.fin;
+                    ctx.sucios.privs.add(eq);
+                    notificar(ctx, eq, { remitente: 'Departamento técnico', tipo: 'id', titulo: `${AREAS[p.clave].nombre}: pieza lista en fábrica`, texto: 'Estamos en parque cerrado: la montaremos en cuanto termine la jornada.' });
+                }
+                listos = listos.filter(p => p.tipo !== 'area');
+                if (!listos.length) continue;
+            }
+        }
+        const ids = new Set(listos.map(p => p.id));
+        priv.proyectos = priv.proyectos.filter(p => !ids.has(p.id));
         ctx.sucios.privs.add(eq);
         for (const p of listos) {
             const rng = crearRng(`${ctx.secreto}|proy|${p.id}`);
@@ -1363,7 +1387,7 @@ async function diario(ctx) {
             const rng = crearRng(`${ctx.secreto}|iadia|${dia}|${eqId}`);
             const prox = eventos.filter(e => e.liga === eq.liga).map(e => ({ e, t: Math.min(...sesionesOrdenadas(e).map(s => s.lockAt)) })).filter(x => x.t > ctx.ahora).sort((a, b) => a.t - b.t)[0]?.e;
             const activosID = (priv.proyectos || []).filter(p => p.tipo === 'area');
-            if (activosID.length < 1) {
+            if (activosID.length < 1 && !jornadaEnCurso(eventos, [eq.liga], ctx.ahora)) {
                 const area = decisionIA(priv, prox?.circuito, rng);
                 if (area) {
                     const nivel = priv.coche?.[area] || 0;

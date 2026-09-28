@@ -2,6 +2,7 @@ import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, limpiarCache } from '../core/datos.js';
 import { store, ahora, encolar, escuchar, escucharConsulta, reclamarEquipo, refrescarPerfil, enSombra } from '../core/app.js';
 import { reconstruirCatalogo } from '../jobs/catalogo.js';
+import { jornadaEnCurso } from '../jobs/comun.js';
 import { estadoAvisos, activarAvisos } from '../core/avisos.js';
 import { COMPUESTOS, MAX_PARADAS, mejorEstrategia, textoPrecision } from '../engine/neumaticos.js';
 import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal, pestanas, $, $$, dinero, barra, cuentaAtras } from '../core/ui.js';
@@ -352,9 +353,12 @@ function pintarCoche() {
     const pendID = pendientes('id_iniciar'), pendInst = pendientes('inst_mejorar');
     const slots = proyectos.filter(p => p.tipo === 'area').length + pendID.length;
     const obra = proyectos.some(p => p.tipo === 'inst') || pendInst.length;
+    // Parque cerrado durante la jornada: no se puede encargar I+D
+    const pc = jornadaEnCurso(misEventos, [liga, 'INT'], ahora());
     el.innerHTML = `<div class="rejilla rejilla-2" style="align-items:start">
     <div class="tarjeta">
       <div class="tarjeta-titulo"><h2>Desarrollo</h2><span class="muted peq">${slots} de ${SLOTS_ID} proyectos en marcha</span></div>
+      ${pc ? `<div class="aviso-caja" style="margin-bottom:10px"><b>Parque cerrado.</b> Durante la jornada no se puede tocar el coche. Vuelve a encargar mejoras en <span data-cuenta="${pc.fin}" data-corta>${cuentaAtras(pc.fin, true)}</span>. Las que terminen antes se montarán al acabar la jornada.</div>` : ''}
       ${Object.entries(AREAS).map(([k, a]) => {
           const n = priv.coche?.[k] || 0;
           const activo = proyectos.find(p => p.tipo === 'area' && p.clave === k) || pendID.find(p => p.params?.area === k);
@@ -366,7 +370,7 @@ function pintarCoche() {
             <div class="area-nivel" style="margin:8px 0">${Array.from({ length: 10 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>
             ${activo ? proyectoHtml(activo) : n >= NIVEL_MAX_AREA ? '<span class="ok peq">Al máximo</span>' : `
             <div class="fila-entre"><span class="muted peq">${desc ? '<span class="ok">−25% por tu grupo</span> · ' : ''}${tunel ? `<span class="ok">−${Math.round(tunel * 100)}% túnel</span> · ` : ''}${dinero(coste)} · ${horasMejora(n, fab, false)} h · ${Math.round(probExitoMejora(n, fab) * 100)}% de éxito</span>
-            <span class="fila"><button class="btn btn-sec btn-peq" data-id="${k}" data-urgente="1" ${slots >= SLOTS_ID || priv.presupuesto < costeMejoraFinal(k, n, priv, true) ? 'disabled' : ''} title="${dinero(costeMejoraFinal(k, n, priv, true))} · ${horasMejora(n, fab, true)} h">Urgente</button><button class="btn btn-peq" data-id="${k}" ${slots >= SLOTS_ID || priv.presupuesto < coste ? 'disabled' : ''}>Mejorar</button></span></div>`}
+            <span class="fila"><button class="btn btn-sec btn-peq" data-id="${k}" data-urgente="1" ${pc || slots >= SLOTS_ID || priv.presupuesto < costeMejoraFinal(k, n, priv, true) ? 'disabled' : ''} title="${dinero(costeMejoraFinal(k, n, priv, true))} · ${horasMejora(n, fab, true)} h">Urgente</button><button class="btn btn-peq" data-id="${k}" ${pc || slots >= SLOTS_ID || priv.presupuesto < coste ? 'disabled' : ''}>Mejorar</button></span></div>`}
           </div>`;
       }).join('')}
       <p class="muted peq" style="margin:8px 0 0">Cada circuito premia más el motor, la aero o el chasis. La fiabilidad evita averías. Si una mejora falla, recuperas la mitad.</p>
@@ -398,6 +402,7 @@ function pintarCoche() {
 }
 function proyectoHtml(p) {
     if (p.estado === 'pendiente') return `<span class="muted peq">En cola, arranca ${proximoCiclo()}</span>`;
+    if (p.tipo === 'area' && p.fin <= ahora()) return `<div class="fila-entre peq"><span class="ok">Pieza lista en fábrica</span><span class="muted">se monta al acabar la jornada</span></div>`;
     const frac = Math.max(0, Math.min(1, (ahora() - p.inicio) / (p.fin - p.inicio)));
     return `<div class="fila-entre peq" style="margin-bottom:5px"><span>${p.nivel ? `Trabajando en el nivel ${p.nivel}` : 'En curso'}</span><span class="muted" data-cuenta="${p.fin}" data-corta>${cuentaAtras(p.fin, true)}</span></div>${barra(frac, 1)}`;
 }
