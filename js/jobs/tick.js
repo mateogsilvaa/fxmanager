@@ -23,6 +23,7 @@ import { noticiaAmbiente, rumorMejora } from '../engine/ambiente.js';
 import { vidaNeumaticos, mejorEstrategia, precisionLibres, estimarVidas, textoPrecision, COMPUESTOS } from '../engine/neumaticos.js';
 import { reconstruirCatalogo } from './catalogo.js';
 import { prepararMercado, cerrarMercado } from './temporada.js';
+import { ACCIONES_MERCADO } from './mercado.js';
 import { noticiasSesion, previaJornada } from '../engine/cronica.js';
 import { MERCADO } from '../engine/mercado.js';
 
@@ -1167,12 +1168,8 @@ const ACCIONES = {
         return { ok: true, urgente, coste };
     },
 
-    async draft(ctx, a) {
-        if (ctx.cfg.fase !== 'mercado') throw new Error('El draft no está abierto.');
-        const lista = (a.params?.lista || []).slice(0, 8).map(String);
-        await ctx.store.merge(`mercado/T${ctx.temporada}`, { preferencias: { [a.equipoId]: lista } });
-        return { ok: true, lista };
-    },
+    // Mercado de fin de temporada (ventana de 3 días): ver jobs/mercado.js
+    ...ACCIONES_MERCADO,
 };
 
 // ¿Está la escudería en parque cerrado ahora? (su liga, o el Mundial si tiene pilotos allí)
@@ -1476,7 +1473,7 @@ async function transicionesFase(ctx) {
     }
     if (ctx.cfg.fase === 'mercado') {
         const m = await ctx.store.get(`mercado/T${ctx.temporada}`);
-        if (m && m.estado === 'draft' && m.deadline <= ctx.ahora) {
+        if (m && m.estado !== 'cerrado' && m.deadline <= ctx.ahora) {
             await cerrarMercado(ctx);
             ctx.nota('Mercado cerrado');
         }

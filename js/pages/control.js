@@ -415,7 +415,7 @@ async function pintarTemporada() {
       <div class="tarjeta"><h3>Fase</h3><p class="muted">Normalmente cambia sola: pretemporada → nacional → mundial → mercado → cerrada.</p>
         <div class="fila"><select id="fase">${['pretemporada', 'nacional', 'mundial', 'mercado', 'cerrada'].map(f => `<option ${cfg?.fase === f ? 'selected' : ''}>${f}</option>`).join('')}</select><button class="btn btn-sec" id="b-fase">Forzar fase</button></div></div>
       <div class="tarjeta"><h3>Mercado</h3><p class="muted">${m ? `Estado: <b>${esc(m.estado)}</b>${m.deadline ? ` · cierre ${fecha(m.deadline)}` : ''}` : 'Se abre solo al terminar el Mundial.'}</p>
-        <div class="fila"><button class="btn btn-sec" id="b-mercado" ${m ? 'disabled' : ''}>Abrir mercado ahora</button><button class="btn btn-sec" id="b-cerrar" ${m?.estado === 'draft' ? '' : 'disabled'}>Cerrar draft ahora</button><a class="btn btn-sec" href="mercado.html">Ver</a></div></div>
+        <div class="fila"><button class="btn btn-sec" id="b-mercado" ${m ? 'disabled' : ''}>Abrir mercado ahora</button><button class="btn btn-sec" id="b-cerrar" ${m && m.estado !== 'cerrado' ? '' : 'disabled'}>Cerrar mercado ahora</button><a class="btn btn-sec" href="mercado.html">Ver</a></div></div>
       <div class="tarjeta"><h3>Nueva temporada</h3><p class="muted">Guarda el palmarés y la historia, reinicia presupuestos (50% + 8 M€), baja 2 niveles cada área del coche y pasa a pretemporada. Haz esto con el mercado cerrado.</p>
         <label style="display:block;margin:10px 0">Cambio de reglamento<select id="reglamento"><option value="no">No</option><option value="si">Sí</option><option value="azar">Al azar (20%)</option></select></label>
         <p class="muted peq">Con cambio de reglamento el coche conserva solo una cuarta parte de su desarrollo, el túnel de viento pierde 2 niveles, el simulador 1 y otra instalación al azar 1. Todos reciben 2 M€ de ayuda.</p>
@@ -438,7 +438,7 @@ async function pintarTemporada() {
         const c = await ctxAdmin(); await prepararMercado(c); await reconstruirCatalogo(store(), c.cfg); await recargar(); pintarTemporada(); toast('Mercado abierto');
     }));
     $('#b-cerrar').addEventListener('click', (e) => ocupado(e.target, async () => {
-        if (!await confirmar('¿Cerrar el draft ya y aplicar todos los movimientos?')) return;
+        if (!await confirmar('¿Cerrar el mercado ya? La liga resolverá los Galácticos pendientes y asignará rookies a las vacantes.')) return;
         const c = await ctxAdmin(); await cerrarMercado(c); await reconstruirCatalogo(store(), c.cfg); await recargar(); pintarTemporada(); toast('Mercado cerrado');
     }));
     $('#b-nueva').addEventListener('click', (e) => ocupado(e.target, async () => {

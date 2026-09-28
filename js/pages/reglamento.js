@@ -38,8 +38,8 @@ ${seccion('simulacion', 'Qué es esto', `
 ${seccion('formato', 'El campeonato', `
 <ul>
 <li><b>Cinco ligas nacionales:</b> España, Italia, Reino Unido, Alemania y Australia. Cada una tiene 10 escuderías, 20 pilotos y 5 jornadas.</li>
-<li><b>Los pilotos son de la liga, no de las escuderías.</b> No se fichan: la liga los asigna y los mueve según las normas del mercado.</li>
-<li><b>Cuota nacional:</b> el Piloto 1 de cada escudería es siempre de la nacionalidad de la liga, y cada liga tiene al menos 11 pilotos locales.</li>
+<li><b>Los pilotos se mueven en el mercado de fin de temporada</b>, siempre con las normas de la liga (Galácticos, vacantes y trueques).</li>
+<li><b>Cuota nacional (55%):</b> el Piloto 1 de cada escudería es siempre de la nacionalidad de la liga, y cada liga tiene al menos 11 de sus 20 pilotos locales. Ningún movimiento del mercado puede romperlo.</li>
 <li>Algunas marcas (Valcor, Kessler, Altair, Stellari, Northline) tienen escuderías en varios países. Cuando una mejora un área del coche, sus hermanas la desarrollan un 25% más barata. Esas escuderías no se pueden elegir al inscribirse: solo se llega a ellas por una oferta.</li>
 <li>Las escuderías sin mánager las dirige la IA, cada una con su propio mánager ficticio (lo verás como «Nombre (IA)», también en la prensa).</li>
 <li>Al terminar las ligas se juega la <b>Liga Intercontinental</b> (el Mundial) en una sede neutral.</li>
@@ -47,7 +47,7 @@ ${seccion('formato', 'El campeonato', `
 
 ${seccion('jornada', 'Una jornada', `
 <p>Hay una jornada cada pocos días (lo marca el calendario de cada liga). Cada jornada dura <b>dos días</b>:</p>
-${tablaTexto(['Día', 'Sesiones'], [['Día 1', 'Libres · Clasificación 1 · Carrera 1 (10 vueltas, sale según la Clasificación 1)'], ['Día 2', 'Clasificación 2 · Carrera 2 (10 vueltas, sale según la Clasificación 2) · Carrera 3 (15 vueltas, sale según el resultado de la Carrera 2)']])}
+${tablaTexto(['Día', 'Sesiones'], [['Día 1', 'Libres · Clasificación 1 · Carrera 1 (10 vueltas, sale según la Clasificación 1)'], ['Día 2', 'Clasificación 2 · Carrera 2 (10 vueltas, sale según la Clasificación 2) · Carrera 3 (20 vueltas con parada obligatoria, sale según el resultado de la Carrera 2)']])}
 <p>La estrategia de cada sesión se cierra un rato antes de que empiece (normalmente 30 minutos). Después ya no se puede cambiar.</p>`)}
 
 ${seccion('puntos', 'Puntos', `
@@ -64,17 +64,15 @@ ${seccion('mundial', 'El Mundial', `
 </ul>`)}
 
 ${seccion('mercado', 'El mercado', `
-<p>Al terminar el Mundial se abre el mercado. Lo decide el reglamento, así que no hay fichajes libres, pero los mánagers pueden influir.</p>
-<p><b>Galácticos y Tácticos.</b> Cada liga cede a uno de sus mejores pilotos a otra liga mediante un <b>traspaso entre dos escuderías</b>:</p>
+<p>Al terminar el Mundial se abre el mercado durante <b>${MERCADO.diasVentana} días</b>. Todo se hace desde la página de Mercado y cada operación se ve en directo. Ningún movimiento puede dejar una liga por debajo del <b>55% de pilotos locales</b> ni a una escudería sin piloto local.</p>
+<p><b>Los Galácticos (uno por liga).</b> Cada liga cede a uno de sus mejores pilotos (del top 5) a otra liga. Solo puede salir un piloto cuyo compañero sea local, para que su escudería conserve a su Piloto 1.</p>
 <ul>
-<li><b>El Galáctico</b> es un piloto del top 5 de su liga. Se va a una escudería de otro país.</li>
-<li><b>El Táctico</b> es un piloto de media tabla de la escudería que se lleva al Galáctico. Hace el camino contrario: es la moneda de cambio.</li>
-<li>Además, la escudería compradora paga a la vendedora: mínimo ${dinero(MERCADO.importeMinimo)}, o ${dinero(MERCADO.importeIA)} si lo decide la liga.</li>
+<li><b>Si te quitan a tu Galáctico</b> tienes dos opciones: aceptar una oferta de otra escudería (cobras lo que ofrece y recibes a su segundo piloto) o dejar que decida la liga (cobras la compensación de la liga, ${dinero(MERCADO.compensacionLiga)}, y recibes al segundo piloto de quien se lo lleve).</li>
+<li><b>Para fichar un Galáctico</b> tu escudería tiene que haber acabado entre las ${MERCADO.topComprador} mejores de su liga. Puedes hacer una oferta por uno concreto (también durante la temporada, desde Mi escudería) o pedir un traspaso a la liga diciendo cuánto pagarías. A cambio se va tu segundo piloto.</li>
+<li><b>Si decide la liga</b> (al cerrar el mercado), mira primero las ofertas, luego las solicitudes de traspaso (si te toca, se te cobra lo que dijiste) y luego a las escuderías de la IA. Muy de vez en cuando se lo da por sorpresa a otra escudería; si no lo había pedido, paga solo un precio simbólico de ${dinero(MERCADO.precioSimbolico)}.</li>
 </ul>
-<p><b>¿Por qué se va mi piloto si ha quedado 4º?</b> Porque es de los mejores de su liga y otra liga lo necesita. Pero <b>no te quedas con las manos vacías</b>: recibes al Táctico del comprador (un piloto con experiencia, no un rookie) y el dinero, que puedes invertir en el coche. Cada liga pierde exactamente 2 pilotos por traspaso y recibe otros 2.</p>
-<p><b>Pedir un Galáctico.</b> Si tu escudería está entre las ${MERCADO.topComprador} mejores de su liga, puedes hacer una oferta durante la temporada por un piloto del top 5 de otra liga (Mi escudería → Equipo). Ofreces a uno de tus pilotos como Táctico y una cantidad de dinero. Al cerrar el Mundial se organizan los traspasos para que entren las ofertas más altas; donde no hay ofertas, decide la liga. Las ofertas son públicas y la escudería afectada se entera.</p>
-<p><b>Quién puede salir.</b> Solo un piloto cuyo compañero sea de la nacionalidad de la liga, para que su escudería conserve un Piloto 1 local. Por eso a veces el Galáctico no es el mejor de la liga.</p>
-<p><b>Rookies.</b> Las plazas de los despedidos se cubren con un draft de pilotos nuevos. Eligen antes las escuderías peor clasificadas. Si tienes una vacante, ordenas a tus favoritos en la página de Mercado.</p>`)}
+<p><b>Vacantes.</b> Si te despiden a un piloto, durante el mercado puedes fichar a uno de otra escudería (de cualquier liga) haciendo una oferta (mínimo ${dinero(MERCADO.fichajeMinimo)}). Una escudería de la IA vende si le pagas lo que vale el piloto; un mánager decide él. Quien vende se queda con una vacante. Si al cerrar no la has cubierto, la liga te asigna un rookie (puedes ordenar a tus favoritos; eligen antes las peor clasificadas).</p>
+<p><b>Fichas de fichaje y trueques.</b> Si tu alineación no tiene movimientos previstos, puedes pedir una ficha de fichaje a la liga. Con ella propones un cambio de piloto por piloto a otra escudería que también tenga ficha. La IA acepta si no sale perdiendo.</p>`)}
 
 ${seccion('despidos', 'Despidos', `
 <p>No se despide a los últimos por ser últimos. Se mide a cada piloto <b>contra su compañero</b>, que lleva el mismo coche:</p>
@@ -111,7 +109,8 @@ ${tablaTexto(['Sale dinero por', 'Cuánto'], [
 <p><b>Parque cerrado:</b> desde que cierra la estrategia de los libres hasta que se publica la última carrera de la jornada no se puede encargar ninguna mejora del coche. Si una mejora termina durante la jornada, la pieza espera en fábrica y se monta al acabar.</p>
 <p>Instalaciones (${dinero(costeInstalacion(0))} el primer nivel, hasta 5): ${Object.values(INSTALACIONES).map(i => `<b>${i.nombre}</b> (${i.desc.replace(/[.]$/, '').toLowerCase()})`).join('; ')}.</p>
 <p>Al acabar la temporada recibes un resumen con tu posición, puntos, victorias, podios, tus pilotos, el Mundial y el dinero.</p>
-<p>Al empezar una temporada nueva cada área baja 2 niveles por el cambio de reglamento, y el presupuesto se queda en la mitad más 8 M€.</p>`)}
+<p>Al empezar una temporada nueva cada área baja 2 niveles y el presupuesto se queda en la mitad más 8 M€.</p>
+<p><b>Temporadas con cambio de reglamento.</b> Algunas temporadas la liga cambia las normas técnicas: el coche conserva solo una cuarta parte de su desarrollo, el túnel de viento pierde 2 niveles, el simulador 1 y otra instalación al azar 1. Todas las escuderías reciben 2 M€ de ayuda. Se anuncia en las noticias y te llega un aviso.</p>`)}
 
 ${seccion('cada-dia', 'Qué hacer cada día', `
 <ol>

@@ -618,3 +618,5 @@ a.sesion-fila:hover { background: var(--panel-warm); color: var(--ink); }
 .re-barra i { display: block; width: 100%; background: var(--accent); }
 .celda-rating { display: grid; grid-template-columns: 30px minmax(50px, 1fr); gap: 8px; align-items: center; min-width: 110px; }
 .celda-rating b { font-variant-numeric: tabular-nums; text-align: right; }
+.mercado-reloj { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 30px; }
+.mercado-reloj b { font-family: var(--mono); }

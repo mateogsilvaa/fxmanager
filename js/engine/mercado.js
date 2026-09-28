@@ -1,15 +1,115 @@
 // Mercado de final de temporada
-import { LIGAS_NACIONALES, NAC_LOCAL } from './constants.js';
+import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL } from './constants.js';
 import { calcularRiesgo } from './stats.js';
 import { nombreAleatorio, EXTRANJEROS } from './nombres.js';
 import { atributosAleatorios } from './juego.js';
 
 export const MERCADO = {
-    topGalactico: 5,          // el Galáctico sale del top 5 de su liga
-    topComprador: 5,          // solo las 5 mejores escuderías de cada liga pueden pedir un Galáctico
-    importeMinimo: 1_000_000, // oferta mínima
-    importeIA: 2_000_000,     // lo que paga la liga cuando no hay oferta de un mánager
+    topGalactico: 5,            // el Galáctico sale del top 5 de su liga (uno por liga)
+    topComprador: 3,            // solo las 3 mejores escuderías de cada liga pueden pedir un Galáctico
+    importeMinimo: 1_000_000,   // oferta mínima por un Galáctico
+    importeIA: 2_000_000,       // lo que paga una escudería de la IA que se lleva un Galáctico
+    compensacionLiga: 2_000_000,// lo que cobra la escudería que pierde al Galáctico si deja decidir a la liga
+    precioSimbolico: 300_000,   // lo que paga quien recibe un Galáctico sin haberlo pedido
+    probSuerte: 0.04,           // probabilidad de que la liga se lo dé a una escudería al azar
+    diasVentana: 3,             // días de mercado tras el Mundial
+    minLocales: 11,             // 55% de los 20 pilotos de cada liga deben ser locales
+    fichajeMinimo: 250_000,     // oferta mínima por un piloto para cubrir una vacante
 };
+
+// Valor de mercado orientativo de un piloto según su posición final (lo usa la IA para vender o aceptar trueques)
+export function valorPiloto(pos, n = 20) {
+    const p = Math.max(1, Math.min(n, pos || n));
+    return Math.round((500_000 + (n - p) * 150_000) / 50_000) * 50_000;
+}
+
+// ---------- Regla del 55% de pilotos locales ----------
+// pilotos: [{id, nac, equipoId, liga}] · equipos: {id: {liga}}
+// Una vacante cuenta como posible local (el draft la cubre con un rookie local si hace falta).
+export function estadoCuota(pilotos, equipos) {
+    const out = {};
+    for (const liga of LIGAS_NACIONALES) {
+        const eqs = Object.entries(equipos).filter(([, e]) => e.liga === liga).map(([id]) => id);
+        let locales = 0, vacantes = 0, sinLocal = [];
+        for (const eq of eqs) {
+            const suyos = pilotos.filter(p => p.equipoId === eq);
+            const loc = suyos.filter(p => p.nac === NAC_LOCAL[liga]).length;
+            locales += loc; vacantes += Math.max(0, 2 - suyos.length);
+            if (suyos.length >= 2 && !loc) sinLocal.push(eq);
+        }
+        out[liga] = { locales, vacantes, sinLocal, ok: locales + vacantes >= MERCADO.minLocales && !sinLocal.length };
+    }
+    return out;
+}
+
+// ¿Se puede hacer este cambio sin romper la regla? cambios: [{pid, eq}] (eq null = sale de la parrilla)
+// Solo falla si una liga que cumplía deja de cumplir (o una que no cumplía empeora).
+export function cuotaTrasCambios(pilotos, equipos, cambios) {
+    const antes = estadoCuota(pilotos, equipos);
+    const mov = Object.fromEntries(cambios.map(c => [c.pid, c.eq]));
+    const despues = estadoCuota(pilotos.map(p => p.id in mov ? { ...p, equipoId: mov[p.id], liga: mov[p.id] ? equipos[mov[p.id]]?.liga : null } : p), equipos);
+    for (const liga of LIGAS_NACIONALES) {
+        const a = antes[liga], d = despues[liga];
+        if (d.ok) continue;
+        if (!a.ok && d.locales + d.vacantes >= a.locales + a.vacantes && d.sinLocal.length <= a.sinLocal.length) continue;
+        const motivo = d.sinLocal.length > a.sinLocal.length ? 'una escudería se quedaría sin piloto local' : `${LIGAS[liga]?.nombre || liga} bajaría del 55% de pilotos locales`;
+        return { ok: false, motivo: `No cumple la regla del 55%: ${motivo}.` };
+    }
+    return { ok: true };
+}
+
+// Despidos: los dos que peor rinden contra su compañero en cada liga (y los de la zona de peligro que caen)
+export function planDespidos({ tablas, pilotos, inmunes }) {
+    const despidos = [], salvados = [];
+    for (const liga of LIGAS_NACIONALES) {
+        const pl = pilotos.filter(p => p.liga === liga && p.equipoId);
+        if (!tablas[liga]) continue;
+        for (const r of calcularRiesgo(tablas[liga], pl, { inmunes })) {
+            if (r.zona === 'despido') despidos.push({ pid: r.pid, eq: r.eq, liga, motivo: 'directo', riesgo: r.riesgo, pos: r.pos, posComp: r.posComp });
+            else if (r.zona === 'peligro') {
+                if (r.caeria) despidos.push({ pid: r.pid, eq: r.eq, liga, motivo: 'peligro', riesgo: r.riesgo, pos: r.pos, posComp: r.posComp });
+                else salvados.push({ pid: r.pid, eq: r.eq, liga, riesgo: r.riesgo, pos: r.pos, posComp: r.posComp });
+            }
+        }
+    }
+    return { despidos, salvados };
+}
+
+// Un Galáctico por liga, del top 5. Tiene prioridad el que más dinero ha atraído en ofertas;
+// si nadie ha pujado por ninguno, la liga elige (más probable cuanto mejor clasificado).
+// Solo puede salir un piloto cuyo compañero sea local y siga en el equipo.
+export function elegirGalacticos({ tablas, pilotos, ofertas = [], rng, despedidos = new Set() }) {
+    const porId = Object.fromEntries(pilotos.map(p => [p.id, p]));
+    const out = [];
+    for (const liga of LIGAS_NACIONALES) {
+        const clas = tablas[liga]?.clasPilotos || [];
+        const elegible = ({ p }) => {
+            if (!p?.equipoId || despedidos.has(p.id)) return false;
+            const comp = pilotos.find(o => o.equipoId === p.equipoId && o.id !== p.id);
+            return !!comp && !despedidos.has(comp.id) && comp.nac === NAC_LOCAL[liga];
+        };
+        // Top 5; si ninguno puede salir (su compañero no es local), se amplía al top 8 y luego al top 10
+        let cands = [];
+        for (const corte of [MERCADO.topGalactico, 8, 10]) {
+            cands = clas.slice(0, corte).map((s, i) => ({ p: porId[s.pid], pos: i + 1 })).filter(elegible);
+            if (cands.length) break;
+        }
+        if (!cands.length) continue;
+        const puja = (pid) => ofertas.filter(o => o.pid === pid).reduce((s, o) => s + o.importe, 0);
+        const conPuja = cands.filter(c => puja(c.p.id) > 0).sort((a, b) => puja(b.p.id) - puja(a.p.id));
+        const g = conPuja[0] || rng.weighted(cands, c => 11 - Math.min(10, c.pos));
+        out.push({ liga, pid: g.p.id, eq: g.p.equipoId, pos: g.pos });
+    }
+    return out;
+}
+
+// El piloto que entrega una escudería a cambio de un Galáctico: su segundo piloto (nunca el único local)
+export function tacticoDe(pilotos, eq, liga) {
+    const suyos = pilotos.filter(p => p.equipoId === eq);
+    const locales = suyos.filter(p => p.nac === NAC_LOCAL[liga]);
+    const orden = suyos.slice().sort((a, b) => (a.rol === 'P2' ? -1 : 1) - (b.rol === 'P2' ? -1 : 1));
+    return orden.find(p => !(locales.length === 1 && locales[0].id === p.id)) || null;
+}
 
 // Todas las permutaciones sin puntos fijos de las 5 ligas (quién compra a quién)
 function desarreglos(lista) {

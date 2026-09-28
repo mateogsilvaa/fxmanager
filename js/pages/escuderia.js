@@ -455,7 +455,7 @@ function pintarEquipo() {
     activarEntreno(el);
 }
 
-// Mercado: pedir un Galáctico de otra liga (solo las 5 mejores escuderías de cada liga)
+// Mercado: pedir un Galáctico de otra liga (solo las 3 mejores escuderías de cada liga)
 function mercadoHtml() {
     const mia = docOfertas?.ofertas?.[eqId];
     const recibidas = Object.entries(docOfertas?.ofertas || {}).filter(([, o]) => d.piloto(o.pid)?.equipoId === eqId);
@@ -464,9 +464,9 @@ function mercadoHtml() {
     const candidatos = LIGAS_NACIONALES.filter(l => l !== liga).flatMap(l => candidatosGalactico(d, l));
     const tacticos = tacticosDisponibles(d, eqId);
     let cuerpo;
-    if (!abierto) cuerpo = '<p class="muted">El plazo de ofertas termina al acabar el Mundial.</p>';
+    if (!abierto) cuerpo = d.cfg.fase === 'mercado' ? '<p>El mercado está abierto: ofertas, traspasos y trueques se hacen desde la página de Mercado.</p><div class="fila-botones"><a class="btn" href="mercado.html">Ir al mercado</a></div>' : '<p class="muted">El mercado ya ha cerrado.</p>';
     else if (mia) cuerpo = `<p>Has ofrecido <b>${dinero(mia.importe)}</b> y a ${esc(d.nombre(mia.tactico))} por <b>${esc(d.nombre(mia.pid))}</b>.</p>
-        <p class="muted peq">Solo se ejecuta si al final ${esc(d.apellido(mia.pid))} sigue en el top 5 elegible, tu escudería termina entre las 5 primeras y tu Táctico no es despedido.</p>
+        <p class="muted peq">Cuenta si al final ${esc(d.apellido(mia.pid))} es el Galáctico de su liga y tu escudería termina entre las ${MERCADO.topComprador} primeras. Su escudería podrá aceptarla en el mercado; si no, la liga da prioridad a las ofertas.</p>
         <div class="fila-botones"><button class="btn btn-peligro btn-peq" id="cancelar-oferta">Retirar oferta</button></div>`;
     else if (!puede) cuerpo = `<p class="muted">Solo las ${MERCADO.topComprador} mejores escuderías de cada liga pueden pedir un Galáctico. Ahora vais ${pos ? `${pos}º` : 'sin clasificar'}.</p>`;
     else if (!candidatos.length || !tacticos.length) cuerpo = `<p class="muted">${!tacticos.length ? 'Ninguno de tus pilotos puede salir como Táctico ahora mismo (tiene que estar fuera del top 5 y su compañero ser local).' : 'Todavía no hay candidatos: faltan carreras.'}</p>`;
@@ -480,7 +480,7 @@ function mercadoHtml() {
         <div class="fila-botones"><button class="btn">Enviar oferta</button></div></form>`;
     return `<div class="tarjeta">
       <div class="tarjeta-titulo"><h2>Pedir un Galáctico</h2></div>
-      <p class="muted peq">Al final de temporada cada liga cede a un piloto de su top 5 (el Galáctico) a otra liga. Quien se lo lleva entrega a cambio a uno de sus pilotos (el Táctico) y dinero. Gana la oferta más alta.</p>
+      <p class="muted peq">Al final de temporada cada liga cede a un piloto de su top 5 (el Galáctico) a otra liga. Quien se lo lleva paga y entrega a cambio a su segundo piloto. Las ofertas tienen prioridad.</p>
       ${cuerpo}
       ${recibidas.length ? `<div class="aviso-caja" style="margin-top:14px">${recibidas.map(([eq, o]) => `${esc(d.nombreEquipo(eq))} ofrece ${dinero(o.importe)} y a ${esc(d.nombre(o.tactico))} por ${esc(d.nombre(o.pid))}.`).join('<br>')}</div>` : ''}
     </div>`;

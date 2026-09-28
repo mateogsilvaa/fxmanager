@@ -9,6 +9,9 @@ import { LIGAS_NACIONALES, SESIONES, diaMadrid } from '../js/engine/constants.js
 import { proyeccionMundial, calcularRiesgo } from '../js/engine/stats.js';
 
 const DEMO = process.argv.includes('--demo');
+// --demo-mercado: guarda la demo con el mercado abierto (para probar la página de Mercado)
+const DEMO_MERCADO = process.argv.includes('--demo-mercado');
+const RUTA_DEMO = process.argv.find(a => a.startsWith('--salida='))?.slice(9) || '../data/demo.json';
 const H = 3600_000, D = 24 * H;
 const store = new MemStore();
 const fallos = [];
@@ -61,6 +64,7 @@ const avisos = [];
 const pushFalso = async (sub, msg) => { avisos.push({ t: 0, ...msg }); return 'ok'; };
 await store.set('suscripciones/u_ana', { uid: 'u_ana', subs: [{ endpoint: 'https://push.ejemplo/ana', keys: {} }] });
 let ofertaValida = null;
+let mercadoAna = null;
 while (t < FIN) {
     const hora = new Date(t).getUTCHours(), min = new Date(t).getUTCMinutes();
     // Rutina diaria de Ana (muy activa); Leo solo hace check-in
@@ -103,7 +107,7 @@ while (t < FIN) {
         const riesgoEsp = new Set(calcularRiesgo(tb.ESP, pil.filter(p => p.liga === 'ESP' && p.equipoId), { inmunes: new Set() }).filter(x => x.zona !== 'seguro').map(x => x.pid));
         const galac = tb.ESP.clasPilotos.slice(0, 5).map(x => pil.find(p => p.id === x.pid)).find(p => comp(p)?.nac === 'es' && !riesgoEsp.has(comp(p).id));
         let eqTop = null, tact = null;
-        for (const e of tb.GER.clasEquipos.slice(0, 5)) {
+        for (const e of tb.GER.clasEquipos.slice(0, 3)) {
             tact = pil.filter(p => p.equipoId === e.eq && (posGer[p.id] || 99) > 5 && comp(p)?.nac === 'de' && !enRiesgo.has(p.id) && !enRiesgo.has(comp(p).id)).sort((x, y) => posGer[x.id] - posGer[y.id])[0];
             if (tact) { eqTop = e.eq; break; }
         }
@@ -119,7 +123,32 @@ while (t < FIN) {
             console.log('Oferta válida de', eqTop, 'por', galac.id, 'con', tact.id);
         } else { ofertaValida = 'ninguna'; console.log('No hay combinación elegible para la oferta de prueba'); }
     }
+    // Mercado abierto: Ana cubre su vacante o hace un trueque con una escudería de la IA
+    if (!mercadoAna && (await store.get('config/juego')).fase === 'mercado') {
+        const mm = await store.get('mercado/T1');
+        const pil = (await store.list('pilotos')).filter(p => p.equipoId);
+        const suyos = pil.filter(p => p.equipoId === 'tramontana');
+        const pos = mm.posiciones.pilotos;
+        if (suyos.length < 2) {
+            const obj = pil.filter(p => p.liga === 'ESP' && p.equipoId !== 'tramontana' && !mm.galacticos.some(g => g.pid === p.id) && p.nac !== 'es').sort((a, b) => (pos[b.id] || 20) - (pos[a.id] || 20))[0];
+            await accion(humanos[0], 'mercado_fichaje', { pid: obj.id, importe: 1_500_000 }, t);
+            mercadoAna = { tipo: 'fichaje', pid: obj.id };
+        } else {
+            await accion(humanos[0], 'mercado_ficha', {}, t);
+            const socio = Object.keys(mm.fichas).find(eq => pil.some(p => p.equipoId === eq && p.liga === 'ESP'));
+            const da = suyos.find(p => p.nac !== 'es') || suyos[1];
+            const recibe = socio && pil.filter(p => p.equipoId === socio && p.nac === da.nac).concat(pil.filter(p => p.equipoId === socio && p.nac !== 'es')).sort((a, b) => (pos[b.id] || 20) - (pos[a.id] || 20))[0];
+            if (socio && recibe) await accion(humanos[0], 'mercado_trueque', { conEq: socio, da: da.id, recibe: recibe.id }, t + 1);
+            mercadoAna = { tipo: 'trueque', socio, da: da?.id, recibe: recibe?.id };
+        }
+        console.log('Ana en el mercado:', JSON.stringify(mercadoAna));
+    }
     const r = await ejecutarTick(store, { ahora: t, log: () => {}, push: pushFalso });
+    if (DEMO_MERCADO && mercadoAna && !demoGuardado && (await store.get('config/juego')).fase === 'mercado') {
+        writeFileSync(new URL(RUTA_DEMO, import.meta.url), JSON.stringify({ ahora: t + 60_000, datos: store.volcar() }));
+        demoGuardado = true;
+        console.log('💾 demo con el mercado abierto guardada');
+    }
     if (r.errores?.length) ok(false, `Errores en tick ${new Date(t).toISOString()}: ${r.errores.join(' | ')}`);
     if (DEMO && !demoGuardado && t >= T0 + 2 * 4 * D + D + 2 * H + 30 * 60_000) {
         const dia = diaMadrid(t);
@@ -150,22 +179,27 @@ for (const liga of [...LIGAS_NACIONALES, 'INT']) {
 const proy = proyeccionMundial(tablas);
 console.log('Corte repesca:', proy.corte);
 const m = await store.get('mercado/T1');
-console.log('Mercado:', m.estado, '| despidos', m.plan.despidos.length, '| traspasos', m.plan.traspasos.length, '| rookies elegidos', m.elegidos?.length);
+console.log('Mercado:', m.estado, '| despidos', m.plan.despidos.length, '| galácticos', m.galacticos.map(g => `${g.liga}:${g.estado}${g.destino ? `→${g.destino.eq}(${g.destino.via})` : ''}`).join(' '), '| rookies', m.elegidos?.length);
+m.movimientos.slice().reverse().forEach(x => console.log('  ·', x.texto));
 ok(m.estado === 'cerrado', 'El mercado debería estar cerrado');
-ok(m.plan.operaciones.length === 5, `Operaciones Galáctico/Táctico: ${m.plan.operaciones.length} (deberían ser 5)`);
-for (const liga of LIGAS_NACIONALES) {
-    const sale = m.plan.traspasos.filter(x => x.de === liga).length, entra = m.plan.traspasos.filter(x => x.a === liga).length;
-    ok(sale === 2 && entra === 2, `${liga}: salen ${sale} y entran ${entra} por traspaso (deberían ser 2 y 2)`);
-}
-if (ofertaValida && ofertaValida !== 'ninguna') ok(m.plan.operaciones.some(o => o.humano && o.pid === ofertaValida), 'La oferta válida del mánager no se ejecutó');
-m.plan.operaciones.forEach(o => console.log(`  ${o.de}→${o.a}: ${o.nombre} (${o.pos || '?'}º) por ${o.nombreTactico} + ${(o.importe / 1e6).toFixed(1)} M€ ${o.humano ? '[oferta de mánager]' : '[liga]'}`));
+ok(m.galacticos.length === 5, `Galácticos: ${m.galacticos.length} (deberían ser 5)`);
+ok(m.galacticos.filter(g => g.estado === 'vendido').length >= 3, 'Casi ningún Galáctico ha cambiado de liga');
+if (ofertaValida && ofertaValida !== 'ninguna' && m.galacticos.some(g => g.pid === ofertaValida)) ok(m.galacticos.some(g => g.pid === ofertaValida && g.destino?.eq === humanos[1].eq), 'La oferta del mánager por el Galáctico no se ejecutó');
 ok(m.plan.despidos.length >= 10 && m.plan.despidos.length <= 20, `Despidos fuera de rango: ${m.plan.despidos.length}`);
+if (mercadoAna?.tipo === 'fichaje') ok(m.fichajes.some(f => f.eq === 'tramontana' && f.estado === 'aceptada'), `El fichaje de Ana no se hizo: ${JSON.stringify(m.fichajes.filter(f => f.eq === 'tramontana'))}`);
+if (mercadoAna?.tipo === 'trueque' && mercadoAna.recibe) console.log('Trueque de Ana:', JSON.stringify(m.trueques.filter(x => x.eq === 'tramontana')));
 const pilotos = await store.list('pilotos');
+const NAC = { ESP: 'es', ITA: 'it', GBR: 'gb', GER: 'de', AUS: 'au' };
 for (const liga of LIGAS_NACIONALES) {
     const pl = pilotos.filter(p => p.liga === liga && p.equipoId);
     ok(pl.length === 20, `${liga}: ${pl.length} pilotos tras el mercado`);
+    const locales = pl.filter(p => p.nac === NAC[liga]).length;
+    ok(locales >= 11, `${liga}: solo ${locales} pilotos locales (55% = 11)`);
     const equipos = [...new Set(pl.map(p => p.equipoId))];
-    equipos.forEach(eq => ok(pl.filter(p => p.equipoId === eq).length === 2, `${eq} no tiene 2 pilotos`));
+    equipos.forEach(eq => {
+        ok(pl.filter(p => p.equipoId === eq).length === 2, `${eq} no tiene 2 pilotos`);
+        ok(pl.some(p => p.equipoId === eq && p.nac === NAC[liga] && p.rol === 'P1'), `${eq} no tiene Piloto 1 local`);
+    });
 }
 const privAna = await store.get('equipos_priv/tramontana');
 const privLeo = await store.get('equipos_priv/rheinwerk');
@@ -199,7 +233,11 @@ console.log('Carreras:', dnfs.length, '· abandonos por carrera', (dnfs.reduce((
 const privAnaN = await store.get('equipos_priv/tramontana');
 console.log('Lectura neumáticos Ana (última):', JSON.stringify(Object.values(privAnaN.neumaticos || {}).at(-1)));
 ok(paradas.length > 0, 'Nadie ha parado en boxes en la Carrera 3');
-const palm = await nuevaTemporada(store, { ahora: FIN + D });
+const palm = await nuevaTemporada(store, { ahora: FIN + D, reglamento: 'si' });
+const privAna2 = await store.get('equipos_priv/tramontana');
+console.log('Cambio de reglamento → Ana coche', privAna2.coche, 'inst', privAna2.inst, '| managers', (await store.list('managers')).map(x => `${x.nombre}: ${x.historial.map(h => h.rating).join(',')}`).join(' · '));
+ok(palm.cambioReglamento, 'No se aplicó el cambio de reglamento');
+ok((await store.list('managers')).length === 2, 'Falta el historial de los mánagers');
 const cfg2 = await store.get('config/juego');
 ok(cfg2.temporada === 2 && cfg2.fase === 'pretemporada', 'Nueva temporada mal iniciada');
 console.log('Palmarés T1:', Object.entries(palm.ligas).map(([l, v]) => `${l}: ${nom(v.piloto)}`).join(' · '), '| Mundial:', nom(palm.mundial));

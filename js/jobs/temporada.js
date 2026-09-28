@@ -3,7 +3,7 @@ import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL, SESIONES, ECO, INSTALACIONES, esCar
 import { crearRng } from '../engine/rng.js';
 import { atributosAleatorios, salarioPiloto } from '../engine/juego.js';
 import { descompactar, construirTemporada } from '../engine/stats.js';
-import { planMercado, generarRookies, estrellasRookie, asignarRoles } from '../engine/mercado.js';
+import { abrirMercado, cerrarMercado } from './mercado.js';
 import { normalizarCircuito } from '../engine/circuitos.js';
 import {
     crearContexto, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, horarioSesion, noticia, notificar,
@@ -132,6 +132,7 @@ export async function tablasTemporada(store, temporada) {
 }
 
 // ---------- Mercado ----------
+// Al terminar el Mundial: premios, ofertas de plaza, resúmenes, historial de mánagers y se abre el mercado (3 días)
 export async function prepararMercado(ctx) {
     const { store } = ctx;
     const temporada = ctx.cfg.temporada;
@@ -139,31 +140,8 @@ export async function prepararMercado(ctx) {
     const pilotosMap = await cargarPilotos(ctx);
     const equipos = await cargarEquipos(ctx);
     const privs = await cargarPrivs(ctx);
-    const pilotos = Object.values(pilotosMap).filter(p => p.equipoId);
-    const inmunes = new Set(ctx.cfg.mundial?.participantes || []);
-    const rng = crearRng(`${ctx.secreto}|mercado|${temporada}`);
-    const posEquipo = {};
-    for (const liga of LIGAS_NACIONALES) tablas[liga].clasEquipos.forEach(e => { posEquipo[e.eq] = e.posicion; });
-    // Escuderías que no han corrido aún (sin puntos) al final
-    Object.entries(equipos).forEach(([id]) => { if (!posEquipo[id]) posEquipo[id] = 10; });
-    const docOfertas = await store.get(`mercado_ofertas/T${temporada}`);
-    const ofertas = Object.entries(docOfertas?.ofertas || {}).map(([eq, o]) => ({ eq, ...o }))
-        .filter(o => o.pid && o.tactico && (privs[o.eq]?.presupuesto || 0) >= o.importe);
-    const plan = planMercado({ tablas, pilotos, inmunes, rng, ofertas, posEquipo });
-    const usados = new Set(Object.values(pilotosMap).map(p => `${p.nombre} ${p.apellido}`));
-    const rookies = generarRookies({ temporada, vacantes: plan.vacantes, rng, usados });
-    const draftOrden = plan.vacantes.slice().sort((a, b) => (posEquipo[b.eq] || 99) - (posEquipo[a.eq] || 99));
-    const deadline = ctx.ahora + (ctx.cfg.horasDraft || 48) * 3600_000;
     const nombre = (pid) => nombrePiloto(pilotosMap[pid]);
-    const M = (v) => `${(v / 1e6).toFixed(1).replace('.', ',')} M€`;
 
-    // Dinero de los traspasos: la compradora paga a la vendedora
-    for (const op of plan.operaciones) {
-        if (privs[op.eq]) { movimiento(privs[op.eq], `Traspaso: llega ${nombre(op.pid)} (Galáctico)`, -op.importe, ctx.ahora); ctx.sucios.privs.add(op.eq); }
-        if (privs[op.eqVendedor]) { movimiento(privs[op.eqVendedor], `Traspaso: sale ${nombre(op.pid)} (Galáctico)`, op.importe, ctx.ahora); ctx.sucios.privs.add(op.eqVendedor); }
-        notificar(ctx, op.eqVendedor, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: `${nombre(op.pid)} se va a ${equipos[op.eq]?.nombre}`, texto: `Es el Galáctico de tu liga. A cambio recibes a ${nombre(op.tactico)} y ${M(op.importe)}.` });
-        notificar(ctx, op.eq, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: `Fichas a ${nombre(op.pid)}`, texto: `Llega como Galáctico desde ${LIGAS[op.de].nombre}. A cambio sale ${nombre(op.tactico)} y pagas ${M(op.importe)}.` });
-    }
     // Premios de fin de temporada por posición en cada liga
     for (const liga of LIGAS_NACIONALES) {
         tablas[liga].clasEquipos.forEach((e, i) => {
@@ -188,105 +166,12 @@ export async function prepararMercado(ctx) {
     ofertasDePlaza(ctx, { tablas, equipos, privs, rng: crearRng(`${ctx.secreto}|plaza|${temporada}`) });
     resumenesTemporada(ctx, { tablas, equipos, privs, pilotos: pilotosMap });
     await historialManagers(ctx, { tablas, equipos });
-
-    const conNombre = (x) => ({ ...x, nombre: nombre(x.pid) });
-    await store.set(`mercado/T${temporada}`, {
-        temporada, estado: 'draft', deadline, creado: ctx.ahora,
-        plan: {
-            despidos: plan.despidos.map(conNombre), salvados: plan.salvados.map(conNombre), traspasos: plan.traspasos.map(conNombre),
-            operaciones: plan.operaciones.map(o => ({ ...o, nombre: nombre(o.pid), nombreTactico: nombre(o.tactico) })),
-        },
-        vacantes: draftOrden,
-        rookies: rookies.map(r => ({ id: r.id, nombre: r.nombre, apellido: r.apellido, nac: r.nac, liga: r.liga, edad: r.edad, estrellas: estrellasRookie(r.attrs, rng) })),
-        preferencias: {},
-    });
-    await store.set(`mercado_priv/T${temporada}`, { rookies: Object.fromEntries(rookies.map(r => [r.id, r.attrs])) });
+    await abrirMercado(ctx, { tablas });
     await store.merge('config/juego', { fase: 'mercado' });
     ctx.cfg.fase = 'mercado';
-
-    for (const o of plan.operaciones) {
-        noticia(ctx, {
-            titulo: `${nombre(o.pid)} ficha por ${equipos[o.eq]?.nombre}`,
-            texto: `El Galáctico de ${LIGAS[o.de].nombre} (${o.pos || '?'}º) se va a ${LIGAS[o.a].nombre}. ${equipos[o.eqVendedor]?.nombre} recibe a cambio a ${nombre(o.tactico)} y ${M(o.importe)}.${equipos[o.eq]?.ownerId ? '' : ' Operación decidida por la liga.'}`,
-            liga: o.de, tipo: 'mercado',
-        });
-    }
-    for (const d of plan.despidos) {
-        noticia(ctx, { titulo: `${nombre(d.pid)} se queda sin asiento`, texto: d.motivo === 'directo' ? `Terminó ${d.pos}º con su compañero ${d.posComp}º: es de los que peor rindieron con el mismo coche.` : `Estaba en la zona de peligro y su compañero acabó ${d.posComp}º.`, liga: d.liga, tipo: 'mercado' });
-        notificar(ctx, d.eq, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: 'Vacante en tu equipo', texto: `${nombre(d.pid)} deja el equipo. Elige tus rookies favoritos en el draft antes de que cierre.` });
-    }
-    for (const s of plan.salvados) noticia(ctx, { titulo: `${nombre(s.pid)} salva su asiento`, texto: `Acabó ${s.pos}º, pero su compañero terminó ${s.posComp}º: se asume que el coche no daba para más.`, liga: s.liga, tipo: 'mercado' });
-    noticia(ctx, { titulo: 'Se abre el mercado de fin de temporada', texto: `Traspasos, despidos y draft de rookies. El draft cierra el ${new Date(deadline).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}.`, tipo: 'fase' });
     await volcar(ctx);
 }
-
-export async function cerrarMercado(ctx) {
-    const { store } = ctx;
-    const temporada = ctx.cfg.temporada;
-    const m = await store.get(`mercado/T${temporada}`);
-    const mp = await store.get(`mercado_priv/T${temporada}`);
-    if (!m || m.estado !== 'draft') return;
-    const pilotos = await cargarPilotos(ctx);
-    const equipos = await cargarEquipos(ctx);
-    const pp = await cargarPilotosPriv(ctx, Object.keys(pilotos));
-
-    // 1. Traspasos (todos a la vez: son ciclos de asientos)
-    for (const t of m.plan.traspasos) {
-        const p = pilotos[t.pid];
-        p.equipoId = t.eqDestino; p.liga = t.a;
-        if (pp[t.pid]) { pp[t.pid].equipoId = t.eqDestino; ctx.sucios.pilotosPriv.add(t.pid); }
-        ctx.sucios.pilotos.add(t.pid);
-    }
-    // 2. Despidos
-    for (const d of m.plan.despidos) {
-        const p = pilotos[d.pid];
-        p.equipoId = null; p.liga = null; p.estado = 'libre'; p.rol = null;
-        if (pp[d.pid]) { pp[d.pid].equipoId = null; ctx.sucios.pilotosPriv.add(d.pid); }
-        ctx.sucios.pilotos.add(d.pid);
-    }
-    // 3. Draft
-    const disponibles = new Map(m.rookies.map(r => [r.id, r]));
-    const rng = crearRng(`${ctx.secreto}|draft|${temporada}`);
-    const elegidos = [];
-    const locales = (liga) => Object.values(pilotos).filter(p => p.liga === liga && p.equipoId && p.nac === NAC_LOCAL[liga]).length;
-    for (const v of m.vacantes) {
-        const liga = v.liga;
-        const companero = Object.values(pilotos).find(p => p.equipoId === v.eq);
-        const debeSerLocal = !companero || companero.nac !== NAC_LOCAL[liga] || locales(liga) < 11;
-        const valido = (r) => r && r.liga === liga && (!debeSerLocal || r.nac === NAC_LOCAL[liga]);
-        const prefs = (m.preferencias?.[v.eq] || []).map(id => disponibles.get(id)).filter(valido);
-        let r = prefs[0];
-        if (!r) {
-            const cands = [...disponibles.values()].filter(valido);
-            r = cands.sort((a, b) => (b.estrellas - a.estrellas) || (rng.next() - 0.5))[0];
-        }
-        if (!r) { ctx.nota(`Sin rookie válido para ${v.eq}`); continue; }
-        disponibles.delete(r.id);
-        const attrs = mp?.rookies?.[r.id] || atributosAleatorios(rng, { rookie: true });
-        const usados = new Set(Object.values(pilotos).filter(p => p.liga === liga).map(p => p.numero));
-        let numero; do numero = rng.int(2, 99); while (usados.has(numero));
-        pilotos[r.id] = { id: r.id, nombre: r.nombre, apellido: r.apellido, nac: r.nac, numero, equipoId: v.eq, liga, rol: 'P2', edad: r.edad, rookie: true, estado: 'activo', historia: [], temporadaDebut: temporada + 1 };
-        pp[r.id] = ctx.pilotosPriv[r.id] = { id: r.id, pilotoId: r.id, equipoId: v.eq, attrs, moral: 65, forma: 0, salario: salarioPiloto(attrs) };
-        ctx.sucios.pilotos.add(r.id); ctx.sucios.pilotosPriv.add(r.id);
-        elegidos.push({ eq: v.eq, rookie: r.id, nombre: `${r.nombre} ${r.apellido}` });
-        notificar(ctx, v.eq, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: `Nuevo piloto: ${r.nombre} ${r.apellido}`, texto: `Rookie de ${r.edad} años. ¡Bienvenido al equipo!` });
-    }
-    // 4. Roles (Piloto 1 local)
-    const porEquipo = {};
-    Object.values(pilotos).filter(p => p.equipoId).forEach(p => { (porEquipo[p.equipoId] ||= []).push({ ...p, attrs: pp[p.id]?.attrs }); });
-    for (const [eq, lista] of Object.entries(porEquipo)) {
-        for (const r of asignarRoles(lista, equipos[eq]?.liga)) {
-            if (pilotos[r.id].rol !== r.rol) { pilotos[r.id].rol = r.rol; ctx.sucios.pilotos.add(r.id); }
-            if (!r.cumpleCuota) ctx.nota(`${equipos[eq]?.nombre} no tiene piloto local para el asiento de Piloto 1`);
-        }
-    }
-    await store.merge(`mercado/T${temporada}`, { estado: 'cerrado', elegidos, cerrado: ctx.ahora });
-    await store.merge('config/juego', { fase: 'cerrada' });
-    ctx.cfg.fase = 'cerrada';
-    noticia(ctx, { titulo: 'Mercado cerrado: así quedan las parrillas', texto: `${elegidos.length} rookies se estrenan la próxima temporada.`, tipo: 'fase' });
-    await volcar(ctx);
-    ctx.catalogoSucio = true;
-}
+export { cerrarMercado };
 
 // ---------- Nueva temporada ----------
 // reglamento: 'no' | 'si' | 'azar' (20% de probabilidad). Con cambio de reglamento el reinicio del coche es mucho
