@@ -1,5 +1,5 @@
 // Estadísticas, clasificaciones, récords, riesgo de despido y proyección del Mundial
-import { esCarrera, esQualy, SESIONES, LIGAS_NACIONALES, PLAZAS_MUNDIAL, NAC_LOCAL } from './constants.js';
+import { esCarrera, esQualy, SESIONES, LIGAS_NACIONALES, PLAZAS_MUNDIAL, NAC_LOCAL, PUNTOS_CARRERA_LARGA, PUNTOS_VR } from './constants.js';
 import { desviacionVueltas } from './sim.js';
 
 const ESTADO = { FIN: 0, DNF: 1, 'SIN TIEMPO': 2 };
@@ -21,11 +21,17 @@ export function compactar(res) {
     };
 }
 
+// La Carrera 3 reparte más puntos (PUNTOS_CARRERA_LARGA). Se recalcula aquí para que las disputadas antes del
+// cambio cuenten igual que las nuevas (los finalizados van primero, así que pos = puesto entre los que acaban).
+function ptsFila(c, a) {
+    if (c.tipo !== 'R3' || (ESTADO_INV[a[7]] || 'FIN') !== 'FIN') return a[4];
+    return (PUNTOS_CARRERA_LARGA[a[2] - 1] || 0) + (c.vr === a[0] ? PUNTOS_VR : 0);
+}
 export function descompactar(c) {
     return {
         ...c,
         filas: c.r.map(a => ({
-            pid: a[0], eq: a[1], pos: a[2], parrilla: a[3] || null, pts: a[4], mejor: a[5] || null,
+            pid: a[0], eq: a[1], pos: a[2], parrilla: a[3] || null, pts: ptsFila(c, a), mejor: a[5] || null,
             sdPct: a[6] >= 0 ? a[6] / 1000 : null, estado: ESTADO_INV[a[7]] || 'FIN', adel: a[8], errores: a[9],
             led: a[10], vueltas: a[11], gap: a[12] >= 0 ? a[12] : null,
         })),

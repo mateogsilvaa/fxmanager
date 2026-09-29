@@ -1,5 +1,5 @@
 // Simulador de sesiones Hyper Race X1 (BAC Mono)
-import { SESION_INFO, PUNTOS_QUALY, PUNTOS_CARRERA, PUNTOS_VR, esCarrera, esQualy } from './constants.js';
+import { SESION_INFO, PUNTOS_QUALY, PUNTOS_VR, puntosCarrera, esCarrera, esQualy } from './constants.js';
 import { COMPUESTOS, degradacion, factorVida, perdidaBoxes, limpiarEstrategia, paradaEnBoxes } from './neumaticos.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -309,7 +309,8 @@ export function puntuar(res) {
         if (pole && pole.mejor != null) res.vr = { pid: pole.pid, t: pole.mejor };
     } else if (esCarrera(tipo)) {
         const fin = filas.filter(f => f.estado === 'FIN');
-        fin.forEach((f, i) => { if (i < PUNTOS_CARRERA.length) f.pts = PUNTOS_CARRERA[i]; });
+        const tabla = puntosCarrera(tipo);
+        fin.forEach((f, i) => { if (i < tabla.length) f.pts = tabla[i]; });
         let best = null;
         fin.forEach(f => {
             const vueltaMin = f.laps.slice(1).reduce((m, t) => Math.min(m, t), Infinity);

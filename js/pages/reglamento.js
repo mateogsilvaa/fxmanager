@@ -1,6 +1,6 @@
 import { montar } from '../core/layout.js';
 import {
-    PUNTOS_CARRERA, PUNTOS_QUALY, PUNTOS_VR, ECO, costeMejora, tandasSimulador, SLOTS_ID, RECARGO_URGENTE,
+    PUNTOS_CARRERA, PUNTOS_CARRERA_LARGA, PUNTOS_QUALY, PUNTOS_VR, ECO, costeMejora, tandasSimulador, SLOTS_ID, RECARGO_URGENTE,
     costeInstalacion, INSTALACIONES, ENTRENO,
 } from '../engine/constants.js';
 import { MERCADO } from '../engine/mercado.js';
@@ -51,7 +51,7 @@ ${tablaTexto(['Día', 'Sesiones'], [['Día 1', 'Libres · Clasificación 1 · Ca
 <p>La estrategia de cada sesión se cierra un rato antes de que empiece (normalmente 30 minutos). Después ya no se puede cambiar.</p>`)}
 
 ${seccion('puntos', 'Puntos', `
-${tabla(['Posición', 'Clasificación', 'Carrera'], PUNTOS_CARRERA.map((p, i) => [`${i + 1}º`, PUNTOS_QUALY[i] ?? '—', p]))}
+${tabla(['Posición', 'Clasificación', 'Carreras 1 y 2', 'Carrera 3'], PUNTOS_CARRERA.map((p, i) => [`${i + 1}º`, PUNTOS_QUALY[i] ?? '—', p, PUNTOS_CARRERA_LARGA[i]]))}
 <p>La vuelta rápida de cada carrera da <b>${PUNTOS_VR} puntos extra</b> si el piloto termina. Una escudería suma los puntos de sus dos pilotos.</p>`)}
 
 ${seccion('mundial', 'El Mundial', `

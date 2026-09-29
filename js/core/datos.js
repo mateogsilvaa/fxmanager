@@ -1,7 +1,7 @@
 // Carga de datos públicos de la temporada y utilidades derivadas
 import { store, ahora, DEMO } from './app.js';
 import { compactar, descompactar, construirTemporada, proyeccionMundial } from '../engine/stats.js';
-import { LIGAS_NACIONALES, SESIONES, SESION_INFO } from '../engine/constants.js';
+import { LIGAS_NACIONALES, SESIONES, SESION_INFO, PUNTOS_CARRERA_LARGA, PUNTOS_VR } from '../engine/constants.js';
 import { ratingsLiga } from '../engine/rating.js';
 
 const TTL = 60_000;
@@ -25,9 +25,16 @@ async function getCache(path) {
 // Resultado completo (vueltas, incidentes). Inmutable una vez publicado → se cachea en localStorage.
 export async function resultado(sid) {
     const k = `fxres:${sid}`;
-    if (!DEMO) { try { const v = localStorage.getItem(k); if (v) return JSON.parse(v); } catch { } }
+    if (!DEMO) { try { const v = localStorage.getItem(k); if (v) return puntosR3(JSON.parse(v)); } catch { } }
     const r = await store().get(`resultados/${sid}`);
     if (r && !DEMO) { try { localStorage.setItem(k, JSON.stringify(r)); } catch { try { Object.keys(localStorage).filter(x => x.startsWith('fxres:')).slice(0, 20).forEach(x => localStorage.removeItem(x)); } catch { } } }
+    return r ? puntosR3(r) : r;
+}
+// La Carrera 3 reparte más puntos: también en las disputadas antes del cambio
+function puntosR3(r) {
+    if (r.tipo !== 'R3' || !r.filas) return r;
+    let i = 0;
+    for (const f of r.filas) f.pts = f.estado === 'FIN' ? (PUNTOS_CARRERA_LARGA[i++] || 0) + (r.vr?.pid === f.pid ? PUNTOS_VR : 0) : 0;
     return r;
 }
 

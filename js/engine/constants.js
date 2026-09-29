@@ -36,6 +36,9 @@ export const esQualy = (t) => SESION_INFO[t]?.tipo === 'qualy';
 
 export const PUNTOS_QUALY = [7, 5, 3, 2, 1];
 export const PUNTOS_CARRERA = [30, 24, 21, 19, 17, 15, 13, 11, 9, 8, 7, 6, 5, 4, 3];
+// Carrera 3 (20 vueltas, con parada): un 30% más de puntos
+export const PUNTOS_CARRERA_LARGA = [39, 31, 27, 25, 22, 20, 17, 14, 12, 10, 9, 8, 7, 5, 4];
+export const puntosCarrera = (tipo) => tipo === 'R3' ? PUNTOS_CARRERA_LARGA : PUNTOS_CARRERA;
 export const PUNTOS_VR = 3;
 
 // Duración de la retransmisión "en directo" (ms). Tras ella la sesión cuenta en clasificaciones.
