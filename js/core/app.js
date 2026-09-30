@@ -49,10 +49,13 @@ export function iniciar() {
             let primera = true;
             authMod.onAuthStateChanged(_auth, async (u) => {
                 if (u) {
-                    let perfil = await _store.get(`usuarios/${u.uid}`).catch(() => null);
+                    // Solo se crea el perfil si la lectura ha ido bien y de verdad no existe. Si falla (red, sesión
+                    // recién renovada…) nunca se escribe: sobrescribiría un perfil existente y quitaría el admin.
+                    let perfil = null, leido = true;
+                    try { perfil = await _store.get(`usuarios/${u.uid}`); } catch { leido = false; }
                     if (!perfil) {
                         perfil = { nombre: u.displayName || u.email.split('@')[0], email: u.email, isAdmin: false, equipoId: null, estado: 'pendiente' };
-                        await _store.set(`usuarios/${u.uid}`, perfil).catch(() => { });
+                        if (leido) await _store.set(`usuarios/${u.uid}`, perfil).catch(() => { });
                     }
                     _usuario = { uid: u.uid, email: u.email, perfil };
                     marcarVisita(u.uid);
