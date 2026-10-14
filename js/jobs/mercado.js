@@ -23,10 +23,13 @@ const activos = (pil) => Object.values(pil).filter(p => p.equipoId);
 const deEquipo = (pil, eq) => activos(pil).filter(p => p.equipoId === eq);
 const vacantesDe = (pil, eq) => Math.max(0, 2 - deEquipo(pil, eq).length);
 
+// Mientras se juega el Mundial los cambios se apuntan (ctx.diferir) y se aplican al terminar,
+// para no mover a nadie que esté corriendo. pil es entonces una copia con los cambios ya hechos.
 function mover(ctx, pil, pp, pid, eq) {
     const p = pil[pid];
     p.equipoId = eq; p.liga = eq ? ctx.equipos[eq]?.liga : null;
     p.estado = eq ? 'activo' : 'libre'; p.rol = null;
+    if (ctx.diferir) { ctx.diferir.push({ pid, eq }); return; }
     ctx.sucios.pilotos.add(pid);
     if (pp[pid]) { pp[pid].equipoId = eq; ctx.sucios.pilotosPriv.add(pid); }
     ctx.catalogoSucio = true;
@@ -49,11 +52,12 @@ function posiciones(tablas) {
 // ======================================================================
 // Abrir
 // ======================================================================
-export async function abrirMercado(ctx, { tablas }) {
+export async function abrirMercado(ctx, { tablas, deadline }) {
     const { store } = ctx;
     const temporada = ctx.cfg.temporada;
-    const pil = await cargarPilotos(ctx);
     const equipos = await cargarEquipos(ctx);
+    const pil = parrilla(ctx, await cargarPilotos(ctx), {});
+    const pendientes = ctx.diferir || [];
     const privs = await cargarPrivs(ctx);
     const pp = await cargarPilotosPriv(ctx, Object.keys(pil));
     const rng = crearRng(`${ctx.secreto}|mercado|${temporada}`);
@@ -86,10 +90,11 @@ export async function abrirMercado(ctx, { tablas }) {
     despidos.forEach(d => { vacantesLiga[d.liga] = (vacantesLiga[d.liga] || 0) + 1; });
     const usados = new Set(Object.values(pil).map(p => `${p.nombre} ${p.apellido}`));
     const rookies = generarRookies({ temporada, vacantes: despidos.map(d => ({ liga: d.liga })), rng, usados });
-    const deadline = ctx.ahora + MERCADO.diasVentana * 864e5;
+    deadline ||= ctx.ahora + MERCADO.diasVentana * 864e5;
+    ctx.diferir = null;
     const conNombre = (x) => ({ ...x, nombre: nombre(x.pid) });
     const m = {
-        temporada, estado: 'abierto', abierto: ctx.ahora, deadline,
+        temporada, estado: 'abierto', abierto: ctx.ahora, deadline, pendientes,
         plan: { despidos: despidos.map(conNombre), salvados: salvados.map(conNombre) },
         galacticos, ofertas, solicitudes: {}, fichajes: [], fichas, trueques: [], movimientos: [],
         rookies: rookies.map(r => ({ id: r.id, nombre: r.nombre, apellido: r.apellido, nac: r.nac, liga: r.liga, edad: r.edad, estrellas: estrellasRookie(r.attrs, rng) })),
@@ -118,7 +123,7 @@ export async function abrirMercado(ctx, { tablas }) {
         else if (!ocupados.has(id))
             notificar(ctx, id, { remitente: 'Mercado', tipo: 'mercado', titulo: 'Mercado abierto', texto: `Tu alineación no tiene movimientos previstos. Si quieres cambiar un piloto, pide una ficha de fichaje en Mercado y haz un trueque con otra escudería que también la tenga (hasta el ${fin}).` });
     }
-    noticia(ctx, { titulo: 'Se abre el mercado de fin de temporada', texto: `Tres días de fichajes: ${galacticos.length} Galácticos, ${despidos.length} vacantes y trueques entre escuderías. Cierra el ${fin}.`, tipo: 'fase' });
+    noticia(ctx, { titulo: 'Se abre el mercado de fin de temporada', texto: `Se abre con el Mundial y los cambios se aplican cuando termine. En juego: ${galacticos.length} Galácticos, ${despidos.length} vacantes y trueques entre escuderías. Cierra el ${fin}.`, tipo: 'fase' });
     ctx.nota(`Mercado abierto: ${galacticos.map(g => g.nombre).join(', ')}`);
     return m;
 }
@@ -126,19 +131,48 @@ export async function abrirMercado(ctx, { tablas }) {
 // ======================================================================
 // Acciones de los mánagers durante la ventana
 // ======================================================================
+export const mundialEnJuego = (ctx) => ctx.cfg.fase === 'mundial';
+// Parrilla tal y como quedará: la real, o (durante el Mundial) una copia con los cambios pendientes aplicados
+function parrilla(ctx, real, m) {
+    ctx.diferir = null;
+    if (!mundialEnJuego(ctx)) return real;
+    const pil = structuredClone(real);
+    for (const c of m.pendientes || []) if (pil[c.pid]) { pil[c.pid].equipoId = c.eq; pil[c.pid].liga = c.eq ? ctx.equipos[c.eq]?.liga : null; }
+    ctx.diferir = (m.pendientes ||= []);
+    return pil;
+}
 async function cargar(ctx) {
     const m = await ctx.store.get(refMercado(ctx.cfg.temporada));
-    if (ctx.cfg.fase !== 'mercado' || !m || m.estado !== 'abierto') throw new Error('El mercado no está abierto.');
+    if (!['mundial', 'mercado'].includes(ctx.cfg.fase) || !m || m.estado !== 'abierto') throw new Error('El mercado no está abierto.');
     if (m.deadline <= ctx.ahora) throw new Error('El mercado ya ha cerrado.');
-    const pil = await cargarPilotos(ctx);
+    const real = await cargarPilotos(ctx);
     await cargarEquipos(ctx); await cargarPrivs(ctx);
+    const pp = await cargarPilotosPriv(ctx, Object.keys(real));
+    return { m, pil: parrilla(ctx, real, m), pp };
+}
+
+// Al terminar el Mundial: se aplican los cambios que se acordaron mientras se jugaba
+export async function aplicarPendientes(ctx) {
+    const m = await ctx.store.get(refMercado(ctx.cfg.temporada));
+    if (!m?.pendientes?.length) return 0;
+    const pil = await cargarPilotos(ctx);
+    await cargarEquipos(ctx);
     const pp = await cargarPilotosPriv(ctx, Object.keys(pil));
-    return { m, pil, pp };
+    ctx.diferir = null;
+    for (const c of m.pendientes) if (pil[c.pid]) mover(ctx, pil, pp, c.pid, c.eq);
+    const n = m.pendientes.length;
+    await ctx.store.merge(refMercado(ctx.cfg.temporada), { pendientes: [] });
+    ctx.nota(`Mercado: aplicados ${n} cambios acordados durante el Mundial`);
+    return n;
 }
 const guardar = (ctx, m) => ctx.store.set(refMercado(ctx.cfg.temporada), m);
 const priv = (ctx, eq) => { const p = ctx.privs[eq]; if (!p) throw new Error('Escudería sin datos'); ctx.sucios.privs.add(eq); return p; };
 const esTop = (m, eq) => (m.posiciones?.equipos?.[eq] || 99) <= MERCADO.topComprador;
 const recibeGalactico = (m, eq) => m.galacticos.some(g => g.destino?.eq === eq);
+
+// Un Galáctico pendiente no puede entrar en ninguna otra operación (ni como segundo piloto de nadie)
+const galacticoPendiente = (m, pid) => (m.galacticos || []).some(g => g.pid === pid && g.estado === 'pendiente');
+const tacticoSeguro = (m, pil, eq, liga) => tacticoDe(activos(pil).filter(p => !galacticoPendiente(m, p.id)), eq, liga);
 
 function comprobarCuota(ctx, pil, cambios) {
     const r = cuotaTrasCambios(activos(pil), ctx.equipos, cambios);
@@ -148,7 +182,7 @@ function comprobarCuota(ctx, pil, cambios) {
 // Intercambio Galáctico ↔ segundo piloto del comprador y dinero
 function ejecutarGalactico(ctx, m, pil, pp, g, { eq, importe, via, cobra }) {
     const liga = ctx.equipos[eq].liga;
-    const t = tacticoDe(activos(pil), eq, liga);
+    const t = tacticoSeguro(m, pil, eq, liga);
     const cambios = [{ pid: g.pid, eq }, ...(t ? [{ pid: t.id, eq: g.eq }] : [])];
     const r = cuotaTrasCambios(activos(pil), ctx.equipos, cambios);
     if (!r.ok) return r;
@@ -218,7 +252,7 @@ export const ACCIONES_MERCADO = {
         const importe = Math.round(+a.params?.importe || 0);
         if (importe < MERCADO.importeMinimo) throw new Error(`La oferta mínima es de ${M(MERCADO.importeMinimo)}.`);
         if ((priv(ctx, eq).presupuesto || 0) < importe) throw new Error('No tienes ese dinero.');
-        const t = tacticoDe(activos(pil), eq, ctx.equipos[eq].liga);
+        const t = tacticoSeguro(m, pil, eq, ctx.equipos[eq].liga);
         comprobarCuota(ctx, pil, [{ pid: g.pid, eq }, ...(t ? [{ pid: t.id, eq: g.eq }] : [])]);
         m.ofertas.forEach(o => { if (o.eq === eq && o.pid === g.pid && o.estado === 'pendiente') o.estado = 'anulada'; });
         m.ofertas.push({ id: `o${m.ofertas.length}_${ctx.ahora % 1e6}`, pid: g.pid, eq, importe, estado: 'pendiente', fecha: ctx.ahora });
@@ -331,6 +365,7 @@ export const ACCIONES_MERCADO = {
         if (!m.fichas[conEq] || conEq === eq) throw new Error('Esa escudería no tiene ficha de fichaje.');
         const da = pil[a.params?.da], recibe = pil[a.params?.recibe];
         if (da?.equipoId !== eq || recibe?.equipoId !== conEq) throw new Error('Pilotos no válidos.');
+        if (galacticoPendiente(m, da.id) || galacticoPendiente(m, recibe.id)) throw new Error('Un Galáctico en venta no puede entrar en un trueque.');
         comprobarCuota(ctx, pil, [{ pid: da.id, eq: conEq }, { pid: recibe.id, eq }]);
         const tr = { id: `t${m.trueques.length}_${ctx.ahora % 1e6}`, eq, conEq, da: da.id, recibe: recibe.id, nombreDa: nombrePiloto(da), nombreRecibe: nombrePiloto(recibe), estado: 'pendiente', fecha: ctx.ahora };
         m.trueques.push(tr);
@@ -371,6 +406,8 @@ export const ACCIONES_MERCADO = {
 export async function cerrarMercado(ctx) {
     const { store } = ctx;
     const temporada = ctx.cfg.temporada;
+    ctx.diferir = null;
+    await aplicarPendientes(ctx);
     const m = await store.get(refMercado(temporada));
     if (!m || m.estado === 'cerrado') return;
     const mp = await store.get(`mercado_priv/T${temporada}`);
@@ -383,6 +420,7 @@ export async function cerrarMercado(ctx) {
     // 1. Galácticos pendientes
     const dinero = (eq) => ctx.privs[eq]?.presupuesto || 0;
     for (const g of m.galacticos.filter(x => x.estado === 'pendiente')) {
+        if (pil[g.pid]?.equipoId !== g.eq) { g.estado = 'se_queda'; continue; }
         const otraLiga = (eq) => ctx.equipos[eq] && ctx.equipos[eq].liga !== g.liga && !recibeGalactico(m, eq) && eq !== g.eq;
         const intentos = [];
         if (rng.chance(MERCADO.probSuerte)) {

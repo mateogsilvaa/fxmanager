@@ -64,7 +64,7 @@ ${seccion('mundial', 'El Mundial', `
 </ul>`)}
 
 ${seccion('mercado', 'El mercado', `
-<p>Al terminar el Mundial se abre el mercado durante <b>${MERCADO.diasVentana} días</b>. Todo se hace desde la página de Mercado y cada operación se ve en directo. Ningún movimiento puede dejar una liga por debajo del <b>55% de pilotos locales</b> ni a una escudería sin piloto local.</p>
+<p>El mercado <b>abre al empezar el Mundial y cierra 2 días después de que termine</b>. Lo que se cierre mientras se juega el Mundial se aplica en cuanto acaba, para que nadie cambie de equipo a mitad de competición. Todo se hace desde la página de Mercado y cada operación se ve en directo. Ningún movimiento puede dejar una liga por debajo del <b>55% de pilotos locales</b> ni a una escudería sin piloto local.</p>
 <p><b>Los Galácticos (uno por liga).</b> Cada liga cede a uno de sus mejores pilotos (del top 5) a otra liga. Solo puede salir un piloto cuyo compañero sea local, para que su escudería conserve a su Piloto 1.</p>
 <ul>
 <li><b>Si te quitan a tu Galáctico</b> tienes dos opciones: aceptar una oferta de otra escudería (cobras lo que ofrece y recibes a su segundo piloto) o dejar que decida la liga (cobras la compensación de la liga, ${dinero(MERCADO.compensacionLiga)}, y recibes al segundo piloto de quien se lo lleve).</li>
@@ -72,6 +72,7 @@ ${seccion('mercado', 'El mercado', `
 <li><b>Si decide la liga</b> (al cerrar el mercado), mira primero las ofertas, luego las solicitudes de traspaso (si te toca, se te cobra lo que dijiste) y luego a las escuderías de la IA. Muy de vez en cuando se lo da por sorpresa a otra escudería; si no lo había pedido, paga solo un precio simbólico de ${dinero(MERCADO.precioSimbolico)}.</li>
 </ul>
 <p><b>Vacantes.</b> Si te despiden a un piloto, durante el mercado puedes fichar a uno de otra escudería (de cualquier liga) haciendo una oferta (mínimo ${dinero(MERCADO.fichajeMinimo)}). Una escudería de la IA vende si le pagas lo que vale el piloto; un mánager decide él. Quien vende se queda con una vacante. Si al cerrar no la has cubierto, la liga te asigna un rookie (puedes ordenar a tus favoritos; eligen antes las peor clasificadas).</p>
+<p><b>Despido de mánagers.</b> Al terminar el Mundial, el consejo de cada escudería echa al mánager que lo ha hecho muy mal (rating por debajo de 30, casi siempre el último de su liga). Vale para la IA y para las personas: si te despiden, pierdes la escudería y puedes elegir otra libre.</p>
 <p><b>Fichas de fichaje y trueques.</b> Si tu alineación no tiene movimientos previstos, puedes pedir una ficha de fichaje a la liga. Con ella propones un cambio de piloto por piloto a otra escudería que también tenga ficha. La IA acepta si no sale perdiendo.</p>`)}
 
 ${seccion('despidos', 'Despidos', `

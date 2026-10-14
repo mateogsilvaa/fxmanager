@@ -19,7 +19,7 @@ let [m, docOfertas] = await Promise.all([
 const miEq = u?.perfil?.equipoId;
 
 main.innerHTML = `
-<div class="cabecera-pagina"><div><div class="etiqueta">Temporada ${d.temporada}</div><h1>Mercado</h1><p class="sub">Tres días de fichajes al acabar el Mundial: Galácticos, vacantes y trueques. Siempre con al menos un 55% de pilotos locales en cada liga.</p></div>
+<div class="cabecera-pagina"><div><div class="etiqueta">Temporada ${d.temporada}</div><h1>Mercado</h1><p class="sub">Abre al empezar el Mundial y cierra 2 días después de que termine: Galácticos, vacantes y trueques. Siempre con al menos un 55% de pilotos locales en cada liga.</p></div>
 <a class="btn btn-sec btn-peq" href="reglamento.html#mercado">Cómo funciona</a></div>
 <div id="cuerpo"></div>`;
 const cuerpo = $('#cuerpo');
@@ -52,7 +52,7 @@ function temporadaEnCurso() {
     const riesgo = LIGAS_NACIONALES.flatMap(l => d.sesionesLiga(l).length
         ? calcularRiesgo(d.tabla(l), d.pilotosLiga(l), { inmunes }).filter(x => x.zona === 'despido' || x.zona === 'peligro').map(x => ({ ...x, liga: l })) : []);
     cuerpo.innerHTML = `
-    <div class="aviso-caja" style="margin-bottom:30px">El mercado abre al terminar el Mundial y dura ${MERCADO.diasVentana} días. Esto es lo que pasaría si la temporada acabara hoy.</div>
+    <div class="aviso-caja" style="margin-bottom:30px">El mercado abre al empezar el Mundial y cierra 2 días después de que termine. Esto es lo que pasaría si la temporada acabara hoy.</div>
     <div class="rejilla rejilla-lado">
       <div class="pila">
         <section class="tarjeta"><div class="tarjeta-titulo"><h2>Candidatos a Galáctico</h2><span>top 5 elegible</span></div>
@@ -83,6 +83,7 @@ function mercadoReal() {
     cuerpo.innerHTML = `
     ${abierto ? `<div class="aviso-caja mercado-reloj"><span>El mercado cierra en <b data-cuenta="${m.deadline}"></b></span><span class="muted peq">${fecha(m.deadline)}</span></div>`
         : '<div class="info-caja" style="margin-bottom:30px">Mercado cerrado. Así quedan las parrillas para la próxima temporada.</div>'}
+    ${abierto && d.cfg.fase === 'mundial' ? '<div class="info-caja" style="margin-bottom:24px">El Mundial se está jugando: lo que se cierre ahora se aplica en cuanto termine, para que nadie cambie de equipo a mitad de competición.</div>' : ''}
     ${abierto && miEq ? `<div id="mi-mercado"></div>` : ''}
     <section class="tarjeta" style="margin-bottom:36px"><div class="tarjeta-titulo"><h2>Galácticos</h2><span>uno por liga</span></div>
       ${G.length ? `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Liga</th><th>Galáctico</th><th class="ancho">Escudería</th><th class="cen ancho">Ofertas</th><th>Destino</th></tr></thead><tbody>
@@ -141,7 +142,7 @@ function miMercado(el) {
         bloques.push(`<section class="tarjeta tarjeta-acento"><div class="tarjeta-titulo"><h2>Tu Galáctico: ${esc(miG.nombre)}</h2><span>${ofs.length} oferta${ofs.length === 1 ? '' : 's'}</span></div>
           <p class="muted">Se va a otra liga. Acepta una oferta (cobras lo que ofrecen y recibes a su segundo piloto) o deja que decida la liga (cobras ${dinero(MERCADO.compensacionLiga)} y recibes al segundo piloto de quien se lo lleve).</p>
           ${ofs.length ? `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Escudería</th><th>Te llega</th><th class="der">Oferta</th><th></th></tr></thead><tbody>
-          ${ofs.map(o => { const t = tacticoDe(Object.entries(d.cat.pilotos).map(([id, p]) => ({ id, ...p })), o.eq, d.equipo(o.eq)?.liga); return `<tr><td><span class="con-bandera">${banderaLiga(d.equipo(o.eq)?.liga, { ancho: 16 })}${celdaEquipo(d, o.eq)}</span></td><td>${t ? celdaPiloto(d, t.id) : '<span class="muted">Nadie</span>'}</td><td class="pts">${dinero(o.importe)}</td><td class="der"><button class="btn btn-peq" data-aceptar="${esc(o.id)}">Aceptar</button></td></tr>`; }).join('')}
+          ${ofs.map(o => { const t = tacticoDe(Object.entries(d.cat.pilotos).map(([id, p]) => ({ id, ...p })).filter(p => !(m.galacticos || []).some(g => g.pid === p.id && g.estado === 'pendiente')), o.eq, d.equipo(o.eq)?.liga); return `<tr><td><span class="con-bandera">${banderaLiga(d.equipo(o.eq)?.liga, { ancho: 16 })}${celdaEquipo(d, o.eq)}</span></td><td>${t ? celdaPiloto(d, t.id) : '<span class="muted">Nadie</span>'}</td><td class="pts">${dinero(o.importe)}</td><td class="der"><button class="btn btn-peq" data-aceptar="${esc(o.id)}">Aceptar</button></td></tr>`; }).join('')}
           </tbody></table></div>` : '<p class="muted">Todavía nadie ha pujado. Las ofertas llegan de las 3 mejores escuderías de las otras ligas.</p>'}
           <div class="fila-botones">${miG.decision === 'liga' ? '<span class="muted peq">Has dejado que decida la liga.</span><button class="btn btn-sec btn-peq" data-liga="0">Me lo pienso</button>' : '<button class="btn btn-sec" data-liga="1">Que decida la liga</button>'}</div></section>`);
     }
@@ -176,7 +177,7 @@ function miMercado(el) {
         const disp = (m.galacticos || []).filter(g => g.estado === 'pendiente' && g.liga !== liga);
         const mias = (m.ofertas || []).filter(o => o.eq === miEq);
         const sol = m.solicitudes?.[miEq];
-        const t = tacticoDe(suyos, miEq, liga);
+        const t = tacticoDe(suyos.filter(p => !(m.galacticos || []).some(g => g.pid === p.id && g.estado === 'pendiente')), miEq, liga);
         bloques.push(`<section class="tarjeta"><div class="tarjeta-titulo"><h2>Ficha un Galáctico</h2><span>${posEq}º de tu liga</span></div>
           <p class="muted">A cambio se va tu segundo piloto${t ? `: <b>${esc(t.nombre)} ${esc(t.apellido)}</b>` : ''}. Las ofertas tienen prioridad; si la liga decide, también mira las solicitudes de traspaso.</p>
           ${disp.length ? `<form id="f-galactico" class="campo-fila"><label>Galáctico<select name="pid">${disp.map(g => `<option value="${esc(g.pid)}">${esc(g.nombre)} · ${esc(LIGAS[g.liga].nombre)} (${g.pos}º)</option>`).join('')}</select></label><label>Oferta (€)<input name="importe" type="number" min="${MERCADO.importeMinimo}" step="100000" value="${MERCADO.importeMinimo * 2}"></label></form>

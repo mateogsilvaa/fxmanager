@@ -40,7 +40,7 @@ main.innerHTML = `
   <div class="pila">
     <div class="tarjeta"><div class="datos">
       ${dato(miPos ? `${miPos}º` : '—', 'Posición')}${dato(st?.pts ?? 0, 'Puntos')}${dato(st?.victorias ?? 0, 'Victorias')}${dato(st?.dobletes ?? 0, 'Dobletes')}
-      ${dato(st?.podios ?? 0, 'Podios')}${dato(st?.poles ?? 0, 'Poles')}${dato(st?.dnf ?? 0, 'Abandonos')}${dato(st?.eficacia ?? '—', 'Eficacia media')}
+      ${dato(st?.podios ?? 0, 'Podios')}${dato(st?.poles ?? 0, 'Poles')}${dato(st?.dnf ?? 0, 'Abandonos')}${dato(st?.grandSlams || 0, 'Grand Slams')}${dato(st?.quietSlams || 0, 'Quiet Slams')}
     </div></div>
     <div class="rejilla rejilla-2">${pilotos.map(p => {
         const s = d.tabla(liga).pilotos[p.id];

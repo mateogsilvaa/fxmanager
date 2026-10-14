@@ -22,7 +22,7 @@ import { nombreManagerIA, noticiaManagerIA, conIA } from '../engine/prensa-ia.js
 import { noticiaAmbiente, rumorMejora } from '../engine/ambiente.js';
 import { vidaNeumaticos, mejorEstrategia, precisionLibres, estimarVidas, textoPrecision, COMPUESTOS } from '../engine/neumaticos.js';
 import { reconstruirCatalogo } from './catalogo.js';
-import { prepararMercado, cerrarMercado } from './temporada.js';
+import { prepararMercado, cerrarMercado, abrirMercadoTemporada } from './temporada.js';
 import { ACCIONES_MERCADO } from './mercado.js';
 import { noticiasSesion, previaJornada } from '../engine/cronica.js';
 import { MERCADO } from '../engine/mercado.js';
@@ -984,7 +984,7 @@ const ACCIONES = {
 
     // Oferta por un Galáctico de otra liga: {pid, tactico, importe} o {cancelar: true}
     async galactico_oferta(ctx, a) {
-        if (!['pretemporada', 'nacional', 'mundial'].includes(ctx.cfg.fase)) throw new Error('El plazo de ofertas está cerrado.');
+        if (!['pretemporada', 'nacional'].includes(ctx.cfg.fase)) throw new Error('El mercado ya está abierto: haz tu oferta desde la página de Mercado.');
         const ref = `mercado_ofertas/T${ctx.temporada}`;
         const doc = (await ctx.store.get(ref)) || { ofertas: {} };
         const ofertas = { ...(doc.ofertas || {}) };
@@ -1416,10 +1416,40 @@ async function diario(ctx) {
     viejos.forEach(l => ctx.ops.push({ op: 'del', path: `logs/${l.id}` }));
     const accViejas = (await ctx.store.list('acciones', [['creado', '<', ctx.ahora - 14 * 864e5]], { limit: 400 })).filter(a => a.estado !== 'pendiente');
     accViejas.forEach(a => ctx.ops.push({ op: 'del', path: `acciones/${a.id}` }));
+    await caprichosIA(ctx, dia);
     ctx.cfg.ultimoDiario = dia;
     await ctx.store.merge('config/juego', { ultimoDiario: dia });
     ctx.catalogoSucio = true;
     ctx.nota(`Tareas diarias ${dia}`);
+}
+
+// Escuderías de la IA: muy de vez en cuando (0,1% al día) cambian de colores o de nombre, o compran una filial.
+// Solo cuando se puede cambiar la imagen (pretemporada y fin de temporada). Usan las mismas reglas y precios.
+const PROB_CAPRICHO_IA = 0.001;
+const SUFIJOS_IA = ['Motorsport Team', 'Racing Team', 'Engineering', 'Competición', 'Motorsport', 'Racing', 'Corse', 'Team'];
+const COLORES_IA = ['#d7263d', '#1b998b', '#2e86ab', '#f46036', '#6a4c93', '#ff9f1c', '#2ec4b6', '#011627', '#8ac926', '#ffca3a', '#1982c4', '#6d597a', '#3a86ff', '#fb5607'];
+async function caprichosIA(ctx, dia) {
+    if (!identidadAbierta(ctx.cfg.fase)) return;
+    const quitarSufijo = new RegExp(`\\s+(${SUFIJOS_IA.join('|')})$`, 'i');
+    for (const [eqId, eq] of Object.entries(ctx.equipos)) {
+        if (duenoReal(ctx, eqId) || eq.filialDe || !ctx.privs[eqId]) continue;
+        const rng = crearRng(`${ctx.secreto}|capricho|${dia}|${eqId}`);
+        if (!rng.chance(PROB_CAPRICHO_IA)) continue;
+        const tipo = rng.weighted(['color', 'nombre', 'filial'], t => ({ color: 5, nombre: 4, filial: 1 })[t]);
+        const a = { equipoId: eqId, params: {} };
+        if (tipo === 'color') a.params.color = rng.pick(COLORES_IA.filter(c => c !== (eq.color || '').toLowerCase()));
+        else if (tipo === 'nombre') {
+            const nuevo = `${eq.nombre.replace(quitarSufijo, '').trim()} ${rng.pick(SUFIJOS_IA)}`;
+            if (nuevo === eq.nombre) continue;
+            a.params.nombre = nuevo;
+        } else {
+            const cands = Object.entries(ctx.equipos).filter(([id, e]) => e.liga !== eq.liga && !e.ownerId && !e.grupo && !e.filialDe && ctx.sombra?.equipoId !== id);
+            if (!cands.length) continue;
+            a.params.equipoId = rng.pick(cands)[0];
+        }
+        try { await ACCIONES[tipo === 'filial' ? 'comprar_filial' : 'identidad'](ctx, a); ctx.nota(`Capricho de la IA: ${eq.nombre} (${tipo})`); }
+        catch (e) { ctx.nota(`Capricho de la IA descartado (${eq.nombre}): ${e.message}`); }
+    }
 }
 
 // ======================================================================
@@ -1459,6 +1489,8 @@ async function transicionesFase(ctx) {
         await ctx.store.merge('config/juego', { fase: 'mundial', mundial });
         ctx.cfg.fase = 'mundial';
         ctx.cfg.mundial = mundial;
+        // El mercado abre a la vez que el Mundial (los cambios se aplican cuando termine)
+        await abrirMercadoTemporada(ctx);
         const campeones = LIGAS_NACIONALES.map(l => tablas[l].clasPilotos[0]).filter(Boolean);
         noticia(ctx, {
             titulo: 'Terminan las ligas nacionales: estos son los 20 del Mundial',

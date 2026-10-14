@@ -37,11 +37,11 @@ const pintar = () => {
     if (!pil.length) { cuerpo.innerHTML = vacio('Aún no hay datos para estas estadísticas.'); return; }
     const titulo = `${l === 'TODAS' ? 'Todas las ligas nacionales' : LIGAS[l].nombre} · ${modo === 'historico' ? 'histórico' : `temporada ${d.temporada}`}`;
     const lider = ranking(CATEGORIAS_PILOTO[0], pil)[0];
-    const eficaz = ranking(CATEGORIAS_PILOTO.find(c => c.id === 'eficacia'), pil)[0];
+    const slams = pil.reduce((n, p) => n + (p.grandSlams || 0) + (p.quietSlams || 0), 0);
     cuerpo.innerHTML = `
     <div class="rejilla rejilla-4" style="margin-bottom:16px">
       ${destacado('Más puntos', lider && d.nombre(lider.x.pid), lider?.v)}
-      ${destacado('Más eficaz', eficaz && d.nombre(eficaz.x.pid), eficaz ? eficaz.v + '/100' : '')}
+      ${destacado('Slams', 'Grand + Quiet', slams)}
       ${destacado('Sesiones disputadas', '', sesionesSel.length)}
       ${destacado('Adelantamientos', '', pil.reduce((s, p) => s + (p.adel || 0), 0))}
     </div>
@@ -49,7 +49,7 @@ const pintar = () => {
     <h2 style="margin-top:24px">Pilotos · el lado oscuro</h2><div class="rejilla rejilla-auto" id="rp2">${tarjetasRecords(d, CATEGORIAS_PILOTO.filter(c => !c.bueno), pil)}</div>
     <h2 style="margin-top:24px">Escuderías · lo mejor</h2><div class="rejilla rejilla-auto" id="re1">${tarjetasRecords(d, CATEGORIAS_EQUIPO.filter(c => c.bueno), eqs, { tipo: 'equipo' })}</div>
     <h2 style="margin-top:24px">Escuderías · el lado oscuro</h2><div class="rejilla rejilla-auto" id="re2">${tarjetasRecords(d, CATEGORIAS_EQUIPO.filter(c => !c.bueno), eqs, { tipo: 'equipo' })}</div>
-    <p class="muted" style="margin-top:16px;font-size:.85rem">La eficacia mide la regularidad vuelta a vuelta en carrera: 100 significa rodar siempre en el mismo tiempo; errores y altibajos la bajan.</p>`;
+    <p class="muted" style="margin-top:16px;font-size:.85rem">Quiet Slam: en una jornada, las 2 poles y las 3 victorias. Grand Slam: además, la vuelta rápida en las 3 carreras.</p>`;
     activarRecords($('#rp1'), d, CATEGORIAS_PILOTO, pil, { titulo });
     activarRecords($('#rp2'), d, CATEGORIAS_PILOTO, pil, { titulo });
     activarRecords($('#re1'), d, CATEGORIAS_EQUIPO, eqs, { tipo: 'equipo', titulo });

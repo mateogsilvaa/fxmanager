@@ -60,7 +60,7 @@ main.innerHTML = `
     <div class="tarjeta"><div class="datos">
       ${dato(miPos ? `${miPos}º` : '—', 'Posición')}${dato(st?.pts ?? 0, 'Puntos')}${dato(st?.victorias ?? 0, 'Victorias')}${dato(st?.podios ?? 0, 'Podios')}
       ${dato(st?.poles ?? 0, 'Poles')}${dato(st?.vr ?? 0, 'Vueltas rápidas')}${dato(st?.dnf ?? 0, 'Abandonos')}${dato(st?.mediaPos != null ? fmtValor(st.mediaPos) : '—', 'Media llegada')}
-      ${dato(st?.eficacia ?? '—', 'Eficacia')}${dato(st?.adel ?? 0, 'Adelantamientos')}${dato(st?.posGanadas ?? 0, 'Posiciones ganadas')}${dato(st?.lideradas ?? 0, 'Vueltas lideradas')}
+      ${dato(st?.grandSlams || 0, 'Grand Slams')}${dato(st?.quietSlams || 0, 'Quiet Slams')}${dato(st?.adel ?? 0, 'Adelantamientos')}${dato(st?.posGanadas ?? 0, 'Posiciones ganadas')}${dato(st?.lideradas ?? 0, 'Vueltas lideradas')}
     </div></div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Resultados de la temporada</h3></div>${tablaResultados()}</div>
     ${stInt ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Liga Intercontinental</h3></div><div class="datos">${dato(stInt.pts, 'Puntos')}${dato(stInt.victorias, 'Victorias')}${dato(stInt.podios, 'Podios')}${dato(stInt.poles, 'Poles')}</div></div>` : ''}

@@ -215,16 +215,16 @@ async function estadisticas() {
 const COLS_P = [
     ['Pts', p => p.pts], ['Carr', p => p.carreras], ['V', p => p.victorias], ['Pod', p => p.podios], ['Pole', p => p.poles], ['VR', p => p.vr],
     ['DNF', p => p.dnf], ['Media', p => p.mediaPos != null ? +p.mediaPos.toFixed(1) : null], ['Parrilla', p => p.mediaParrilla != null ? +p.mediaParrilla.toFixed(1) : null],
-    ['Adel', p => p.adel], ['+Pos', p => p.posGanadas], ['−Pos', p => p.posPerdidas], ['Err', p => p.errores], ['Eficacia', p => p.eficacia], ['H2H', p => p.h2hTotal ? p.h2hTotal.g - p.h2hTotal.p : 0],
+    ['Adel', p => p.adel], ['+Pos', p => p.posGanadas], ['−Pos', p => p.posPerdidas], ['Err', p => p.errores], ['Slams', p => ((p.grandSlams || 0) + (p.quietSlams || 0)) || null], ['H2H', p => p.h2hTotal ? p.h2hTotal.g - p.h2hTotal.p : 0],
 ];
 const COLS_E = [
     ['Pts', e => e.pts], ['V', e => e.victorias], ['Pod', e => e.podios], ['Dobl', e => e.dobletes], ['Pole', e => e.poles], ['VR', e => e.vr], ['DNF', e => e.dnf],
-    ['Media', e => e.mediaPos != null ? +e.mediaPos.toFixed(1) : null], ['Adel', e => e.adel], ['Err', e => e.errores], ['Eficacia', e => e.eficacia], ['Mejor finde', e => e.mejorFinde],
+    ['Media', e => e.mediaPos != null ? +e.mediaPos.toFixed(1) : null], ['Adel', e => e.adel], ['Err', e => e.errores], ['Slams', e => ((e.grandSlams || 0) + (e.quietSlams || 0)) || null], ['Mejor finde', e => e.mejorFinde],
 ];
 function tablaOrdenablePilotos(lista) {
     return `<div class="tabla-scroll"><table class="tabla ordenable"><thead><tr><th>Piloto</th>${COLS_P.map(([n], i) => `<th class="cen" data-col="${i + 1}" style="cursor:pointer">${n}</th>`).join('')}</tr></thead><tbody>
     ${lista.sort((a, b) => b.pts - a.pts).map(p => `<tr><td data-v="${esc(d.apellido(p.pid))}">${celdaPiloto(d, p.pid)}</td>${COLS_P.map(([, f]) => { const v = f(p); return `<td class="cen num" data-v="${v ?? ''}">${v == null ? '—' : fmtValor(v)}</td>`; }).join('')}</tr>`).join('')}
-    </tbody></table></div><p class="muted" style="font-size:.8rem;margin-top:8px">Pulsa una columna para ordenar. Eficacia = regularidad vuelta a vuelta (100 = todas las vueltas casi iguales). H2H = duelos ganados menos perdidos contra el compañero.</p>`;
+    </tbody></table></div><p class="muted" style="font-size:.8rem;margin-top:8px">Pulsa una columna para ordenar. Slams = jornadas con las 2 poles y las 3 victorias (Grand Slam si además hace las 3 vueltas rápidas).</p>`;
 }
 function tablaOrdenableEquipos(lista) {
     return `<div class="tabla-scroll"><table class="tabla ordenable"><thead><tr><th>Escudería</th>${COLS_E.map(([n], i) => `<th class="cen" data-col="${i + 1}" style="cursor:pointer">${n}</th>`).join('')}</tr></thead><tbody>

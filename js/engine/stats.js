@@ -139,6 +139,28 @@ export function construirTemporada(sesiones, { companeros = {} } = {}) {
         }
     }
 
+    // Slams por jornada completa (2 clasificaciones y 3 carreras):
+    //   Quiet Slam = todas las poles y todas las victorias · Grand Slam = además la vuelta rápida en las 3 carreras
+    const tiposEv = {};
+    for (const s of ordenadas) (tiposEv[s.ev] ||= new Set()).add(s.tipo);
+    for (const p of Object.values(P)) {
+        p.grandSlams = 0; p.quietSlams = 0;
+        const porEv = {};
+        for (const h of p.historial) (porEv[h.ev] ||= []).push(h);
+        for (const [ev, hs] of Object.entries(porEv)) {
+            const tipos = [...(tiposEv[ev] || [])];
+            const qs = tipos.filter(esQualy), cs = tipos.filter(esCarrera);
+            if (qs.length < 2 || cs.length < 3) continue;
+            const de = (t) => hs.find(h => h.tipo === t);
+            if (!qs.every(t => de(t)?.pos === 1 && de(t)?.estado !== 'SIN TIEMPO')) continue;
+            if (!cs.every(t => de(t)?.pos === 1 && de(t)?.estado === 'FIN')) continue;
+            const grand = cs.every(t => de(t)?.vr);
+            if (grand) p.grandSlams++; else p.quietSlams++;
+            const e = E[p.eq];
+            if (e) { e.grandSlams = (e.grandSlams || 0) + (grand ? 1 : 0); e.quietSlams = (e.quietSlams || 0) + (grand ? 0 : 1); }
+        }
+    }
+
     const pilotos = Object.values(P).map(p => finalizarPiloto(p));
     const equipos = Object.values(E).map(e => ({
         ...e,
@@ -190,7 +212,8 @@ export const CATEGORIAS_PILOTO = [
     { id: 'posGanadas', nombre: 'Posiciones ganadas', v: p => p.posGanadas, bueno: true },
     { id: 'mejorRemontada', nombre: 'Mayor remontada en una carrera', v: p => p.mejorRemontada, bueno: true },
     { id: 'lideradas', nombre: 'Vueltas lideradas', v: p => p.lideradas, bueno: true },
-    { id: 'eficacia', nombre: 'Eficacia en carrera', v: p => p.eficacia, bueno: true, sufijo: '/100', desc: 'Regularidad vuelta a vuelta: 100 = todas las vueltas casi idénticas.' },
+    { id: 'grandSlams', nombre: 'Grand Slams', v: p => p.grandSlams || 0, bueno: true, desc: 'Jornadas con las 2 poles, las 3 victorias y la vuelta rápida en las 3 carreras.' },
+    { id: 'quietSlams', nombre: 'Quiet Slams', v: p => p.quietSlams || 0, bueno: true, desc: 'Jornadas con las 2 poles y las 3 victorias, sin todas las vueltas rápidas.' },
     { id: 'mediaPos', nombre: 'Mejor media de llegada', v: p => r1(p.mediaPos), bueno: true, asc: true },
     { id: 'mediaQualy', nombre: 'Mejor media en clasificación', v: p => r1(p.mediaQualy), bueno: true, asc: true },
     { id: 'lluviaPts', nombre: 'Puntos bajo la lluvia', v: p => p.lluviaPts, bueno: true },
@@ -203,7 +226,6 @@ export const CATEGORIAS_PILOTO = [
     { id: 'maxRachaSinPuntos', nombre: 'Racha más larga sin puntuar', v: p => p.maxRachaSinPuntos, bueno: false },
     { id: 'h2hPerdidos', nombre: 'Duelos perdidos contra su compañero', v: p => p.h2hTotal.p, bueno: false },
     { id: 'sinTiempo', nombre: 'Clasificaciones sin tiempo', v: p => p.sinTiempo, bueno: false },
-    { id: 'eficaciaPeor', nombre: 'Menor eficacia en carrera', v: p => p.eficacia, bueno: false, asc: true, sufijo: '/100' },
     { id: 'mediaPosPeor', nombre: 'Peor media de llegada', v: p => r1(p.mediaPos), bueno: false },
 ];
 
@@ -218,11 +240,11 @@ export const CATEGORIAS_EQUIPO = [
     { id: 'ptsQualy', nombre: 'Puntos en clasificación', v: e => e.ptsQualy, bueno: true },
     { id: 'adel', nombre: 'Adelantamientos', v: e => e.adel, bueno: true },
     { id: 'lideradas', nombre: 'Vueltas lideradas', v: e => e.lideradas, bueno: true },
-    { id: 'eficacia', nombre: 'Eficacia media en carrera', v: e => e.eficacia, bueno: true, sufijo: '/100' },
+    { id: 'grandSlams', nombre: 'Grand Slams', v: e => e.grandSlams || 0, bueno: true },
+    { id: 'quietSlams', nombre: 'Quiet Slams', v: e => e.quietSlams || 0, bueno: true },
     { id: 'mediaPos', nombre: 'Mejor media de llegada', v: e => r1(e.mediaPos), bueno: true, asc: true },
     { id: 'dnf', nombre: 'Abandonos', v: e => e.dnf, bueno: false },
     { id: 'errores', nombre: 'Errores de pilotaje', v: e => e.errores, bueno: false },
-    { id: 'eficaciaPeor', nombre: 'Menor eficacia media', v: e => e.eficacia, bueno: false, asc: true, sufijo: '/100' },
     { id: 'mediaPosPeor', nombre: 'Peor media de llegada', v: e => r1(e.mediaPos), bueno: false },
 ];
 

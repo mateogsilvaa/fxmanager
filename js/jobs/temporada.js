@@ -3,10 +3,11 @@ import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL, SESIONES, ECO, INSTALACIONES, esCar
 import { crearRng } from '../engine/rng.js';
 import { atributosAleatorios, salarioPiloto } from '../engine/juego.js';
 import { descompactar, construirTemporada } from '../engine/stats.js';
-import { abrirMercado, cerrarMercado } from './mercado.js';
+import { abrirMercado, cerrarMercado, aplicarPendientes } from './mercado.js';
+import { nombreManagerIA, conIA } from '../engine/prensa-ia.js';
 import { normalizarCircuito } from '../engine/circuitos.js';
 import {
-    crearContexto, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, horarioSesion, noticia, notificar,
+    crearContexto, cargarEventos, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, horarioSesion, noticia, notificar,
     nombrePiloto, volcar, idResumen, sinId, movimiento, duenoReal,
 } from './comun.js';
 import { reconstruirCatalogo } from './catalogo.js';
@@ -166,10 +167,62 @@ export async function prepararMercado(ctx) {
     ofertasDePlaza(ctx, { tablas, equipos, privs, rng: crearRng(`${ctx.secreto}|plaza|${temporada}`) });
     resumenesTemporada(ctx, { tablas, equipos, privs, pilotos: pilotosMap });
     await historialManagers(ctx, { tablas, equipos });
-    await abrirMercado(ctx, { tablas });
+    despidosManagers(ctx, { tablas, equipos });
+    // El mercado se abrió al empezar el Mundial; si no (fase forzada a mano), se abre ahora
+    if (!(await store.get(`mercado/T${temporada}`))) await abrirMercado(ctx, { tablas, deadline: ctx.ahora + 2 * 864e5 });
+    await aplicarPendientes(ctx);
     await store.merge('config/juego', { fase: 'mercado' });
     ctx.cfg.fase = 'mercado';
+    noticia(ctx, { titulo: 'Termina el Mundial: el mercado sigue abierto 2 días', texto: 'Ya se aplican los fichajes cerrados durante el Mundial. Último plazo para traspasos, vacantes y trueques.', tipo: 'fase' });
     await volcar(ctx);
+}
+
+// El mercado abre al empezar el Mundial y cierra 2 días después de la última sesión del Mundial
+export const DIAS_MERCADO_TRAS_MUNDIAL = 2;
+export async function abrirMercadoTemporada(ctx) {
+    const temporada = ctx.cfg.temporada;
+    if (await ctx.store.get(`mercado/T${temporada}`)) return;
+    const tablas = await tablasTemporada(ctx.store, temporada);
+    const eventos = await cargarEventos(ctx, temporada);
+    const finMundial = Math.max(ctx.ahora, ...eventos.filter(e => e.liga === 'INT').flatMap(e => Object.values(e.sesiones || {}).map(s => s.revealAt || 0)));
+    await abrirMercado(ctx, { tablas, deadline: finMundial + DIAS_MERCADO_TRAS_MUNDIAL * 864e5 });
+}
+
+// Mánagers que lo han hecho muy mal (rating por debajo de 30: casi siempre el último de su liga) pierden la escudería.
+// Vale para humanos y para la IA. La escudería del modo sombra no se toca.
+export const RATING_DESPIDO = 30;
+export function despidosManagers(ctx, { tablas, equipos }) {
+    const rng = crearRng(`${ctx.secreto}|despidoManagers|${ctx.cfg.temporada}`);
+    const usados = new Set(Object.values(equipos).map(e => e.managerIA).filter(Boolean));
+    for (const liga of LIGAS_NACIONALES) {
+        const t = tablas[liga];
+        if (!t?.clasEquipos?.length) continue;
+        const clas = t.clasEquipos.slice();
+        for (const [id, e] of Object.entries(equipos)) if (e.liga === liga && !clas.some(x => x.eq === id)) clas.push({ eq: id, pts: 0, victorias: 0, podios: 0 });
+        clas.forEach((e, i) => { e.posicion = i + 1; });
+        const r = ratingsLiga(clas, { fans: Object.fromEntries(clas.map(e => [e.eq, equipos[e.eq]?.fans || 0])) });
+        for (const fila of clas) {
+            const rating = r[fila.eq]?.rating;
+            const eq = equipos[fila.eq];
+            if (rating == null || rating >= RATING_DESPIDO || !eq || ctx.sombra?.equipoId === fila.eq) continue;
+            const pos = `${fila.posicion}º de ${LIGAS[liga].nombre}`;
+            const nuevoIA = nombreManagerIA(rng, liga, usados);
+            usados.add(nuevoIA);
+            if (eq.ownerId) {
+                notificar(ctx, fila.eq, { remitente: 'Consejo de administración', tipo: 'despido', titulo: 'Estás despedido', texto: `El consejo de ${eq.nombre} no está contento: ${pos} y un rating de ${rating}/100. Has perdido la escudería. Puedes elegir otra libre en Mi escudería.` });
+                noticia(ctx, { titulo: `${eq.ownerNombre || 'El mánager'}, despedido de ${eq.nombre}`, texto: `Tras acabar ${pos}, el consejo decide cambiar de rumbo. Le sustituye ${conIA(nuevoIA)}.`, liga, tipo: 'mercado' });
+                ctx.ops.push({ op: 'merge', path: `usuarios/${eq.ownerId}`, data: { equipoId: null, aviso: `Te han despedido de ${eq.nombre} (${pos}, rating ${rating}). Elige otra escudería.` } });
+                ctx.ops.push({ op: 'merge', path: `equipos/${fila.eq}`, data: { ownerId: null, ownerNombre: null, managerIA: nuevoIA } });
+                eq.ownerId = null; eq.ownerNombre = null;
+            } else {
+                noticia(ctx, { titulo: `${eq.nombre} despide a ${conIA(eq.managerIA || 'su mánager')}`, texto: `Tras acabar ${pos}, la escudería apuesta por ${conIA(nuevoIA)}.`, liga, tipo: 'mercado' });
+                ctx.ops.push({ op: 'merge', path: `equipos/${fila.eq}`, data: { managerIA: nuevoIA } });
+            }
+            eq.managerIA = nuevoIA;
+            ctx.catalogoSucio = true;
+            ctx.nota(`Despedido el mánager de ${eq.nombre} (rating ${rating})`);
+        }
+    }
 }
 export { cerrarMercado };
 

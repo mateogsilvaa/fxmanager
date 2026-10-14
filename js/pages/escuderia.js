@@ -438,7 +438,7 @@ function pintarEquipo() {
             : '<p class="muted">Las ofertas llegan con el próximo ciclo.</p>'}
         </div>
         ${mercadoHtml()}
-        ${SOMBRA ? '' : identidadHtml()}
+        ${identidadHtml()}
       </div>
       <div class="tarjeta">
         <div class="tarjeta-titulo"><h2>Movimientos</h2><span class="muted peq">${dinero(priv.presupuesto)}</span></div>
@@ -460,11 +460,11 @@ function mercadoHtml() {
     const mia = docOfertas?.ofertas?.[eqId];
     const recibidas = Object.entries(docOfertas?.ofertas || {}).filter(([, o]) => d.piloto(o.pid)?.equipoId === eqId);
     const { puede, pos } = puedePedirGalactico(d, eqId);
-    const abierto = ['pretemporada', 'nacional', 'mundial'].includes(d.cfg.fase);
+    const abierto = ['pretemporada', 'nacional'].includes(d.cfg.fase);
     const candidatos = LIGAS_NACIONALES.filter(l => l !== liga).flatMap(l => candidatosGalactico(d, l));
     const tacticos = tacticosDisponibles(d, eqId);
     let cuerpo;
-    if (!abierto) cuerpo = d.cfg.fase === 'mercado' ? '<p>El mercado está abierto: ofertas, traspasos y trueques se hacen desde la página de Mercado.</p><div class="fila-botones"><a class="btn" href="mercado.html">Ir al mercado</a></div>' : '<p class="muted">El mercado ya ha cerrado.</p>';
+    if (!abierto) cuerpo = ['mundial', 'mercado'].includes(d.cfg.fase) ? '<p>El mercado está abierto: ofertas, traspasos y trueques se hacen desde la página de Mercado.</p><div class="fila-botones"><a class="btn" href="mercado.html">Ir al mercado</a></div>' : '<p class="muted">El mercado ya ha cerrado.</p>';
     else if (mia) cuerpo = `<p>Has ofrecido <b>${dinero(mia.importe)}</b> y a ${esc(d.nombre(mia.tactico))} por <b>${esc(d.nombre(mia.pid))}</b>.</p>
         <p class="muted peq">Cuenta si al final ${esc(d.apellido(mia.pid))} es el Galáctico de su liga y tu escudería termina entre las ${MERCADO.topComprador} primeras. Su escudería podrá aceptarla en el mercado; si no, la liga da prioridad a las ofertas.</p>
         <div class="fila-botones"><button class="btn btn-peligro btn-peq" id="cancelar-oferta">Retirar oferta</button></div>`;
