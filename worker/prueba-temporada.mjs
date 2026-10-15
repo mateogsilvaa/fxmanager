@@ -240,7 +240,16 @@ console.log('Carreras:', dnfs.length, '· abandonos por carrera', (dnfs.reduce((
 const privAnaN = await store.get('equipos_priv/tramontana');
 console.log('Lectura neumáticos Ana (última):', JSON.stringify(Object.values(privAnaN.neumaticos || {}).at(-1)));
 ok(paradas.length > 0, 'Nadie ha parado en boxes en la Carrera 3');
+const cfgAntes = await store.get('config/juego');
+ok(cfgAntes.inscripcion === false && cfgAntes.inscripcionCerrada === 1, `La inscripción se cierra sola tras la primera jornada (${cfgAntes.inscripcion})`);
+const privsAntes = await store.list('equipos_priv');
+ok(privsAntes.filter(p => (p.finanzas || []).some(f => f.c.startsWith('Bonus clasificación global'))).length >= 25, 'Bonus por la clasificación global al acabar la temporada');
 const palm = await nuevaTemporada(store, { ahora: FIN + D, reglamento: 'si' });
+const cfgDespues = await store.get('config/juego');
+ok(cfgDespues.inscripcion === true, 'La inscripción se reabre con la nueva temporada');
+const privsDespues = await store.list('equipos_priv');
+ok(privsDespues.every(p => p.presupuesto >= 7_000_000), `Nadie empieza con menos de 7 M€ (mínimo ${Math.min(...privsDespues.map(p => p.presupuesto))})`);
+console.log('Presupuestos T2 (mín/máx):', Math.min(...privsDespues.map(p => p.presupuesto)), Math.max(...privsDespues.map(p => p.presupuesto)), '·', privsDespues[0].finanzas.slice(0, 3).map(f => f.c).join(' | '));
 const privAna2 = await store.get('equipos_priv/tramontana');
 console.log('Cambio de reglamento → Ana coche', privAna2.coche, 'inst', privAna2.inst, '| managers', (await store.list('managers')).map(x => `${x.nombre}: ${x.historial.map(h => h.rating).join(',')}`).join(' · '));
 ok(palm.cambioReglamento, 'No se aplicó el cambio de reglamento');

@@ -1,5 +1,5 @@
 // Operaciones de temporada (panel admin y cambios de fase automáticos)
-import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL, SESIONES, ECO, INSTALACIONES, esCarrera } from '../engine/constants.js';
+import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL, SESIONES, ECO, INSTALACIONES, esCarrera, presupuestoNuevaTemporada, bonusGlobal } from '../engine/constants.js';
 import { crearRng } from '../engine/rng.js';
 import { atributosAleatorios, salarioPiloto } from '../engine/juego.js';
 import { descompactar, construirTemporada } from '../engine/stats.js';
@@ -131,6 +131,8 @@ export async function tablasTemporada(store, temporada) {
     const sesiones = doc?.json ? JSON.parse(doc.json).sesiones.map(descompactar) : [];
     const tablas = {};
     for (const liga of [...LIGAS_NACIONALES, 'INT']) tablas[liga] = construirTemporada(sesiones.filter(s => s.liga === liga));
+    // Clasificación global: las cinco ligas nacionales en una sola tabla
+    Object.defineProperty(tablas, 'GLOBAL', { value: construirTemporada(sesiones.filter(s => s.liga !== 'INT')), enumerable: false });
     return tablas;
 }
 
@@ -154,6 +156,14 @@ export async function prepararMercado(ctx) {
             ctx.sucios.privs.add(e.eq);
         });
     }
+    // Bonus por el puesto en la clasificación global de escuderías
+    (tablas.GLOBAL?.clasEquipos || []).forEach((e, i) => {
+        const bonus = bonusGlobal(i + 1);
+        if (!bonus || !privs[e.eq]) return;
+        movimiento(privs[e.eq], `Bonus clasificación global: ${i + 1}º de ${tablas.GLOBAL.clasEquipos.length}`, bonus, ctx.ahora);
+        ctx.sucios.privs.add(e.eq);
+        notificar(ctx, e.eq, { remitente: 'Dirección de la liga', tipo: 'finanzas', titulo: `${i + 1}º en la clasificación global`, texto: `Tu escudería termina ${i + 1}º entre todas las de las cinco ligas. Bonus: ${(bonus / 1e6).toFixed(1).replace('.', ',')} M€.` });
+    });
     // Premios del Mundial
     const int = tablas.INT;
     int.clasEquipos.slice(0, ECO.premiosMundialEscuderias.length).forEach((e, i) => {
@@ -297,7 +307,12 @@ export async function nuevaTemporada(store, { ahora = Date.now(), reglamento = '
     }
     ctx.equipos = equipos;
     for (const [id, priv] of Object.entries(privs)) {
-        priv.presupuesto = Math.round((priv.presupuesto || 0) * 0.5 + 8_000_000 + (cambio ? AYUDA_REGLAMENTO : 0));
+        // Presupuesto según el puesto en la liga la temporada que acaba (mínimo 7 M€)
+        const ligaEq = equipos[id]?.liga;
+        const posLiga = (tablas[ligaEq]?.clasEquipos.findIndex(x => x.eq === id) ?? -1) + 1 || 10;
+        const ahorro = priv.presupuesto || 0;
+        priv.presupuesto = presupuestoNuevaTemporada(ahorro, posLiga) + (cambio ? AYUDA_REGLAMENTO : 0);
+        const asignacion = priv.presupuesto - Math.round(Math.max(0, ahorro) * 0.5) - (cambio ? AYUDA_REGLAMENTO : 0);
         const coche = priv.coche || {};
         const rngR = crearRng(`${secreto}|reset|${temporada}|${id}`);
         // Normal: cada área pierde 1 o 2 niveles. Cambio de reglamento: pierde entre el 75% y el 85% (redondeando hacia arriba).
@@ -318,7 +333,7 @@ export async function nuevaTemporada(store, { ahora = Date.now(), reglamento = '
         if (cambio) { priv.descuentos = {}; priv.ramas = {}; priv.planos = {}; }
         priv.proyectos = [];
         priv.sponsor = null; priv.ofertasSponsor = [];
-        priv.finanzas = [{ t: ahora, c: `Inicio de la temporada ${temporada + 1}`, v: 0 }, ...(cambio ? [{ t: ahora, c: 'Ayuda de la liga por el cambio de reglamento', v: AYUDA_REGLAMENTO }] : []), ...(priv.finanzas || [])].slice(0, 60);
+        priv.finanzas = [{ t: ahora, c: `Asignación de la liga por acabar ${posLiga}º (temporada ${temporada})`, v: asignacion }, { t: ahora, c: `Inicio de la temporada ${temporada + 1}: se pierde la mitad de lo ahorrado`, v: -Math.round(Math.max(0, ahorro) * 0.5) }, { t: ahora, c: `Inicio de la temporada ${temporada + 1}`, v: 0 }, ...(cambio ? [{ t: ahora, c: 'Ayuda de la liga por el cambio de reglamento', v: AYUDA_REGLAMENTO }] : []), ...(priv.finanzas || [])].slice(0, 60);
         ctx.sucios.privs.add(id);
         if (Object.keys(pausa).length) notificar(ctx, id, { remitente: 'Fábrica', tipo: 'limpieza', titulo: 'Limpieza requerida tras la temporada', texto: `Tus instalaciones (${Object.keys(pausa).map(k => INSTALACIONES[k].nombre).join(', ')}) necesitan una limpieza antes de volver a usarse. Hazla en Mi escudería → Mejoras (cuesta ${(ECO.limpiezaPorNivel / 1000).toFixed(0)} k€ por nivel).` });
         if (cambio) notificar(ctx, id, {
@@ -332,7 +347,7 @@ export async function nuevaTemporada(store, { ahora = Date.now(), reglamento = '
         tipo: 'fase',
     });
     await volcar(ctx);
-    await store.merge('config/juego', { temporada: temporada + 1, fase: 'pretemporada', mundial: { pais: cfg.mundial?.pais || null, nombre: cfg.mundial?.nombre || null, participantes: [] }, palmares: [...(cfg.palmares || []), palmares], ultimoDiario: null, reglamento: { temporada: temporada + 1, cambio } });
+    await store.merge('config/juego', { temporada: temporada + 1, fase: 'pretemporada', inscripcion: true, inscripcionCerrada: null, mundial: { pais: cfg.mundial?.pais || null, nombre: cfg.mundial?.nombre || null, participantes: [] }, palmares: [...(cfg.palmares || []), palmares], ultimoDiario: null, reglamento: { temporada: temporada + 1, cambio } });
     if (novedadesActivas({ ...cfg, temporada: temporada + 1 })) {
         const ctx2 = crearContexto(store, { ahora });
         ctx2.cfg = await store.get('config/juego');

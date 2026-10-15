@@ -83,6 +83,19 @@ export const ECO = {
     reparacionNormal: 350_000,
 };
 
+// Presupuesto al empezar una temporada: la mitad de lo ahorrado más una asignación según el puesto final en la liga
+// la temporada anterior (1º 14,2 M€ … 10º o peor 7 M€). Nunca se empieza con menos de 7 M€.
+export const PRESUPUESTO_MIN = 7_000_000;
+export const asignacionTemporada = (pos) => PRESUPUESTO_MIN + Math.max(0, 10 - (pos || 10)) * 800_000;
+export const presupuestoNuevaTemporada = (ahorro, pos) => Math.max(PRESUPUESTO_MIN, Math.round(Math.max(0, ahorro || 0) * 0.5 + asignacionTemporada(pos)));
+// Bonus de fin de temporada por el puesto en la clasificación global de escuderías (las cinco ligas juntas)
+export const BONUS_GLOBAL = [4_000_000, 3_000_000, 2_500_000, 2_000_000, 2_000_000];
+export function bonusGlobal(pos) {
+    if (!pos) return 0;
+    if (pos <= BONUS_GLOBAL.length) return BONUS_GLOBAL[pos - 1];
+    return pos <= 10 ? 1_500_000 : pos <= 20 ? 1_000_000 : pos <= 30 ? 500_000 : 0;
+}
+
 // Fases en las que se puede cambiar nombre/colores o comprar una filial (no durante las carreras)
 export const FASES_IDENTIDAD = ['pretemporada', 'mercado', 'cerrada'];
 export const identidadAbierta = (fase) => FASES_IDENTIDAD.includes(fase);

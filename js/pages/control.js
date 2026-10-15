@@ -76,7 +76,7 @@ async function pintarEstado() {
       </div>
       <aside class="pila">
         <form class="tarjeta" id="f-cfg"><div class="tarjeta-titulo"><h3>Ajustes</h3></div>
-          <label><span><input type="checkbox" name="inscripcion" ${cfg.inscripcion !== false ? 'checked' : ''}> Inscripción abierta (se pueden reclamar equipos libres)</span></label>
+          <label><span><input type="checkbox" name="inscripcion" ${cfg.inscripcion !== false ? 'checked' : ''}> Inscripción abierta (se pueden reclamar equipos libres; se cierra sola tras la primera jornada de todas las ligas y se reabre con la nueva temporada)</span></label>
           <label style="margin-top:10px">Minutos de cierre de estrategias antes de cada sesión<input type="number" name="minutosCierre" min="10" max="600" value="${cfg.minutosCierre || 30}"></label>
           <label style="margin-top:10px">Cadencia del worker (min, informativo)<input type="number" name="cadenciaMin" min="5" max="120" value="${cfg.cadenciaMin || 10}"></label>
           <label style="margin-top:10px">Horas de draft<input type="number" name="horasDraft" min="1" max="240" value="${cfg.horasDraft || 48}"></label>
@@ -426,7 +426,7 @@ async function pintarTemporada() {
         <div class="fila"><select id="fase">${['pretemporada', 'nacional', 'mundial', 'mercado', 'cerrada'].map(f => `<option ${cfg?.fase === f ? 'selected' : ''}>${f}</option>`).join('')}</select><button class="btn btn-sec" id="b-fase">Forzar fase</button></div></div>
       <div class="tarjeta"><h3>Mercado</h3><p class="muted">${m ? `Estado: <b>${esc(m.estado)}</b>${m.deadline ? ` · cierre ${fecha(m.deadline)}` : ''}` : 'Se abre solo al terminar el Mundial.'}</p>
         <div class="fila"><button class="btn btn-sec" id="b-mercado" ${m ? 'disabled' : ''}>Abrir mercado ahora</button><button class="btn btn-sec" id="b-cerrar" ${m && m.estado !== 'cerrado' ? '' : 'disabled'}>Cerrar mercado ahora</button><a class="btn btn-sec" href="mercado.html">Ver</a></div></div>
-      <div class="tarjeta"><h3>Nueva temporada</h3><p class="muted">Guarda el palmarés y la historia, reinicia presupuestos (50% + 8 M€), quita 1 o 2 niveles a cada área del coche (las instalaciones piden una limpieza) y pasa a pretemporada. Haz esto con el mercado cerrado.</p>
+      <div class="tarjeta"><h3>Nueva temporada</h3><p class="muted">Guarda el palmarés y la historia, reinicia presupuestos (la mitad de lo ahorrado + una asignación según el puesto en liga, mínimo 7 M€), quita 1 o 2 niveles a cada área del coche (las instalaciones piden una limpieza) y pasa a pretemporada. Haz esto con el mercado cerrado.</p>
         <label style="display:block;margin:10px 0">Cambio de reglamento<select id="reglamento"><option value="no">No</option><option value="si">Sí</option><option value="azar">Al azar (20%)</option></select></label>
         <p class="muted peq">Con cambio de reglamento el coche pierde entre el 75% y el 85% de cada área (redondeando hacia arriba) y las instalaciones hasta 2 niveles. Todos reciben 2 M€ de ayuda.</p>
         <button class="btn" id="b-nueva">Empezar temporada ${(cfg?.temporada || 1) + 1}</button></div>

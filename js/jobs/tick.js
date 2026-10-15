@@ -1572,6 +1572,17 @@ async function transicionesFase(ctx) {
         });
         ctx.nota('Fase → mundial');
     }
+    // Inscripción: se cierra sola en cuanto se ha disputado entera la primera jornada de todas las ligas nacionales
+    // y no vuelve a abrirse hasta la temporada siguiente (el admin puede reabrirla a mano desde Control)
+    if (ctx.cfg.inscripcion !== false && ctx.cfg.fase !== 'pretemporada' && ctx.cfg.inscripcionCerrada !== ctx.temporada) {
+        const primeras = LIGAS_NACIONALES.map(l => nac.filter(e => e.liga === l).sort((a, b) => (a.ronda || 0) - (b.ronda || 0))[0]).filter(Boolean);
+        if (primeras.length && primeras.every(publicado)) {
+            await ctx.store.merge('config/juego', { inscripcion: false, inscripcionCerrada: ctx.temporada });
+            ctx.cfg.inscripcion = false; ctx.cfg.inscripcionCerrada = ctx.temporada;
+            noticia(ctx, { titulo: 'Se cierra la inscripción', texto: 'Ya se ha disputado la primera jornada de todas las ligas: hasta la próxima temporada nadie más puede ponerse al frente de una escudería.', tipo: 'fase' });
+            ctx.nota('Inscripción cerrada tras la primera jornada');
+        }
+    }
     if (ctx.cfg.fase === 'mundial' && int.length && int.every(publicado)) {
         await prepararMercado(ctx);
         ctx.nota('Fase → mercado');

@@ -4,7 +4,7 @@ import { ratingCarrera } from '../engine/rating.js';
 import { store, usuario } from '../core/app.js';
 import { esc, banderaLiga, vacio, $, $$, bandera, barra } from '../core/ui.js';
 import { tarjetasRecords, activarRecords, celdaPiloto, celdaEquipo, pos, managerDe, leyendaZonas } from '../core/componentes.js';
-import { LIGAS, LIGAS_NACIONALES } from '../engine/constants.js';
+import { LIGAS, LIGAS_NACIONALES, bonusGlobal } from '../engine/constants.js';
 import { CATEGORIAS_PILOTO, CATEGORIAS_EQUIPO, ranking, construirTemporada } from '../engine/stats.js';
 
 await montar({ activo: 'estadisticas' });
@@ -84,10 +84,10 @@ function global(cuerpo) {
           <td class="cen num ancho">${p.carreras ? (p.ptsCarrera / p.carreras).toFixed(1).replace('.', ',') : '—'}</td><td class="pts">${p.pts}</td></tr>`).join('')}
         </tbody></table></div>${proy ? leyendaZonas() : ''}</section>
       <section class="tarjeta"><div class="tarjeta-titulo"><h2>Escuderías</h2><span>${E.length}</span></div>
-        <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Escudería</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="der">Pts</th></tr></thead><tbody>
+        <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Escudería</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th>${globalHistorico ? '' : '<th class="der ancho" title="Bonus al acabar la temporada">Bonus</th>'}<th class="der">Pts</th></tr></thead><tbody>
         ${E.map((e, i) => { const eq = d.equipo(e.eq); return `<tr class="${e.eq === miEq ? 'yo' : ''} ${i < 3 ? 'zona-top3' : ''}"><td>${pos(i + 1)}</td>
           <td><span class="con-bandera">${eq?.liga ? banderaLiga(eq.liga, { ancho: 16 }) : ''}${celdaEquipo(d, e.eq)}</span><div class="muted peq">${managerDe(eq, { enlace: true })}</div></td>
-          <td class="cen num">${e.victorias || 0}</td><td class="cen num">${e.podios || 0}</td><td class="pts">${e.pts}</td></tr>`; }).join('')}
+          <td class="cen num">${e.victorias || 0}</td><td class="cen num">${e.podios || 0}</td>${globalHistorico ? '' : `<td class="der num ancho peq">${bonusGlobal(i + 1) ? `${(bonusGlobal(i + 1) / 1e6).toFixed(1).replace('.', ',')} M€` : '—'}</td>`}<td class="pts">${e.pts}</td></tr>`; }).join('')}
         </tbody></table></div></section>
     </div>`}`;
     $$('[data-g]', cuerpo).forEach(b => b.addEventListener('click', () => { globalHistorico = b.dataset.g === '1'; global(cuerpo); }));

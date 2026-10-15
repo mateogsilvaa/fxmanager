@@ -4,6 +4,7 @@ import {
     costeInstalacion, INSTALACIONES, ENTRENO,
 } from '../engine/constants.js';
 import { MERCADO } from '../engine/mercado.js';
+import { asignacionTemporada, PRESUPUESTO_MIN, BONUS_GLOBAL } from '../engine/constants.js';
 import { dinero } from '../core/ui.js';
 
 await montar({ activo: 'reglamento' });
@@ -99,13 +100,14 @@ ${seccion('despidos', 'Despidos', `
 <p>En la pestaña "Mundial y mercado" de cada liga ves en tiempo real quién caería si la temporada acabara hoy.</p>`)}
 
 ${seccion('economia', 'Economía', `
-<p>Empiezas con <b>${dinero(ECO.presupuestoInicial)}</b>. El dinero sirve para mejorar el coche y las instalaciones, espiar y pedir Galácticos.</p>
+<p>Empiezas con <b>${dinero(ECO.presupuestoInicial)}</b>. Solo puedes coger una escudería hasta que termina la primera jornada de todas las ligas; después, la inscripción se cierra hasta la próxima temporada. El dinero sirve para mejorar el coche y las instalaciones, espiar y pedir Galácticos.</p>
 ${tablaTexto(['Entra dinero por', 'Cuánto'], [
     ['Recompensa diaria', `${dinero(ECO.checkinBase + ECO.checkinPorRacha)} el primer día, hasta ${dinero(ECO.checkinBase + 7 * ECO.checkinPorRacha)} con 7 días seguidos (más con marketing)`],
     ['Puntos', `${dinero(ECO.premioPorPunto)} por cada punto de tus pilotos (el triple en el Mundial)`],
     ['Patrocinador', 'Un pago por jornada, más un bonus si cumples su objetivo'],
     ['Pilotos en el Mundial', `${dinero(ECO.bonusClasificadoMundial)} por cada uno`],
     ['Fin de temporada', `Según tu puesto en la liga: de ${dinero(ECO.premiosLiga[0])} (1º) a ${dinero(ECO.premiosLiga[ECO.premiosLiga.length - 1])} (10º)`],
+    ['Clasificación global', `Según tu puesto entre las 50 escuderías: ${BONUS_GLOBAL.map((v, i) => `${i + 1}º ${dinero(v)}`).join(', ')}, del 6º al 10º ${dinero(1_500_000)}, del 11º al 20º ${dinero(1_000_000)} y del 21º al 30º ${dinero(500_000)}`],
     ['Vender un Galáctico', 'El importe de la operación'],
     ['Filiales', `${dinero(ECO.dividendoFilial)} al día por cada una`],
 ])}
@@ -123,7 +125,7 @@ ${tablaTexto(['Sale dinero por', 'Cuánto'], [
 <p><b>Parque cerrado:</b> desde que cierra la estrategia de los libres hasta que se publica la última carrera de la jornada no se puede encargar ninguna mejora del coche. Si una mejora termina durante la jornada, la pieza espera en fábrica y se monta al acabar.</p>
 <p>Instalaciones (${dinero(costeInstalacion(0))} el primer nivel, hasta 5): ${Object.values(INSTALACIONES).map(i => `<b>${i.nombre}</b> (${i.desc.replace(/[.]$/, '').toLowerCase()})`).join('; ')}.</p>
 <p>Al acabar la temporada recibes un resumen con tu posición, puntos, victorias, podios, tus pilotos, el Mundial y el dinero.</p>
-<p>Al empezar una temporada nueva cada área del coche pierde 1 o 2 niveles y el presupuesto se queda en la mitad más 8 M€. Las instalaciones no pierden nivel, pero necesitan una <b>limpieza</b> (${dinero(ECO.limpiezaPorNivel)} por nivel) antes de volver a usarse.</p>
+<p>Al empezar una temporada nueva cada área del coche pierde 1 o 2 niveles y el presupuesto se queda en la mitad de lo ahorrado más una asignación según tu puesto en la liga la temporada anterior: ${dinero(asignacionTemporada(1))} si fuiste 1º, bajando hasta ${dinero(PRESUPUESTO_MIN)} el 10º. Nunca se empieza con menos de ${dinero(PRESUPUESTO_MIN)}. Las instalaciones no pierden nivel, pero necesitan una <b>limpieza</b> (${dinero(ECO.limpiezaPorNivel)} por nivel) antes de volver a usarse.</p>
 <p><b>Temporadas con cambio de reglamento.</b> Algunas temporadas la liga cambia las normas técnicas: el coche pierde entre el 75% y el 85% de su desarrollo (redondeando hacia arriba) y cada instalación hasta 2 niveles. Todas las escuderías reciben 2 M€ de ayuda. Se anuncia en las noticias y te llega un aviso.</p>`)}
 
 ${seccion('cada-dia', 'Qué hacer cada día', `

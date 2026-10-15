@@ -20,6 +20,7 @@ let [m, docOfertas] = await Promise.all([
 ]);
 const miEq = u?.perfil?.equipoId;
 const estrellas = (n) => `<span class="estrellas" title="${n} de 5">${'★'.repeat(n || 1)}${'☆'.repeat(5 - (n || 1))}</span>`;
+const ICONO_MOV = { galactico: '★', puja: '€', fichaje: '→', trueque: '⇄', libre: '+', blindaje: '🔒' };
 const pilotosDe = (eq) => Object.entries(d.cat.pilotos).filter(([, p]) => p.equipoId === eq).map(([id, p]) => ({ id, ...p }));
 
 main.innerHTML = `
@@ -27,7 +28,7 @@ main.innerHTML = `
 <p class="sub">Aquí se decide quién corre dónde la próxima temporada. Abre al empezar el Mundial y cierra 2 días después de que termine. Siempre con al menos un 55% de pilotos locales en cada liga.</p></div>
 <a class="btn btn-sec btn-peq" href="reglamento.html#mercado">Reglamento completo</a></div>
 <div id="fases"></div>
-<details class="guia" ${m ? '' : 'open'}><summary>Cómo funciona el mercado, en 4 pasos</summary>
+<details class="mercado-guia" ${m ? '' : 'open'}><summary>Cómo funciona el mercado, en 4 pasos</summary>
 <div class="guia-pasos">
   <div class="paso"><b>1</b><h3>Galácticos</h3><p>Cada liga tiene hasta <b>${MERCADO.candidatos} candidatos</b> de su top 5. <b>Solo se va uno</b>: el primero por el que se cierre un acuerdo o, al cierre, el que decida la liga. Los demás se quedan.</p></div>
   <div class="paso"><b>2</b><h3>Pujas</h3><p>Las ${MERCADO.topComprador} mejores escuderías de cada liga (humanos e IA) pujan por candidatos de <b>otras</b> ligas. Quien lo vende cobra la oferta y recibe al segundo piloto del comprador.</p></div>
@@ -165,7 +166,6 @@ function temporadaEnCurso() {
 }
 
 // ---------------------------------------------------------------- Mercado (abierto o cerrado)
-const ICONO_MOV = { galactico: '★', puja: '€', fichaje: '→', trueque: '⇄', libre: '+', blindaje: '🔒' };
 function mercadoReal() {
     const abierto = m.estado !== 'cerrado' && m.deadline > ahora() - 60_000;
     const G = m.galacticos || [];
