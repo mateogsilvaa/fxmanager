@@ -370,9 +370,9 @@ async function pintarUsuarios() {
     const avisoTxt = (x) => subs.has(x.id) ? 'Sí' : docsAvisos[x.id]?.rechazo ? `<span class="mal" title="${esc(docsAvisos[x.id].rechazo)}${docsAvisos[x.id].rechazoFecha ? ' · ' + esc(new Date(docsAvisos[x.id].rechazoFecha).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })) : ''}">No</span>` : '<span class="tenue">—</span>';
     const visita = (x) => x.ultimoAcceso ? `<span title="${esc(new Date(x.ultimoAcceso).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' }))}">${hace(x.ultimoAcceso)}</span>` : '<span class="tenue">nunca</span>';
     const aprobado = (x) => x.isAdmin || x.estado === 'aprobado';
-    const pendientes = us.filter(x => !aprobado(x) && x.estado !== 'denegado').sort((a, b) => (b.creado || 0) - (a.creado || 0));
+    const pendientes = us.filter(x => !aprobado(x) && x.estado !== 'denegado' && x.estado !== 'publico').sort((a, b) => (b.creado || 0) - (a.creado || 0));
     const resto = us.filter(x => !pendientes.includes(x)).sort((a, b) => (b.ultimoAcceso || 0) - (a.ultimoAcceso || 0) || (a.nombre || '').localeCompare(b.nombre || ''));
-    const estadoTxt = (x) => x.isAdmin ? 'admin' : x.estado === 'aprobado' ? 'aprobado' : x.estado === 'denegado' ? '<span class="mal">denegado</span>' : 'pendiente';
+    const estadoTxt = (x) => x.isAdmin ? 'admin' : x.estado === 'aprobado' ? 'aprobado' : x.estado === 'denegado' ? '<span class="mal">denegado</span>' : x.estado === 'publico' ? '<span class="muted">público (solo partidas)</span>' : 'pendiente';
     el.innerHTML = `
     <div class="tarjeta" style="margin-bottom:12px"><div class="tarjeta-titulo"><h2>Solicitudes pendientes</h2><span class="muted">${pendientes.length}</span></div>
       ${pendientes.length ? `<div class="tabla-scroll"><table class="tabla"><tbody>${pendientes.map(x => `<tr><td><b>${esc(x.nombre || '—')}</b><div class="muted peq">${esc(x.email || '')}${x.creado ? ` · pidió acceso ${hace(x.creado)}` : ''} · última visita: ${visita(x)}</div></td>
@@ -386,7 +386,7 @@ async function pintarUsuarios() {
         <td>${x.equipoId ? esc(d.nombreEquipo(x.equipoId)) : '<span class="tenue">—</span>'}</td>
         <td class="cen peq">${avisoTxt(x)}</td>
         <td class="cen"><input type="checkbox" data-admin="${esc(x.id)}" ${x.isAdmin ? 'checked' : ''} ${x.id === usuario().uid ? 'disabled' : ''}></td>
-        <td class="der">${x.estado === 'denegado' ? `<button class="btn btn-peq btn-sec" data-estado="aprobado" data-uid="${esc(x.id)}">Aprobar</button>` : !x.isAdmin && x.id !== usuario().uid ? `<button class="btn btn-peq btn-sec" data-estado="denegado" data-uid="${esc(x.id)}">Bloquear</button>` : ''}</td></tr>`).join('')}
+        <td class="der">${x.estado === 'denegado' || x.estado === 'publico' ? `<button class="btn btn-peq btn-sec" data-estado="aprobado" data-uid="${esc(x.id)}" title="Darle acceso a la liga original">Aprobar</button>` : !x.isAdmin && x.id !== usuario().uid ? `<button class="btn btn-peq btn-sec" data-estado="denegado" data-uid="${esc(x.id)}">Bloquear</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div></div>`;
     $$('[data-estado]', el).forEach(b => b.addEventListener('click', async () => {
         const x = us.find(y => y.id === b.dataset.uid);

@@ -1,6 +1,6 @@
 // Landing pública: qué es FX Manager y cómo empezar (crear una liga con amigos o unirse con un código)
 import { montar } from '../core/layout.js';
-import { usuario } from '../core/app.js';
+import { usuario, esMiembroOriginal, PARTIDA } from '../core/app.js';
 import { avatar } from '../core/avatar.js';
 
 const u = await montar({ activo: 'descubre' });
@@ -40,6 +40,6 @@ main.innerHTML = `
 <section class="landing-final">
   <h2>¿Te han pasado un código?</h2>
   <p>Entra con tu cuenta (o créala en un minuto) y pega el código en «Mis partidas».</p>
-  <div class="fila"><a class="btn" href="${u ? 'partidas.html' : 'entrar.html?volver=partidas.html'}">${u ? 'Ir a mis partidas' : 'Entrar'}</a><a class="btn btn-sec" href="index.html?p=0">Ver la liga original en directo</a></div>
+  <div class="fila"><a class="btn" href="${u ? 'partidas.html' : 'entrar.html'}">${u ? 'Ir a mis partidas' : 'Entrar'}</a>${u && esMiembroOriginal() && PARTIDA === '' ? '<a class="btn btn-sec" href="index.html">Volver a mi liga</a>' : ''}</div>
 </section>`;
 void usuario;

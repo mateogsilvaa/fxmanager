@@ -40,7 +40,9 @@ $('#f-entrar').addEventListener('submit', async (e) => {
 $('#f-registro').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
-    try { await registrar(f.get('nombre').trim(), f.get('email'), f.get('pass')); location.href = volver === 'escuderia.html' ? 'partidas.html' : volver; } catch (err) { mostrarError(err); }
+    // Quien se registra desde la landing (volver=partidas.html) es público: no entra en la cola de aprobación de la liga original
+    const publico = volver.startsWith('partidas.html') || new URLSearchParams(location.search).get('modo') === 'registro' && volver !== 'escuderia.html';
+    try { await registrar(f.get('nombre').trim(), f.get('email'), f.get('pass'), publico ? 'publico' : 'pendiente'); location.href = volver === 'escuderia.html' ? 'partidas.html' : volver; } catch (err) { mostrarError(err); }
 });
 $('#olvido').addEventListener('click', async () => {
     const email = $('#f-entrar [name=email]').value;

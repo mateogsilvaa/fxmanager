@@ -1,5 +1,5 @@
 // Cabecera, navegación (arriba en escritorio, abajo en móvil) y pie
-import { iniciar, usuario, esAdmin, esAdminPartida, salir, DEMO, DEMO_VARIANTE, store, escucharConsulta, PARTIDA, partida } from './app.js';
+import { iniciar, usuario, esAdmin, esAdminPartida, esMiembroOriginal, salir, DEMO, DEMO_VARIANTE, store, escucharConsulta, PARTIDA, partida } from './app.js';
 import { LIGAS, LIGAS_NACIONALES, SESION_INFO, MUNDIAL_ACTIVO } from '../engine/constants.js';
 import { esc, banderaLiga, $, activarCuentas } from './ui.js';
 
@@ -12,8 +12,19 @@ const ICONOS = {
 };
 const icono = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONOS[k]}</svg>`;
 
+// Páginas que puede ver cualquiera. El resto de la web (la liga original) es privada: solo su grupo.
+const PAGINAS_PUBLICAS = ['descubre.html', 'entrar.html', 'partidas.html', 'reglamento.html'];
+const paginaActual = () => location.pathname.split('/').pop() || 'index.html';
+// Quien no es del grupo de la liga original ve solo la parte pública (landing, partidas, cómo funciona)
+export const soloPublico = () => !PARTIDA && !DEMO && !esMiembroOriginal();
+
 export async function montar({ activo = '', liga = null } = {}) {
     await iniciar();
+    if (soloPublico() && !PAGINAS_PUBLICAS.includes(paginaActual())) {
+        // Los registrados van a sus partidas; los visitantes, a la landing. Esta página no sigue cargando.
+        location.replace(usuario() ? 'partidas.html' : 'descubre.html');
+        await new Promise(() => { });
+    }
     pintarCabecera(activo, liga);
     pintarPie();
     activarCuentas();
@@ -51,7 +62,7 @@ async function proponerAvisos() {
 function enlacePartidas(u) {
     const a = (href, txt) => `<a href="${href}">${txt}</a>`;
     if (!u) return a('descubre.html', 'Crea tu liga');
-    if (PARTIDA || (u.perfil?.partidas || []).length || (u.perfil?.estado !== 'aprobado' && !u.perfil?.isAdmin)) return a('partidas.html', 'Partidas');
+    if (PARTIDA || (u.perfil?.partidas || []).length || soloPublico()) return a('partidas.html', 'Partidas');
     return '';
 }
 
@@ -66,15 +77,15 @@ function pintarCabecera(activo, ligaActiva) {
     <nav class="nav">
       <a class="marca" href="index.html"><span class="marca-x">X1</span><span>${PARTIDA ? esc(partida()?.nombre || 'Hyper Race') : 'Hyper Race'}</span></a>
       <div class="nav-enlaces">
-        ${a(`liga.html?l=${ligaActiva || 'ESP'}`, 'Ligas', '', ligaActiva ? 'data-liga-activa' : '')}
+        ${soloPublico() ? `${a('descubre.html', 'Descubre', 'descubre')}` : `${a(`liga.html?l=${ligaActiva || 'ESP'}`, 'Ligas', '', ligaActiva ? 'data-liga-activa' : '')}
         ${a('mercado.html', 'Mercado', 'mercado')}
-        ${a('estadisticas.html', 'Estadísticas', 'estadisticas')}
+        ${a('estadisticas.html', 'Estadísticas', 'estadisticas')}`}
         ${a('reglamento.html', 'Cómo funciona', 'reglamento')}
         <span class="nav-sep"></span>
         ${enlacePartidas(u)}
         ${u ? `${esAdmin() ? a('control.html', 'Control', 'control') : ''}${PARTIDA && !esAdmin() && esAdminPartida() ? a('partida.html', 'Gestionar', 'partida') : ''}
           <button id="btn-salir" title="Cerrar sesión">Salir</button>
-          <a href="escuderia.html" class="btn btn-nav">Mi escudería<span class="punto" data-punto hidden></span></a>`
+          ${soloPublico() ? '' : '<a href="escuderia.html" class="btn btn-nav">Mi escudería<span class="punto" data-punto hidden></span></a>'}`
         : `<a href="entrar.html" class="btn btn-nav">Entrar</a>`}
       </div>
       <div class="nav-cuenta">${u ? '' : '<a href="entrar.html" class="btn btn-peq">Entrar</a>'}</div>
@@ -86,7 +97,11 @@ function pintarCabecera(activo, ligaActiva) {
     const movil = document.createElement('nav');
     movil.className = 'nav-movil';
     const enLiga = activo === '' && ligaActiva;
-    movil.innerHTML = `
+    movil.innerHTML = soloPublico() ? `
+      <a href="descubre.html" class="${activo === 'descubre' ? 'activo' : ''}">${icono('inicio')}Inicio</a>
+      <a href="${u ? 'partidas.html' : 'entrar.html?volver=partidas.html'}" class="${activo === 'partidas' ? 'activo' : ''}">${icono('ligas')}Partidas</a>
+      <a href="reglamento.html" class="${activo === 'reglamento' ? 'activo' : ''}">${icono('stats')}Cómo funciona</a>
+      <button type="button">${icono('mas')}Más</button>` : `
       <a href="index.html" class="${activo === 'inicio' ? 'activo' : ''}">${icono('inicio')}Inicio</a>
       <a href="liga.html?l=${ligaActiva || 'ESP'}" class="${enLiga ? 'activo' : ''}">${icono('ligas')}Ligas</a>
       <a href="${u ? 'escuderia.html' : 'entrar.html'}" class="${activo === 'escuderia' ? 'activo' : ''}">${icono('equipo')}Escudería<span class="punto" data-punto hidden></span></a>
@@ -97,7 +112,7 @@ function pintarCabecera(activo, ligaActiva) {
         const hoja = document.createElement('div');
         hoja.className = 'hoja-mas';
         hoja.innerHTML = `<div>
-          <a href="mercado.html">Mercado</a><a href="paddock.html">Paddock</a><a href="reglamento.html">Cómo funciona</a>
+          ${soloPublico() ? '' : '<a href="mercado.html">Mercado</a><a href="paddock.html">Paddock</a>'}<a href="reglamento.html">Cómo funciona</a>
           ${u ? '<a href="partidas.html">Mis partidas</a>' : '<a href="descubre.html">Crea tu liga con amigos</a>'}
           ${u && PARTIDA && esAdminPartida() ? '<a href="partida.html">Gestionar la partida</a>' : ''}
           ${u && esAdmin() ? '<a href="control.html">Control</a>' : ''}

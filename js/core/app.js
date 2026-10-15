@@ -176,6 +176,9 @@ export const store = () => _store;
 export const usuario = () => _usuario;
 export const onUsuario = (f) => { oyentes.add(f); return () => oyentes.delete(f); };
 export const esAdmin = () => !!_usuario?.perfil?.isAdmin;
+// ¿Es del grupo de la liga original? (aprobado, con escudería o administración). La liga original es privada:
+// el resto de gente solo ve la landing y sus propias partidas.
+export const esMiembroOriginal = () => { const p = _usuario?.perfil; return !!p && (!!p.isAdmin || p.estado === 'aprobado' || !!p.equipoId); };
 
 // Perfil guardado en el navegador (solo para pintar antes; el servidor siempre manda)
 function perfilGuardado(uid) { try { return JSON.parse(localStorage.getItem(`fx-perfil-${uid}`)); } catch { return null; } }
@@ -202,10 +205,11 @@ export async function entrar(email, password) {
     if (DEMO) return;
     await _fb.signInWithEmailAndPassword(_auth, email, password);
 }
-export async function registrar(nombre, email, password) {
+// estado 'publico': cuenta creada desde la landing (para jugar en partidas de amigos); no entra en la cola de la liga original
+export async function registrar(nombre, email, password, estado = 'pendiente') {
     if (DEMO) return;
     const cred = await _fb.createUserWithEmailAndPassword(_auth, email, password);
-    await _store.set(`usuarios/${cred.user.uid}`, { nombre, email, isAdmin: false, equipoId: null, estado: 'pendiente', creado: Date.now() });
+    await _store.set(`usuarios/${cred.user.uid}`, { nombre, email, isAdmin: false, equipoId: null, estado: estado === 'publico' ? 'publico' : 'pendiente', creado: Date.now() });
 }
 export async function recuperar(email) {
     if (DEMO) return;
