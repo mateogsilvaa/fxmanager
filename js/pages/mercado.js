@@ -7,6 +7,7 @@ import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL } from '../engine/constants.js';
 import { calcularRiesgo } from '../engine/stats.js';
 import { candidatosGalactico } from '../core/mercado-ui.js';
 import { MERCADO, valorPiloto, tacticoDe } from '../engine/mercado.js';
+import { novedadesActivas, minimoBlindaje } from '../jobs/novedades.js';
 
 const u = await montar({ activo: 'mercado' });
 const main = document.getElementById('main');
@@ -90,7 +91,7 @@ function mercadoReal() {
       ${G.map(g => {
           const ofs = (m.ofertas || []).filter(o => o.pid === g.pid && o.estado === 'pendiente');
           const dest = g.destino ? `<span class="con-bandera">${celdaEquipo(d, g.destino.eq)}</span> <span class="muted peq">${dinero(g.destino.importe)} · ${{ aceptada: 'oferta aceptada', oferta: 'la liga elige la mejor oferta', solicitud: 'solicitud a la liga', ia: 'decidido por la liga', suerte: 'por sorpresa' }[g.destino.via]}</span>`
-              : g.estado === 'se_queda' ? '<span class="muted">Se queda</span>' : `<span class="insignia">${g.decision === 'liga' ? 'Decide la liga' : 'Pendiente'}</span>`;
+              : g.estado === 'se_queda' || g.estado === 'blindado' ? `<span class="muted">Se queda${g.estado === 'blindado' ? ' (blindado por su escudería)' : ''}</span>` : `<span class="insignia">${g.decision === 'liga' ? 'Decide la liga' : 'Pendiente'}</span>`;
           return `<tr><td>${banderaLiga(g.liga)}</td><td><div class="fila" style="flex-wrap:nowrap;gap:6px">${nomP(g.pid, g.nombre)}<span class="muted peq">${g.pos}º</span></div></td><td class="ancho">${celdaEquipo(d, g.eq)}</td><td class="cen num ancho">${ofs.length || '—'}</td><td>${dest}</td></tr>`;
       }).join('')}</tbody></table></div>` : vacio('Sin Galácticos esta temporada.')}
       <p class="muted peq" style="margin:10px 0 0">Si su escudería no acepta ninguna oferta, decide la liga al cerrar: primero las ofertas, luego las solicitudes de traspaso y luego la IA. Quien pierde al Galáctico recibe al segundo piloto del comprador.</p>
@@ -144,6 +145,8 @@ function miMercado(el) {
           ${ofs.length ? `<div class="tabla-scroll"><table class="tabla"><thead><tr><th>Escudería</th><th>Te llega</th><th class="der">Oferta</th><th></th></tr></thead><tbody>
           ${ofs.map(o => { const t = tacticoDe(Object.entries(d.cat.pilotos).map(([id, p]) => ({ id, ...p })).filter(p => !(m.galacticos || []).some(g => g.pid === p.id && g.estado === 'pendiente')), o.eq, d.equipo(o.eq)?.liga); return `<tr><td><span class="con-bandera">${banderaLiga(d.equipo(o.eq)?.liga, { ancho: 16 })}${celdaEquipo(d, o.eq)}</span></td><td>${t ? celdaPiloto(d, t.id) : '<span class="muted">Nadie</span>'}</td><td class="pts">${dinero(o.importe)}</td><td class="der"><button class="btn btn-peq" data-aceptar="${esc(o.id)}">Aceptar</button></td></tr>`; }).join('')}
           </tbody></table></div>` : '<p class="muted">Todavía nadie ha pujado. Las ofertas llegan de las 3 mejores escuderías de las otras ligas.</p>'}
+          ${novedadesActivas(d.cfg) ? `<div class="info-caja" style="margin:12px 0"><b>Blindarlo.</b> Si pagas al menos <b>${dinero(minimoBlindaje(ofs))}</b> (1,5 veces la puja más alta, o 2 M€ si nadie ha pujado), se queda en tu escudería. La cifra no se publica.
+            <div class="fila" style="margin-top:8px"><input type="number" id="blindaje" min="${minimoBlindaje(ofs)}" step="100000" value="${minimoBlindaje(ofs)}" style="max-width:180px"><button class="btn btn-sec btn-peq" id="b-blindar">Blindar</button></div></div>` : ''}
           <div class="fila-botones">${miG.decision === 'liga' ? '<span class="muted peq">Has dejado que decida la liga.</span><button class="btn btn-sec btn-peq" data-liga="0">Me lo pienso</button>' : '<button class="btn btn-sec" data-liga="1">Que decida la liga</button>'}</div></section>`);
     }
 
@@ -208,6 +211,11 @@ function miMercado(el) {
 
     // Eventos
     $$('[data-aceptar]', el).forEach(b => b.addEventListener('click', async () => { if (await confirmar('¿Aceptar esta oferta? El Galáctico se va ya.')) lanzar('mercado_aceptar', { ofertaId: b.dataset.aceptar }, '¡Traspaso cerrado!'); }));
+    $('#b-blindar', el)?.addEventListener('click', async () => {
+        const v = +$('#blindaje', el).value;
+        if (!await confirmar(`¿Pagar <b>${dinero(v)}</b> para que ${esc(miG.nombre)} se quede?`)) return;
+        lanzar('galactico_blindar', { importe: v }, '¡Blindado!');
+    });
     $$('[data-liga]', el).forEach(b => b.addEventListener('click', () => lanzar('mercado_liga', { liga: b.dataset.liga === '1' }, b.dataset.liga === '1' ? 'Decidirá la liga' : 'Vuelves a decidir tú')));
     const fF = $('#f-fichaje', el);
     if (fF) {

@@ -93,6 +93,14 @@ function marcarVisita(uid) {
     _fb.updateDoc(_fb.doc(_store.db, `usuarios/${uid}`), { ultimoAcceso: Date.now() }).catch(() => { });
 }
 
+// Suma minutos de juego (uso.dias.AAAA-MM-DD y uso.horas.H) para calcular cada cuánto llegan las llamadas
+export function sumarUso(cambios) {
+    if (!_usuario || DEMO || !_fb) return Promise.resolve();
+    const data = {};
+    for (const [k, v] of Object.entries(cambios)) data[`uso.${k}`] = _fb.increment(v);
+    return _fb.updateDoc(_fb.doc(_store.db, `usuarios/${_usuario.uid}`), data);
+}
+
 export const store = () => _store;
 export const usuario = () => _usuario;
 export const onUsuario = (f) => { oyentes.add(f); return () => oyentes.delete(f); };

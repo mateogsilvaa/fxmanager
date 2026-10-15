@@ -8,7 +8,7 @@ import { CIRCUITOS, CIRCUITOS_POR_ID, normalizarCircuito, tiempoReferencia } fro
 import { formatoTiempo } from '../engine/sim.js';
 import { ejecutarTick } from '../jobs/tick.js';
 import { reconstruirCatalogo } from '../jobs/catalogo.js';
-import { crearContexto, horarioSesion, idResumen, idResultado } from '../jobs/comun.js';
+import { crearContexto, horarioSesion, idResumen, idResultado, volcar } from '../jobs/comun.js';
 import { compactar } from '../engine/stats.js';
 import {
     inicializarJuego, borrarTodo, validarParrilla, importarParrilla, crearEvento, guardarEventos, borrarEvento,
@@ -420,6 +420,8 @@ async function pintarTemporada() {
         <label style="display:block;margin:10px 0">Cambio de reglamento<select id="reglamento"><option value="no">No</option><option value="si">Sí</option><option value="azar">Al azar (20%)</option></select></label>
         <p class="muted peq">Con cambio de reglamento el coche pierde entre el 75% y el 85% de cada área (redondeando hacia arriba) y las instalaciones hasta 2 niveles. Todos reciben 2 M€ de ayuda.</p>
         <button class="btn" id="b-nueva">Empezar temporada ${(cfg?.temporada || 1) + 1}</button></div>
+      <div class="tarjeta"><h3>Novedades de la temporada 2</h3><p class="muted">Ingenieros, negociaciones entre escuderías, blindaje de Galácticos, llamadas y cartas, y reputación. Se activan solas al empezar la temporada 2. ${cfg?.novedades ? '<b>Ya están activas.</b>' : 'Puedes activarlas ya para probarlas.'}</p>
+        <button class="btn btn-sec" id="b-novedades" ${cfg?.novedades || (cfg?.temporada || 1) >= 2 ? 'disabled' : ''}>Activar novedades ya</button></div>
       <div class="tarjeta"><h3>Mantenimiento</h3><p class="muted">Útil si algo se ve desactualizado.</p>
         <div class="fila"><button class="btn btn-sec" id="b-cat">Regenerar catálogo</button><button class="btn btn-sec" id="b-res">Reconstruir clasificaciones</button></div></div>
       <div class="tarjeta" style="border-color:var(--mal)"><h3 class="mal">Borrar todo</h3><p class="muted">Elimina equipos, pilotos, calendario, resultados, noticias y los restos de la temporada pasada de FX Manager. Las cuentas de usuario se conservan (sin equipo). No se puede deshacer.</p>
@@ -444,6 +446,12 @@ async function pintarTemporada() {
     $('#b-nueva').addEventListener('click', (e) => ocupado(e.target, async () => {
         if (!await confirmar(`¿Cerrar la temporada ${cfg.temporada} y empezar la ${cfg.temporada + 1}?`, { peligro: true })) return;
         const pal = await nuevaTemporada(store(), { ahora: ahora(), reglamento: $('#reglamento').value }); await recargar(); pintarTemporada(); toast(pal.cambioReglamento ? '¡Nueva temporada con cambio de reglamento!' : '¡Nueva temporada!');
+    }));
+    $('#b-novedades').addEventListener('click', (e) => ocupado(e.target, async () => {
+        if (!await confirmar('¿Activar ya ingenieros, negociaciones, llamadas y reputación? Se crean los ingenieros de todas las escuderías.')) return;
+        const c = await ctxAdmin();
+        const { activarNovedades } = await import('../jobs/novedades.js');
+        await activarNovedades(c); await volcar(c); await reconstruirCatalogo(store(), await store().get('config/juego')); await recargar(); pintarTemporada(); toast('Novedades activadas');
     }));
     $('#b-cat').addEventListener('click', (e) => ocupado(e.target, async () => { await reconstruirCatalogo(store(), cfg); await recargar(); toast('Catálogo regenerado'); }));
     $('#b-res').addEventListener('click', (e) => ocupado(e.target, async () => {

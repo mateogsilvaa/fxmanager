@@ -9,7 +9,7 @@ export async function reconstruirCatalogo(store, cfg) {
         temporada, actualizado: Date.now(),
         equipos: Object.fromEntries(equipos.map(e => [e.id, {
             nombre: e.nombre, corto: e.corto || e.nombre, liga: e.liga, grupo: e.grupo || null, filialDe: e.filialDe || null, color: e.color || '#888',
-            ownerId: e.ownerId || null, ownerNombre: e.ownerNombre || null, managerIA: e.managerIA || null, fans: e.fans || 0,
+            ownerId: e.ownerId || null, ownerNombre: e.ownerNombre || null, managerIA: e.managerIA || null, fans: e.fans || 0, reputacion: e.reputacion ?? null,
             // las de grupo, las filiales y (en secreto) la que lleva el admin no se pueden elegir
             inscribible: !e.grupo && !e.filialDe && e.id !== sombra?.equipoId,
         }])),

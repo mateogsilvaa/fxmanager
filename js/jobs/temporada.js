@@ -12,6 +12,8 @@ import {
 } from './comun.js';
 import { reconstruirCatalogo } from './catalogo.js';
 import { ratingsLiga } from '../engine/rating.js';
+import { umbralDespido, cambioRepTemporada, factorOfertasPlaza, REP_INICIAL } from '../engine/reputacion.js';
+import { novedadesActivas, activarNovedades, repEquipo, repManager } from './novedades.js';
 
 export const COLECCIONES_JUEGO = ['equipos', 'equipos_priv', 'pilotos', 'pilotos_priv', 'eventos', 'resultados', 'resumen', 'estrategias', 'acciones', 'notificaciones', 'decisiones', 'pronosticos', 'ranking', 'noticias', 'mercado', 'mercado_priv', 'mercado_ofertas', 'paddock', 'prensa', 'logs', 'catalogo'];
 // Colecciones de la temporada pasada (versión anterior de FX Manager)
@@ -164,10 +166,13 @@ export async function prepararMercado(ctx) {
         movimiento(privs[campeon.eq], `Campeón del mundo: ${nombre(campeon.pid)}`, ECO.bonusCampeonMundial, ctx.ahora);
         ctx.sucios.privs.add(campeon.eq);
     }
-    ofertasDePlaza(ctx, { tablas, equipos, privs, rng: crearRng(`${ctx.secreto}|plaza|${temporada}`) });
+    const nov = novedadesActivas(ctx.cfg);
+    const repM = nov ? Object.fromEntries((await store.list('managers').catch(() => [])).map(m => [m.id, m.reputacion ?? REP_INICIAL])) : {};
+    ofertasDePlaza(ctx, { tablas, equipos, privs, rng: crearRng(`${ctx.secreto}|plaza|${temporada}`), repM });
     resumenesTemporada(ctx, { tablas, equipos, privs, pilotos: pilotosMap });
     await historialManagers(ctx, { tablas, equipos });
-    despidosManagers(ctx, { tablas, equipos });
+    await despidosManagers(ctx, { tablas, equipos, repM });
+    if (nov) await reputacionFinTemporada(ctx, { tablas, equipos });
     // El mercado se abrió al empezar el Mundial; si no (fase forzada a mano), se abre ahora
     if (!(await store.get(`mercado/T${temporada}`))) await abrirMercado(ctx, { tablas, deadline: ctx.ahora + 2 * 864e5 });
     await aplicarPendientes(ctx);
@@ -190,8 +195,25 @@ export async function abrirMercadoTemporada(ctx) {
 
 // Mánagers que lo han hecho muy mal (rating por debajo de 30: casi siempre el último de su liga) pierden la escudería.
 // Vale para humanos y para la IA. La escudería del modo sombra no se toca.
+// Reputación al acabar la temporada: equipo y mánager se mueven según el rating de la temporada
+async function reputacionFinTemporada(ctx, { tablas, equipos }) {
+    for (const liga of LIGAS_NACIONALES) {
+        const t = tablas[liga];
+        if (!t?.clasEquipos?.length) continue;
+        const clas = t.clasEquipos.slice();
+        for (const [id, e] of Object.entries(equipos)) if (e.liga === liga && !clas.some(x => x.eq === id)) clas.push({ eq: id, pts: 0, victorias: 0, podios: 0 });
+        clas.forEach((e, i) => { e.posicion = i + 1; });
+        const r = ratingsLiga(clas, { fans: Object.fromEntries(clas.map(e => [e.eq, equipos[e.eq]?.fans || 0])) });
+        for (const e of clas) {
+            const d = cambioRepTemporada(r[e.eq]?.rating);
+            repEquipo(ctx, e.eq, d, 'temporada');
+            if (equipos[e.eq]?.ownerId) await repManager(ctx, equipos[e.eq].ownerId, d, equipos[e.eq].ownerNombre);
+        }
+    }
+}
+
 export const RATING_DESPIDO = 30;
-export function despidosManagers(ctx, { tablas, equipos }) {
+export async function despidosManagers(ctx, { tablas, equipos, repM = {} }) {
     const rng = crearRng(`${ctx.secreto}|despidoManagers|${ctx.cfg.temporada}`);
     const usados = new Set(Object.values(equipos).map(e => e.managerIA).filter(Boolean));
     for (const liga of LIGAS_NACIONALES) {
@@ -204,7 +226,10 @@ export function despidosManagers(ctx, { tablas, equipos }) {
         for (const fila of clas) {
             const rating = r[fila.eq]?.rating;
             const eq = equipos[fila.eq];
-            if (rating == null || rating >= RATING_DESPIDO || !eq || ctx.sombra?.equipoId === fila.eq) continue;
+            // Con reputación de mánager (temporada 2+) la directiva tiene más o menos paciencia
+            const umbral = eq?.ownerId && repM[eq.ownerId] != null ? umbralDespido(repM[eq.ownerId]) : RATING_DESPIDO;
+            if (rating == null || rating >= umbral || !eq || ctx.sombra?.equipoId === fila.eq) continue;
+            if (eq.ownerId && novedadesActivas(ctx.cfg)) await repManager(ctx, eq.ownerId, -15, eq.ownerNombre);
             const pos = `${fila.posicion}º de ${LIGAS[liga].nombre}`;
             const nuevoIA = nombreManagerIA(rng, liga, usados);
             usados.add(nuevoIA);
@@ -307,6 +332,13 @@ export async function nuevaTemporada(store, { ahora = Date.now(), reglamento = '
     });
     await volcar(ctx);
     await store.merge('config/juego', { temporada: temporada + 1, fase: 'pretemporada', mundial: { pais: cfg.mundial?.pais || null, nombre: cfg.mundial?.nombre || null, participantes: [] }, palmares: [...(cfg.palmares || []), palmares], ultimoDiario: null, reglamento: { temporada: temporada + 1, cambio } });
+    if (novedadesActivas({ ...cfg, temporada: temporada + 1 })) {
+        const ctx2 = crearContexto(store, { ahora });
+        ctx2.cfg = await store.get('config/juego');
+        ctx2.secreto = secreto;
+        await activarNovedades(ctx2);
+        await volcar(ctx2);
+    }
     await reconstruirCatalogo(store, await store.get('config/juego'));
     palmares.cambioReglamento = cambio;
     return palmares;
@@ -326,7 +358,7 @@ export function esTemporadaExcepcional(eqId, tablas) {
     return false;
 }
 
-export function ofertasDePlaza(ctx, { tablas, equipos, privs, rng }) {
+export function ofertasDePlaza(ctx, { tablas, equipos, privs, rng, repM = {} }) {
     const libres = Object.entries(equipos).filter(([, e]) => !e.ownerId && !e.filialDe);
     const conHermanas = libres.filter(([, e]) => e.grupo);
     const normales = libres.filter(([, e]) => !e.grupo);
@@ -335,7 +367,8 @@ export function ofertasDePlaza(ctx, { tablas, equipos, privs, rng }) {
     for (const [eqId, eq] of Object.entries(equipos)) {
         if (!eq.ownerId || !privs[eqId] || !esTemporadaExcepcional(eqId, tablas)) continue;
         const nuevas = [];
-        for (const [tipo, prob, lista] of [['hermanas', ECO.probOfertaHermanas, conHermanas], ['normal', ECO.probOfertaNormal, normales]]) {
+        const f = repM[eq.ownerId] != null ? factorOfertasPlaza(repM[eq.ownerId]) : 1;
+        for (const [tipo, prob, lista] of [['hermanas', ECO.probOfertaHermanas * f, conHermanas], ['normal', ECO.probOfertaNormal * f, normales]]) {
             if (!rng.chance(prob)) continue;
             const cands = lista.filter(([id]) => id !== eqId && !cogidas.has(id));
             if (!cands.length) continue;
@@ -428,6 +461,6 @@ export async function historialManagers(ctx, { tablas, equipos }) {
     for (const [uid, { nombre, entradas }] of Object.entries(titulos)) {
         const doc = await ctx.store.get(`managers/${uid}`).catch(() => null);
         const historial = [...(doc?.historial || []).filter(x => x.temporada !== temporada), ...entradas].sort((a, b) => a.temporada - b.temporada);
-        ctx.ops.push({ op: 'set', path: `managers/${uid}`, data: { nombre, historial, actualizado: ctx.ahora } });
+        ctx.ops.push({ op: 'merge', path: `managers/${uid}`, data: { nombre, historial, actualizado: ctx.ahora } });
     }
 }

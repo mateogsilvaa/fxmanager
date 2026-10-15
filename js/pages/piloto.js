@@ -4,6 +4,7 @@ import { store, usuario } from '../core/app.js';
 import { esc, bandera, banderaLiga, vacio, $, barra } from '../core/ui.js';
 import { celdaEquipo, pos, fmtValor } from '../core/componentes.js';
 import { LIGAS, PAISES, SESION_INFO } from '../engine/constants.js';
+import { avatarPiloto } from '../core/avatar.js';
 import { calcularRiesgo, construirTemporada } from '../engine/stats.js';
 
 const pid = new URLSearchParams(location.search).get('id');
@@ -45,7 +46,7 @@ const temporadas = new Set(historico.filter(s => s.filas.some(f => f.pid === pid
 main.innerHTML = `
 <section class="hero">
   <div class="ficha-cab">
-    ${pl.numero != null ? `<div class="dorsal-grande" style="color:${esc(eq?.color || 'var(--accent)')}">${pl.numero}</div>` : '<div></div>'}
+    <div class="fila" style="flex-wrap:nowrap;gap:12px;align-items:flex-end">${avatarPiloto(pid, eq?.color, 72)}${pl.numero != null ? `<div class="dorsal-grande" style="color:${esc(eq?.color || 'var(--accent)')}">${pl.numero}</div>` : ''}</div>
     <div><div class="etiqueta">${pl.rookie ? 'Rookie · ' : ''}${pl.edad ?? '?'} años</div><h1>${esc(pl.nombre)} ${esc(pl.apellido)}</h1></div>
     <div class="ficha-meta">
       <span class="con-bandera">${bandera(pl.nac, { ancho: 22 })}<span class="txt">${esc(PAISES[pl.nac] || '')}</span></span>

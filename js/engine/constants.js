@@ -111,7 +111,7 @@ export const descuentoTunel = (area, tunel) => AREAS_TUNEL.includes(area) ? 0.06
 export const bonusExitoTunel = (area, tunel) => AREAS_TUNEL.includes(area) ? 0.02 * (tunel || 0) : 0;
 // Coste real de una mejora de I+D (grupo + túnel de viento + urgencia)
 export function costeMejoraFinal(area, nivel, priv, urgente = false) {
-    const desc = (priv?.descuentos?.[area] || 0) + descuentoTunel(area, priv?.inst?.tunel);
+    const desc = (priv?.descuentos?.[area] || 0) + descuentoTunel(area, priv?.inst?.tunel) + descuentoIngenieros(area, priv) + (tienePlano(priv, area, nivel + 1) ? DESCUENTO_PLANO : 0);
     return Math.round(costeMejora(nivel) * (urgente ? RECARGO_URGENTE : 1) * (1 - Math.min(0.6, desc)));
 }
 
@@ -126,6 +126,17 @@ export const ENTRENO = {
 export const probEntreno = (academia) => ({ exito: Math.min(0.95, 0.7 + 0.05 * (academia || 0)), doble: 0.06 * (academia || 0) });
 
 export const SLOTS_ID = 2;
+
+// Ingenieros (desde la temporada 2): cada estrella de los ingenieros de un área abarata y acelera sus mejoras
+// y sube la probabilidad de éxito. El ingeniero de pista afina las lecturas del reglaje como si el simulador
+// tuviera más nivel. priv.bonusIng = { motor, aero, chasis, fiabilidad, pista } (suma de estrellas).
+export const descuentoIngenieros = (area, priv) => 0.015 * (priv?.bonusIng?.[area] || 0);
+export const bonusExitoIngenieros = (area, priv) => 0.01 * (priv?.bonusIng?.[area] || 0);
+export const factorHorasIngenieros = (area, priv) => 1 - 0.015 * (priv?.bonusIng?.[area] || 0);
+export const nivelSimulador = (priv) => (priv?.inst?.simulador || 0) + Math.floor((priv?.bonusIng?.pista || 0) / 2);
+// Planos de una pieza comprados o intercambiados con otra escudería: la mejora hasta ese nivel no falla y es más barata
+export const DESCUENTO_PLANO = 0.3;
+export const tienePlano = (priv, area, nivel) => (priv?.planos?.[area] || 0) >= nivel;
 
 export function costeMejora(nivel) { return Math.round(600_000 * (1 + 0.5 * nivel) / 10_000) * 10_000; }
 export function horasMejora(nivel, fabrica, urgente) {

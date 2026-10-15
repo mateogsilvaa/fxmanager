@@ -4,6 +4,9 @@ import { store, usuario } from '../core/app.js';
 import { esc, bandera, banderaLiga, vacio } from '../core/ui.js';
 import { celdaPiloto, celdaEquipo, pos, fmtValor, managerDe } from '../core/componentes.js';
 import { LIGAS, PAISES } from '../engine/constants.js';
+import { avatarPiloto, avatarIngeniero } from '../core/avatar.js';
+import { CATEGORIAS_ING, deEquipo, estrellasTxt, REF_PLANTILLA } from '../engine/ingenieros.js';
+import { nivelRep } from '../engine/reputacion.js';
 
 const eqId = new URLSearchParams(location.search).get('id');
 await montar();
@@ -13,7 +16,8 @@ barraDirecto(d);
 const e = d.equipo(eqId);
 if (!e) { main.innerHTML = vacio('Escudería no encontrada.'); throw new Error('no encontrado'); }
 
-const pub = await store().get(`equipos/${eqId}`).catch(() => null);
+const [pub, plantilla] = await Promise.all([store().get(`equipos/${eqId}`).catch(() => null), store().get(REF_PLANTILLA).then(x => x?.lista || null).catch(() => null)]);
+const ingenieros = plantilla ? deEquipo(plantilla, eqId).sort((a, b) => Object.keys(CATEGORIAS_ING).indexOf(a.cat) - Object.keys(CATEGORIAS_ING).indexOf(b.cat)) : [];
 const liga = e.liga;
 const st = d.tabla(liga).equipos[eqId];
 const clas = d.clasificacionEquipos(liga);
@@ -34,7 +38,7 @@ main.innerHTML = `
 <section class="hero">
   <div class="etiqueta">${banderaLiga(liga, { ancho: 18 })} ${esc(LIGAS[liga]?.nombre)}${e.grupo ? ` · Grupo ${esc(e.grupo)}` : ''}</div>
   <h1 style="margin:6px 0">${esc(e.nombre)}</h1>
-  <p>Mánager: <b style="color:var(--texto)">${managerDe(e, { enlace: true })}</b>${esMio ? ' (tú) · <a href="escuderia.html">Ir al panel</a>' : !e.ownerNombre && e.inscribible !== false ? ' · <a href="escuderia.html">¿La quieres?</a>' : ''} · ${e.fans || 0} fans</p>
+  <p>Mánager: <b style="color:var(--texto)">${managerDe(e, { enlace: true })}</b>${esMio ? ' (tú) · <a href="escuderia.html">Ir al panel</a>' : !e.ownerNombre && e.inscribible !== false ? ' · <a href="escuderia.html">¿La quieres?</a>' : ''} · ${e.fans || 0} fans${e.reputacion != null ? ` · reputación ${e.reputacion} (${nivelRep(e.reputacion).toLowerCase()})` : ''}</p>
 </section>
 <div class="rejilla rejilla-lado">
   <div class="pila">
@@ -46,12 +50,13 @@ main.innerHTML = `
         const s = d.tabla(liga).pilotos[p.id];
         const v = s?.victorias ?? 0;
         return `<a class="tarjeta" href="piloto.html?id=${esc(p.id)}"><div class="piloto-tarjeta">
-          <span class="dorsal" style="color:${esc(e.color)}">${p.numero ?? ''}</span>
+          ${avatarPiloto(p.id, e.color, 48)}
           <div class="nom"><span>${esc(p.nombre)}</span><b>${esc(p.apellido)}</b></div>
           ${p.rookie ? '<span class="insignia rookie">Rookie</span>' : '<span></span>'}
         </div>
         <div class="fila muted" style="font-size:.85rem;margin-top:10px"><span class="con-bandera">${bandera(p.nac, { ancho: 18 })}<span class="txt">${esc(PAISES[p.nac] || '')}</span></span><span>· ${s?.pts ?? 0} pts · ${v} victoria${v === 1 ? '' : 's'}</span></div></a>`;
     }).join('')}</div>
+    ${ingenieros.length ? `<div class="tarjeta"><div class="tarjeta-titulo"><h3>Ingenieros</h3><span>${ingenieros.length}</span></div>${ingenieros.map(i => `<div class="ing-fila">${avatarIngeniero(i.id, e.color, 34)}<div class="ing-nom"><b>${esc(i.nombre)} ${esc(i.apellido)}</b><div class="muted peq">${esc(CATEGORIAS_ING[i.cat].nombre)} · <span class="estrellas">${estrellasTxt(i.estrellas)}</span></div></div></div>`).join('')}</div>` : ''}
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Puntos por jornada</h3></div>${porRonda()}</div>
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Palmarés e historia</h3></div>${historia()}</div>
   </div>

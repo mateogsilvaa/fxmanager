@@ -18,6 +18,8 @@ export async function montar({ activo = '', liga = null } = {}) {
     pintarPie();
     activarCuentas();
     if (usuario() && !DEMO) setTimeout(() => proponerAvisos().catch(() => { }), 1500);
+    // Tiempo de juego y llamadas/cartas (las llamadas solo existen desde la temporada 2)
+    if (usuario()) import('./llamada-ui.js').then(m => { m.registrarUso(); m.vigilarLlamadas(); }).catch(() => { });
     return usuario();
 }
 

@@ -24,6 +24,7 @@
     --neg-bg: rgba(168, 50, 31, .07);
     --acc-bg: rgba(184, 115, 11, .09);
     --wc-bg: rgba(106, 63, 160, .08);
+    --avatar-fondo: #e7e5df;
     --sans: Barlow, system-ui, sans-serif;
     --cond: 'Barlow Condensed', 'Arial Narrow', sans-serif;
     --mono: 'Space Mono', 'Cascadia Mono', Consolas, monospace;
@@ -620,3 +621,39 @@ a.sesion-fila:hover { background: var(--panel-warm); color: var(--ink); }
 .celda-rating b { font-variant-numeric: tabular-nums; text-align: right; }
 .mercado-reloj { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 30px; }
 .mercado-reloj b { font-family: var(--mono); }
+
+/* Avatares pixel art */
+.avatar-pixel { image-rendering: pixelated; flex-shrink: 0; display: inline-block; vertical-align: middle; outline: 1px solid var(--hair); }
+.opcion .avatar-pixel { display: block; margin-bottom: 8px; }
+
+/* Ingenieros */
+.ing-cat { padding: 10px 0; border-top: 1px solid var(--hair2); }
+.ing-fila { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 6px 0; }
+.ing-nom { min-width: 0; }
+.ing-nom b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ing-hueco { padding: 4px 0 0 44px; }
+.estrellas { color: var(--accent); letter-spacing: 1px; }
+.ing-libres { margin-top: 12px; }
+.ing-libres summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+.ing-libres select { margin: 8px 0; }
+
+/* Negociaciones */
+.neg-form { display: grid; gap: 12px; margin-top: 10px; }
+.neg-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 760px) { .neg-grid { grid-template-columns: 1fr 1fr; } }
+.neg-lado { border: 1px solid var(--hair); padding: 10px 12px; margin: 0; min-width: 0; }
+.neg-lado legend { font: 700 10px var(--sans); text-transform: uppercase; letter-spacing: .12em; padding: 0 4px; }
+.neg-items { display: grid; gap: 4px; margin-top: 10px; }
+.chk { display: flex; gap: 6px; align-items: center; font-size: 13px; text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+/* Llamadas y cartas */
+.llamada-cab { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
+.llamada-avatar .avatar-pixel { outline: 2px solid var(--ink); }
+.llamada-avatar.sonando { animation: sonar 0.9s ease-in-out infinite; }
+@keyframes sonar { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(-5deg); } 30% { transform: rotate(5deg); } 45% { transform: rotate(-3deg); } 60% { transform: rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .llamada-avatar.sonando { animation: none; } }
+.es-carta .llamada-avatar .avatar-pixel { outline-color: var(--accent); }
+.llamada-carta { font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--acc-bg); padding: 12px 14px; border-left: 3px solid var(--accent); }
+.llamada-opciones { display: grid; gap: 8px; margin-top: 14px; }
+.llamada-opciones .btn { justify-content: flex-start; text-align: left; height: auto; padding: 10px 12px; white-space: normal; }
+.llamada-resultado { font-size: 15px; }

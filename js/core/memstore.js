@@ -34,6 +34,7 @@ export class MemStore {
                 if (op === '>=') return v >= valor;
                 if (op === '>') return v > valor;
                 if (op === 'in') return valor.includes(v);
+                if (op === 'array-contains') return Array.isArray(v) && v.includes(valor);
                 return true;
             });
         }

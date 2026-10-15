@@ -25,6 +25,22 @@ service cloud.firestore {
     match /mercado_ofertas/{id} { allow read: if true; allow write: if esAdmin(); }
     // Historial público de los mánagers (rating por temporada)
     match /managers/{id} { allow read: if true; allow write: if esAdmin(); }
+    // Ingenieros (plantilla pública) y negociaciones entre escuderías (solo las ven las dos partes)
+    match /ingenieros/{id} { allow read: if true; allow write: if esAdmin(); }
+    match /negociaciones/{id} {
+      allow read: if esAdmin() || (resource != null && autenticado() && uid() in resource.data.get('uids', []));
+      allow write: if esAdmin();
+    }
+    // Llamadas y cartas: solo su mánager las ve y solo puede elegir una respuesta mientras está disponible
+    match /llamadas/{id} {
+      allow read: if esAdmin() || resource == null || (autenticado() && resource.data.uid == uid());
+      allow update: if esAdmin() || (
+        autenticado() && resource.data.uid == uid() && soloCambian(['eleccion'])
+        && resource.data.eleccion == null && resource.data.aplicada == false
+        && resource.data.disponible <= ahora() && resource.data.expira > ahora()
+      );
+      allow create, delete: if esAdmin();
+    }
 
     // Resultados: se guardan antes y solo se pueden leer a partir de su hora de publicación
     match /resultados/{id} {
@@ -76,6 +92,8 @@ service cloud.firestore {
         autenticado() && uid() == userId && (
           soloCambian(['nombre'])
           || (soloCambian(['ultimoAcceso']) && request.resource.data.ultimoAcceso is number)
+          || soloCambian(['uso'])
+          || soloCambian(['ultimoAcceso', 'uso'])
           || (soloCambian(['equipoId']) && resource.data.get('equipoId', null) == null
               && getAfter(/databases/$(database)/documents/equipos/$(request.resource.data.equipoId)).data.ownerId == uid())
         )

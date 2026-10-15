@@ -3,7 +3,7 @@ import {
     SESION_INFO, esCarrera, esQualy, ECO, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST, SLOTS_ID,
     costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion,
     ESTRATEGIA_DEF, diaMadrid, finDiaMadrid, LIGAS, LIGAS_NACIONALES, SETUP_PARAMS, SETUP_BASE, identidadAbierta,
-    costeMejoraFinal, bonusExitoTunel, ENTRENO, probEntreno, horaMadrid,
+    costeMejoraFinal, bonusExitoTunel, bonusExitoIngenieros, factorHorasIngenieros, nivelSimulador, tienePlano, ENTRENO, probEntreno, horaMadrid,
 } from '../engine/constants.js';
 import { preguntaTrasCarrera, preguntaOpinion, efectosRespuesta, MAX_PREGUNTAS_JORNADA } from '../engine/rueda-prensa.js';
 import { validarNombreEscuderia } from '../engine/badwords.js';
@@ -24,6 +24,7 @@ import { vidaNeumaticos, mejorEstrategia, precisionLibres, estimarVidas, textoPr
 import { reconstruirCatalogo } from './catalogo.js';
 import { prepararMercado, cerrarMercado, abrirMercadoTemporada } from './temporada.js';
 import { ACCIONES_MERCADO } from './mercado.js';
+import { ACCIONES_NOVEDADES, procesarLlamadas, diarioNovedades, generarLlamadas, novedadesActivas, repEquipo } from './novedades.js';
 import { noticiasSesion, previaJornada } from '../engine/cronica.js';
 import { MERCADO } from '../engine/mercado.js';
 
@@ -57,7 +58,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
         if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
     }
 
-    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, diario, transicionesFase, recordatorios, avisosOrganizacion];
+    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, procesarLlamadas, diario, transicionesFase, recordatorios, avisosOrganizacion];
     const errores = [];
     for (const paso of pasos) {
         try { await paso(ctx); await volcar(ctx); }
@@ -681,14 +682,14 @@ async function efectosPublicacion(ctx, ev, res) {
             if (!duenoReal(ctx, eq)) continue;
             const setup = { ...SETUP_BASE, ...(res.setups?.[eq] || {}) };
             const ideal = setupIdeal(ctx.secreto, ev.id, eq, ev.circuito);
-            const inf = informeSetup(setup, ideal, privs[eq]?.inst?.simulador || 0, crearRng(`${ctx.secreto}|fpinf|${ev.id}|${eq}`));
+            const inf = informeSetup(setup, ideal, nivelSimulador(privs[eq]), crearRng(`${ctx.secreto}|fpinf|${ev.id}|${eq}`));
             // Lectura de los neumáticos para la carrera larga: más precisa cuanto mejor el reglaje, el simulador y la experiencia
             let textoNeu = '';
             if (sesionesOrdenadas(ev).some(x => SESION_INFO[x.tipo].estrategia)) {
                 const pilotosEq = fs.map(f => privsPil[f.pid]).filter(Boolean);
                 const exp = Math.max(0, ...pilotosEq.map(x => x.attrs?.experiencia ?? 50));
                 const vueltas = Math.max(...fs.map(f => (f.laps || []).length)) / 8;
-                const prec = precisionLibres({ setupQ: calidadSetup(setup, ideal), simulador: privs[eq]?.inst?.simulador || 0, experiencia: exp, vueltas });
+                const prec = precisionLibres({ setupQ: calidadSetup(setup, ideal), simulador: nivelSimulador(privs[eq]), experiencia: exp, vueltas });
                 const est = estimarVidas(vidaNeumaticos(ctx.secreto, ev.id, ev.circuito), prec, crearRng(`${ctx.secreto}|estneu|${ev.id}|${eq}`));
                 if (privs[eq]) { privs[eq].neumaticos = { ...(privs[eq].neumaticos || {}), [ev.id]: { ...est, fecha: ctx.ahora } }; ctx.sucios.privs.add(eq); }
                 textoNeu = `\nNeumáticos para la Carrera 3 (lectura ${textoPrecision(prec)}): ` + Object.entries(est.rangos).map(([k, [a, b]]) => `${COMPUESTOS[k].nombre.toLowerCase()} ${a === b ? a : `${a}-${b}`} vueltas`).join(' · ') + '.';
@@ -898,7 +899,7 @@ const ACCIONES = {
         const descuento = priv.descuentos?.[area] || 0;
         const coste = costeMejoraFinal(area, nivel, priv, urgente);
         if ((priv.presupuesto || 0) < coste) throw new Error(`Presupuesto insuficiente (necesitas ${M(coste)}).`);
-        const horas = horasMejora(nivel, priv.inst?.fabrica || 0, urgente);
+        const horas = Math.max(1, Math.round(horasMejora(nivel, priv.inst?.fabrica || 0, urgente) * factorHorasIngenieros(area, priv) * 10) / 10);
         const inicio = Math.min(a.creado || ctx.ahora, ctx.ahora);
         movimiento(priv, `I+D ${AREAS[area].nombre} → nivel ${nivel + 1}${urgente ? ' (urgente)' : ''}${descuento ? ' (transferencia de grupo)' : ''}`, -coste, ctx.ahora);
         if (descuento) priv.descuentos = { ...priv.descuentos, [area]: 0 };
@@ -951,7 +952,7 @@ const ACCIONES = {
         const setup = {};
         for (const k of Object.keys(SETUP_PARAMS)) setup[k] = clamp(Math.round(+a.params?.setup?.[k] || 5), 1, 10);
         const ideal = setupIdeal(ctx.secreto, ev.id, a.equipoId, ev.circuito);
-        const inf = informeSetup(setup, ideal, priv.inst?.simulador || 0, crearRng(`${ctx.secreto}|simu|${a.id}`));
+        const inf = informeSetup(setup, ideal, nivelSimulador(priv), crearRng(`${ctx.secreto}|simu|${a.id}`));
         priv.simuladorUso = { dia, n: t.usadas + 1 };
         return { ok: true, eventoId: ev.id, setup, informe: inf, quedan: t.quedan - 1 };
     },
@@ -1186,6 +1187,8 @@ const ACCIONES = {
 
     // Mercado de fin de temporada (ventana de 3 días): ver jobs/mercado.js
     ...ACCIONES_MERCADO,
+    // Ingenieros, negociaciones y blindaje de Galácticos (desde la temporada 2): ver jobs/novedades.js
+    ...ACCIONES_NOVEDADES,
 };
 
 // ¿Está la escudería en parque cerrado ahora? (su liga, o el Mundial si tiene pilotos allí)
@@ -1229,7 +1232,10 @@ async function completarProyectos(ctx) {
         for (const p of listos) {
             const rng = crearRng(`${ctx.secreto}|proy|${p.id}`);
             if (p.tipo === 'area') {
-                const exito = rng.chance(Math.min(0.98, probExitoMejora(p.nivel - 1, priv.inst?.fabrica || 0) + bonusExitoTunel(p.clave, priv.inst?.tunel)));
+                // Con los planos de otra escudería la mejora no puede fallar
+                const conPlano = tienePlano(priv, p.clave, p.nivel);
+                const exito = conPlano || rng.chance(Math.min(0.98, probExitoMejora(p.nivel - 1, priv.inst?.fabrica || 0) + bonusExitoTunel(p.clave, priv.inst?.tunel) + bonusExitoIngenieros(p.clave, priv)));
+                if (conPlano && (priv.planos?.[p.clave] || 0) <= p.nivel) { const { [p.clave]: _u, ...resto } = priv.planos; priv.planos = resto; }
                 if (exito) {
                     priv.coche = { ...(priv.coche || {}), [p.clave]: Math.max(priv.coche?.[p.clave] || 0, p.nivel) };
                     notificar(ctx, eq, { remitente: 'Departamento técnico', tipo: 'id', titulo: `${AREAS[p.clave].nombre} mejorada a nivel ${p.nivel}`, texto: 'La pieza ha superado las pruebas y ya está montada en los coches.' });
@@ -1300,6 +1306,7 @@ async function informeEspionaje(ctx, eq, p, rng) {
     notificar(ctx, eq, { remitente: 'Espionaje', tipo: 'espia', titulo, texto });
     if (objetivoEq && objetivoEq !== eq && rng.chance(ECO.probDeteccionEspia)) {
         notificar(ctx, objetivoEq, { remitente: 'Seguridad', tipo: 'espia', titulo: 'Hemos detectado espías', texto: `Hemos pillado a gente de ${equipos[eq]?.nombre} husmeando en nuestras instalaciones.` });
+        if (novedadesActivas(ctx.cfg)) repEquipo(ctx, eq, -4, 'pillado espiando');
         noticia(ctx, { titulo: `Escándalo: ${equipos[eq]?.nombre} pillado espiando`, texto: `Fuentes del paddock aseguran que ${equipos[eq]?.nombre} fue sorprendido espiando a ${equipos[objetivoEq]?.nombre}.`, liga: equipos[eq]?.liga, tipo: 'rumor' });
         const eqPub = equipos[eq];
         eqPub.fans = Math.max(0, (eqPub.fans || 0) - 150);
@@ -1433,6 +1440,8 @@ async function diario(ctx) {
     const accViejas = (await ctx.store.list('acciones', [['creado', '<', ctx.ahora - 14 * 864e5]], { limit: 400 })).filter(a => a.estado !== 'pendiente');
     accViejas.forEach(a => ctx.ops.push({ op: 'del', path: `acciones/${a.id}` }));
     await caprichosIA(ctx, dia);
+    await diarioNovedades(ctx, dia);
+    await generarLlamadas(ctx, dia);
     ctx.cfg.ultimoDiario = dia;
     await ctx.store.merge('config/juego', { ultimoDiario: dia });
     ctx.catalogoSucio = true;

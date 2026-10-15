@@ -71,7 +71,7 @@ const REPOSO_MAX = 15 * 60_000;   // aunque no pase nada, un ciclo cada 15 min (
 const HUECO_MIN = 1_000;          // entre dos ciclos seguidos (las acciones se procesan casi al momento)
 const log = (m) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${m}`);
 
-const vivo = { cfg: null, eventos: [], equipos: [], privs: [], acciones: [], decisiones: [], prensa: [], avisos: [] };
+const vivo = { cfg: null, eventos: [], equipos: [], privs: [], acciones: [], decisiones: [], prensa: [], avisos: [], llamadas: [] };
 const listos = new Set();
 const lista = (snap) => snap.docs.map(d => ({ id: d.id, ...d.data() }));
 let despertar = null;
@@ -96,6 +96,7 @@ escuchar('acciones', query(collection(db, 'acciones'), where('estado', '==', 'pe
 escuchar('decisiones', query(collection(db, 'decisiones'), where('aplicada', '==', false)), (s) => { vivo.decisiones = lista(s); });
 escuchar('prensa', query(collection(db, 'prensa'), where('aplicada', '==', false)), (s) => { vivo.prensa = lista(s); });
 escuchar('avisos', query(collection(db, 'avisos_admin'), where('estado', '==', 'pendiente')), (s) => { vivo.avisos = lista(s); });
+escuchar('llamadas', query(collection(db, 'llamadas'), where('aplicada', '==', false)), (s) => { vivo.llamadas = lista(s); });
 
 // Próximo instante en el que el ciclo tiene trabajo por horario
 function proximoVencimiento(ahora) {
@@ -107,12 +108,14 @@ function proximoVencimiento(ahora) {
     for (const p of vivo.privs) for (const pr of p.proyectos || []) t = Math.min(t, pr.retenida || pr.fin);
     for (const d of vivo.decisiones) t = Math.min(t, d.expira);
     for (const d of vivo.prensa) t = Math.min(t, d.expira);
+    for (const d of vivo.llamadas) t = Math.min(t, d.expira);
     return t;
 }
 function motivo(ahora, ultimo) {
     if (vivo.acciones.length) return `${vivo.acciones.length} acción(es)`;
     if (vivo.decisiones.some(d => d.eleccion)) return 'decisión elegida';
     if (vivo.prensa.some(d => d.eleccion)) return 'respuesta a la prensa';
+    if (vivo.llamadas.some(d => d.eleccion)) return 'respuesta a una llamada';
     if (push && vivo.avisos.length) return 'aviso de la organización';
     const venc = proximoVencimiento(ahora);
     // si algo vencido no se resuelve (p. ej. un error), no insistir más de una vez por minuto
@@ -126,7 +129,7 @@ const atasco = { venc: null, t: 0 };
 log(`Worker continuo durante ${minutos} min`);
 while (Date.now() < hasta) {
     const ahora = Date.now();
-    const listosTodos = ['cfg', 'eventos', 'equipos', 'privs', 'acciones', 'decisiones', 'prensa', 'avisos'].every(n => listos.has(n));
+    const listosTodos = ['cfg', 'eventos', 'equipos', 'privs', 'acciones', 'decisiones', 'prensa', 'avisos', 'llamadas'].every(n => listos.has(n));
     const m = listosTodos && ahora - ultimo >= HUECO_MIN ? motivo(ahora, ultimo) : null;
     if (m) {
         ultimo = ahora;

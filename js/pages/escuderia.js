@@ -12,6 +12,10 @@ import {
     SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, tandasSimulador, identidadAbierta, costeMejoraFinal, descuentoTunel, ENTRENO, probEntreno,
 } from '../engine/constants.js';
 import { validarNombreEscuderia } from '../engine/badwords.js';
+import { avatarPiloto, avatarPatrocinador } from '../core/avatar.js';
+import { htmlNovedades, activarNovedadesUI } from './escuderia-novedades.js';
+import { novedadesActivas } from '../jobs/novedades.js';
+import { REF_PLANTILLA } from '../engine/ingenieros.js';
 import { tandasDisponibles, textoLectura } from '../engine/juego.js';
 import { candidatosGalactico, tacticosDisponibles, puedePedirGalactico, MERCADO } from '../core/mercado-ui.js';
 
@@ -120,13 +124,28 @@ escucharConsulta('prensa', [['uid', '==', u.uid]], (lista) => {
 });
 // las preguntas programadas aparecen solas cuando llega su hora
 setInterval(() => { if (E.priv && tabActual === 'hoy' && E.prensa.some(p => !p.aplicada && !p.eleccion && p.disponible <= ahora() && !$(`[data-prensa="${p.id}"]`))) pintarHoy(); }, 30_000);
+// Novedades (temporada 2+): ingenieros, negociaciones y reputación
+const NOV = novedadesActivas(d.cfg);
+E.plantilla = null; E.negociaciones = []; E.repManager = null;
+if (NOV) {
+    escuchar(REF_PLANTILLA, (doc) => { const l = doc?.lista || null; if (iguales(l, E.plantilla)) return; E.plantilla = l; if (E.priv) repintar('equipo'); });
+    escucharConsulta('negociaciones', [['uids', 'array-contains', u.uid]], (lista) => {
+        const orden = lista.filter(n => n.de === eqId || n.a === eqId).sort((a, b) => (b.creado || 0) - (a.creado || 0));
+        if (iguales(orden, E.negociaciones)) return;
+        const nuevas = orden.filter(n => n.a === eqId && n.estado === 'pendiente' && !E.negociaciones.some(x => x.id === n.id));
+        E.negociaciones = orden;
+        if (nuevas.length && E.priv) toast(`Tienes ${nuevas.length} propuesta${nuevas.length > 1 ? 's' : ''} de otra escudería (pestaña Equipo)`);
+        if (E.priv) repintar('equipo');
+    });
+    escuchar(`managers/${u.uid}`, (m) => { if (m?.reputacion === E.repManager) return; E.repManager = m?.reputacion ?? null; if (E.priv) repintar('equipo'); });
+}
 escuchar(`decisiones/${hoy()}_${eqId}`, (dec) => {
     if (iguales(dec, E.decision)) return;
     E.decision = dec;
     if (E.priv) repintar('hoy');
 });
 
-const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', inst_limpiar: 'Limpieza', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico', reparar: 'Reparación', identidad: 'Cambio de imagen', comprar_filial: 'Compra de filial', plaza_responder: 'Oferta de plaza', entrenar: 'Entrenamiento' };
+const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', inst_limpiar: 'Limpieza', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico', reparar: 'Reparación', identidad: 'Cambio de imagen', comprar_filial: 'Compra de filial', plaza_responder: 'Oferta de plaza', entrenar: 'Entrenamiento', ing_fichar: 'Fichaje de ingeniero', ing_despedir: 'Despido de ingeniero', neg_proponer: 'Negociación', neg_responder: 'Negociación', neg_cancelar: 'Negociación', galactico_blindar: 'Blindaje' };
 function avisarAccion(a) {
     if (a.estado === 'error') toast(`${NOMBRES_ACCION[a.tipo] || a.tipo}: ${a.resultado?.error}`, 'error');
     else if (a.tipo === 'entrenar') toast(a.resultado?.sube ? `${a.resultado.piloto}: ${ENTRENO.attrs[a.resultado.attr]} +${a.resultado.sube} (ahora ${a.resultado.valor})` : `${a.resultado?.piloto}: el entrenamiento no ha dado fruto esta vez`, a.resultado?.sube ? undefined : 'error');
@@ -433,7 +452,7 @@ function pintarEquipo() {
         const a = pp.attrs || {};
         const moral = pp.moral ?? 60;
         return `<div class="tarjeta">
-          <div class="fila-entre"><a class="fila" href="piloto.html?id=${esc(p.id)}">${bandera(p.nac, { ancho: 22 })}<b>${esc(p.nombre)} ${esc(p.apellido)}</b></a><span class="muted peq">#${p.numero ?? ''}</span></div>
+          <div class="fila-entre"><a class="fila" href="piloto.html?id=${esc(p.id)}" style="flex-wrap:nowrap">${avatarPiloto(p.id, eq.color, 44)}<span><span class="con-bandera">${bandera(p.nac, { ancho: 18 })}<b>${esc(p.nombre)} ${esc(p.apellido)}</b></span></span></a><span class="muted peq">#${p.numero ?? ''}</span></div>
           <div class="datos" style="margin:12px 0"><div class="dato"><b>${st[p.id]?.pts ?? 0}</b><span>Puntos</span></div><div class="dato"><b>${moral >= 70 ? 'Alta' : moral >= 45 ? 'Normal' : 'Baja'}</b><span>Moral</span></div><div class="dato"><b>${pp.forma > 0.2 ? 'En racha' : pp.forma < -0.2 ? 'Bajón' : 'Normal'}</b><span>Forma</span></div></div>
           ${attr('Ritmo', a.ritmo)}${attr('Consistencia', a.consistencia)}${attr('Agresividad', a.agresividad)}${attr('Lluvia', a.lluvia)}
           ${entrenoHtml(p)}
@@ -443,13 +462,14 @@ function pintarEquipo() {
       <div class="pila">
         <div class="tarjeta">
           <div class="tarjeta-titulo"><h2>Patrocinador</h2></div>
-          ${sp ? `<div class="fila-entre"><div><b>${esc(sp.marca)}</b><div class="muted peq">${esc(sp.desc)}</div></div><div class="dato" style="text-align:right"><b>${dinero(sp.base)}</b><span>por jornada</span></div></div>`
+          ${sp ? `<div class="fila-entre"><div class="fila" style="flex-wrap:nowrap">${avatarPatrocinador(sp.marca, 40)}<div><b>${esc(sp.marca)}</b><div class="muted peq">${esc(sp.desc)}</div></div></div><div class="dato" style="text-align:right"><b>${dinero(sp.base)}</b><span>por jornada</span></div></div>`
             : pendientes('sponsor_firmar').length ? '<p class="muted">Firmando…</p>'
-            : priv.ofertasSponsor?.length ? `<p class="muted peq">Elige uno para toda la temporada.</p><div class="opciones-grid">${priv.ofertasSponsor.map(o => `<button class="opcion" data-sp="${esc(o.id)}"><b>${esc(o.marca)}</b><small>${esc(o.tipo)} · ${dinero(o.base)}${o.bonus ? ` + ${dinero(o.bonus)}` : ''}</small><div class="muted peq" style="margin-top:4px">${esc(o.desc)}</div></button>`).join('')}</div>`
+            : priv.ofertasSponsor?.length ? `<p class="muted peq">Elige uno para toda la temporada.</p><div class="opciones-grid">${priv.ofertasSponsor.map(o => `<button class="opcion" data-sp="${esc(o.id)}">${avatarPatrocinador(o.marca, 32)}<b>${esc(o.marca)}</b><small>${esc(o.tipo)} · ${dinero(o.base)}${o.bonus ? ` + ${dinero(o.bonus)}` : ''}</small><div class="muted peq" style="margin-top:4px">${esc(o.desc)}</div></button>`).join('')}</div>`
             : '<p class="muted">Las ofertas llegan con el próximo ciclo.</p>'}
         </div>
         ${mercadoHtml()}
         ${identidadHtml()}
+        ${NOV ? htmlNovedades(nov()) : ''}
       </div>
       <div class="tarjeta">
         <div class="tarjeta-titulo"><h2>Movimientos</h2><span class="muted peq">${dinero(priv.presupuesto)}</span></div>
@@ -464,7 +484,9 @@ function pintarEquipo() {
     activarMercado(el);
     activarIdentidad(el);
     activarEntreno(el);
+    if (NOV) activarNovedadesUI(el, nov());
 }
+function nov() { return { d, eqId, eq, priv: E.priv, plantilla: E.plantilla, negociaciones: E.negociaciones, repManager: E.repManager, pendientes, uid: u.uid, lanzar }; }
 
 // Mercado: pedir un Galáctico de otra liga (solo las 3 mejores escuderías de cada liga)
 function mercadoHtml() {

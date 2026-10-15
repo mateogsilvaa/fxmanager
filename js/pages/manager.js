@@ -5,6 +5,7 @@ import { esc, banderaLiga, vacio, barra } from '../core/ui.js';
 import { celdaEquipo, pos } from '../core/componentes.js';
 import { LIGAS } from '../engine/constants.js';
 import { ratingCarrera, nivelRating, PESOS_RATING } from '../engine/rating.js';
+import { nivelRep } from '../engine/reputacion.js';
 
 const uid = new URLSearchParams(location.search).get('id');
 await montar();
@@ -50,7 +51,7 @@ main.innerHTML = `
   </div>
   <aside class="pila">
     <div class="tarjeta"><div class="tarjeta-titulo"><h3>Carrera</h3></div><div class="datos">
-      ${dato(carrera ?? '—', 'Rating de carrera')}${dato(mejor?.rating ?? '—', `Mejor rating${mejor ? ` (T${mejor.temporada})` : ''}`)}
+      ${doc?.reputacion != null ? dato(doc.reputacion, `Reputación · ${nivelRep(doc.reputacion).toLowerCase()}`) : ''}${dato(carrera ?? '—', 'Rating de carrera')}${dato(mejor?.rating ?? '—', `Mejor rating${mejor ? ` (T${mejor.temporada})` : ''}`)}
       ${dato(titulos, 'Títulos de liga')}${dato(mundiales, 'Mundiales')}${dato(sum('victorias'), 'Victorias')}${dato(sum('podios'), 'Podios')}
     </div>
     <p class="muted peq" style="margin:12px 0 0">El rating de carrera es la media de todas sus temporadas, con más peso para las recientes.</p></div>

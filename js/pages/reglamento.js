@@ -10,7 +10,7 @@ await montar({ activo: 'reglamento' });
 
 const indice = [
     ['simulacion', 'Qué es esto'], ['formato', 'El campeonato'], ['jornada', 'Una jornada'], ['puntos', 'Puntos'],
-    ['mundial', 'El Mundial'], ['mercado', 'El mercado'], ['despidos', 'Despidos'], ['economia', 'Economía'],
+    ['mundial', 'El Mundial'], ['mercado', 'El mercado'], ['novedades', 'Temporada 2'], ['despidos', 'Despidos'], ['economia', 'Economía'],
     ['cada-dia', 'Qué hacer cada día'], ['club', 'Imagen y filiales'], ['carrera', 'Cómo se decide una carrera'],
 ];
 const seccion = (id, titulo, html) => `<section id="${id}" style="scroll-margin-top:90px;padding:30px 0;border-bottom:1px solid var(--hair)">
@@ -74,6 +74,13 @@ ${seccion('mercado', 'El mercado', `
 <p><b>Vacantes.</b> Si te despiden a un piloto, durante el mercado puedes fichar a uno de otra escudería (de cualquier liga) haciendo una oferta (mínimo ${dinero(MERCADO.fichajeMinimo)}). Una escudería de la IA vende si le pagas lo que vale el piloto; un mánager decide él. Quien vende se queda con una vacante. Si al cerrar no la has cubierto, la liga te asigna un rookie (puedes ordenar a tus favoritos; eligen antes las peor clasificadas).</p>
 <p><b>Despido de mánagers.</b> Al terminar el Mundial, el consejo de cada escudería echa al mánager que lo ha hecho muy mal (rating por debajo de 30, casi siempre el último de su liga). Vale para la IA y para las personas: si te despiden, pierdes la escudería y puedes elegir otra libre.</p>
 <p><b>Fichas de fichaje y trueques.</b> Si tu alineación no tiene movimientos previstos, puedes pedir una ficha de fichaje a la liga. Con ella propones un cambio de piloto por piloto a otra escudería que también tenga ficha. La IA acepta si no sale perdiendo.</p>`)}
+
+${seccion('novedades', 'Novedades de la temporada 2', `
+<p><b>Ingenieros.</b> Cada escudería tiene 2 ingenieros de motor, 2 de aerodinámica, 2 de chasis, 2 de fiabilidad y 1 ingeniero de pista. Cada estrella de los ingenieros de un área hace las mejoras de esa área un 1,5% más baratas, un 1,5% más rápidas y un 1% más seguras. El ingeniero de pista afina las lecturas del reglaje. Cobran un sueldo diario. Puedes fichar ingenieros libres (pagando una prima) o despedir a los tuyos (con indemnización).</p>
+<p><b>Negociaciones entre escuderías.</b> Puedes proponer a cualquier escudería una compra (pides algo y pagas), un intercambio (cosa por cosa) o un intercambio con compensación (cosa por cosa y dinero). Se negocian ingenieros, pilotos (solo fuera del periodo de carreras y cumpliendo el 55% de locales) y planos de piezas. Con los planos de un nivel que la otra escudería ya tiene, tu mejora hasta ese nivel no falla y sale un 30% más barata. La IA acepta si sale ganando; un mánager decide él.</p>
+<p><b>Blindar a tu Galáctico.</b> Si tu piloto sale como Galáctico, puedes pagar en secreto 1,5 veces la puja más alta que haya por él (o 2 M€ si nadie ha pujado) y se queda en tu escudería.</p>
+<p><b>Llamadas y cartas.</b> De vez en cuando, al entrar, te llamará o te escribirá alguien: tu patrocinador, tus pilotos o ingenieros, la FIA, la prensa, un rival o un aficionado. Cuanto más tiempo juegas, más a menudo pasa, y suele ser a la hora a la que sueles conectarte. Lo que decidas tiene consecuencias: dinero, fans, moral, entrenamientos, adelantar una mejora, información… o nada.</p>
+<p><b>Reputación</b> (de 0 a 100, empieza en 50). La de tu escudería mejora a los patrocinadores, los fans y el precio de los ingenieros. La tuya como mánager decide cuánta paciencia te tiene la directiva (con mucha reputación aguanta un rating más bajo antes de despedirte), lo fácil que es negociar con la IA y cuántas ofertas te llegan para dirigir otras escuderías. Sube con buenos resultados, acuerdos limpios y decisiones valientes; baja con escándalos, despidos o echarte atrás.</p>`)}
 
 ${seccion('despidos', 'Despidos', `
 <p>No se despide a los últimos por ser últimos. Se mide a cada piloto <b>contra su compañero</b>, que lleva el mismo coche:</p>

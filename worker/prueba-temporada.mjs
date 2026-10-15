@@ -20,6 +20,7 @@ const ok = (cond, msg) => { if (!cond) { fallos.push(msg); console.log('❌', ms
 const parrilla = JSON.parse(readFileSync(new URL('../data/parrilla.json', import.meta.url)));
 await inicializarJuego(store);
 await importarParrilla(store, parrilla);
+if (process.argv.includes('--novedades')) await store.merge('config/juego', { novedades: true });
 
 // Viernes 2 oct 2026, 18:00 Madrid = 16:00 UTC
 const T0 = Date.UTC(2026, 9, 2, 16, 0);
