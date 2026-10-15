@@ -1,5 +1,25 @@
 // Genera las páginas HTML (todas con la misma estructura). Uso: node worker/generar-html.mjs
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Todos los módulos que necesita una página (siguiendo los import estáticos), para precargarlos a la vez
+// en vez de que el navegador los descubra uno a uno en cascada.
+const RAIZ = fileURLToPath(new URL('..', import.meta.url));
+function grafo(entrada) {
+    const vistos = new Set();
+    const pila = [join(RAIZ, entrada)];
+    while (pila.length) {
+        const f = pila.pop();
+        if (vistos.has(f)) continue;
+        vistos.add(f);
+        let src = '';
+        try { src = readFileSync(f, 'utf8'); } catch { continue; }
+        for (const m of src.matchAll(/^\s*(?:import|export)\s[^'"`;]*?from\s*['"](\.{1,2}\/[^'"]+)['"]/gm)) pila.push(join(dirname(f), m[1]));
+        for (const m of src.matchAll(/^\s*import\s*['"](\.{1,2}\/[^'"]+)['"]/gm)) pila.push(join(dirname(f), m[1]));
+    }
+    return [...vistos].map(f => relative(RAIZ, f).replace(/\\/g, '/'));
+}
 const FB = '10.12.2';
 const PAGINAS = {
     index: ['Hyper Race X1 · FX Manager', 'inicio'],
@@ -35,6 +55,11 @@ for (const [archivo, [titulo, js]] of Object.entries(PAGINAS)) {
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Hyper Race">
     <link rel="stylesheet" href="css/app.css">
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/${FB}/firebase-app.js">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/${FB}/firebase-auth.js">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/${FB}/firebase-firestore.js">
+${grafo(`js/pages/${js}.js`).map(m => `    <link rel="modulepreload" href="${m}">`).join('\n')}
     <script type="importmap">
     {
         "imports": {

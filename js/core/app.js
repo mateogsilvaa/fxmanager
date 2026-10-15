@@ -47,17 +47,33 @@ export function iniciar() {
         _store = new FirestoreStore(fsMod.getFirestore(app));
         await new Promise(res => {
             let primera = true;
+            // Solo se crea el perfil si la lectura ha ido bien y de verdad no existe. Si falla (red, sesión
+            // recién renovada…) nunca se escribe: sobrescribiría un perfil existente y quitaría el admin.
+            const leerPerfil = async (u) => {
+                let perfil = null, leido = true;
+                try { perfil = await _store.get(`usuarios/${u.uid}`); } catch { leido = false; }
+                if (!perfil && leido) {
+                    perfil = { nombre: u.displayName || u.email.split('@')[0], email: u.email, isAdmin: false, equipoId: null, estado: 'pendiente' };
+                    await _store.set(`usuarios/${u.uid}`, perfil).catch(() => { });
+                }
+                if (perfil) guardarPerfil(u.uid, perfil);
+                return perfil;
+            };
             authMod.onAuthStateChanged(_auth, async (u) => {
                 if (u) {
-                    // Solo se crea el perfil si la lectura ha ido bien y de verdad no existe. Si falla (red, sesión
-                    // recién renovada…) nunca se escribe: sobrescribiría un perfil existente y quitaría el admin.
-                    let perfil = null, leido = true;
-                    try { perfil = await _store.get(`usuarios/${u.uid}`); } catch { leido = false; }
-                    if (!perfil) {
-                        perfil = { nombre: u.displayName || u.email.split('@')[0], email: u.email, isAdmin: false, equipoId: null, estado: 'pendiente' };
-                        if (leido) await _store.set(`usuarios/${u.uid}`, perfil).catch(() => { });
+                    // El perfil de la visita anterior sirve para pintar ya; el del servidor llega en segundo plano
+                    const guardado = perfilGuardado(u.uid);
+                    if (guardado) {
+                        _usuario = { uid: u.uid, email: u.email, perfil: guardado };
+                        leerPerfil(u).then(p => {
+                            if (!p || _usuario?.uid !== u.uid || JSON.stringify(p) === JSON.stringify(guardado)) return;
+                            _usuario.perfil = _sombra ? { ...p, equipoId: _sombra } : p;
+                            oyentes.forEach(f => f(_usuario));
+                        });
+                    } else {
+                        const perfil = await leerPerfil(u) || { nombre: u.displayName || u.email.split('@')[0], email: u.email, isAdmin: false, equipoId: null, estado: 'pendiente' };
+                        _usuario = { uid: u.uid, email: u.email, perfil };
                     }
-                    _usuario = { uid: u.uid, email: u.email, perfil };
                     marcarVisita(u.uid);
                 } else _usuario = null;
                 if (primera) { primera = false; res(); } else oyentes.forEach(f => f(_usuario));
@@ -82,9 +98,14 @@ export const usuario = () => _usuario;
 export const onUsuario = (f) => { oyentes.add(f); return () => oyentes.delete(f); };
 export const esAdmin = () => !!_usuario?.perfil?.isAdmin;
 
+// Perfil guardado en el navegador (solo para pintar antes; el servidor siempre manda)
+function perfilGuardado(uid) { try { return JSON.parse(localStorage.getItem(`fx-perfil-${uid}`)); } catch { return null; } }
+function guardarPerfil(uid, p) { try { localStorage.setItem(`fx-perfil-${uid}`, JSON.stringify(p)); } catch { } }
+
 export async function refrescarPerfil() {
     if (!_usuario || DEMO) return _usuario;
-    _usuario.perfil = await _store.get(`usuarios/${_usuario.uid}`);
+    const p = await _store.get(`usuarios/${_usuario.uid}`).catch(() => _usuario.perfil);
+    if (p) { _usuario.perfil = p; guardarPerfil(_usuario.uid, p); }
     if (_sombra) _usuario.perfil = { ..._usuario.perfil, equipoId: _sombra };
     return _usuario;
 }

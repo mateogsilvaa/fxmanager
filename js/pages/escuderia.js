@@ -2,7 +2,7 @@ import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, limpiarCache } from '../core/datos.js';
 import { store, ahora, encolar, escuchar, escucharConsulta, reclamarEquipo, refrescarPerfil, enSombra } from '../core/app.js';
 import { reconstruirCatalogo } from '../jobs/catalogo.js';
-import { jornadaEnCurso } from '../jobs/comun.js';
+import { jornadaEnCurso, cierreTecnico } from '../jobs/comun.js';
 import { estadoAvisos, activarAvisos } from '../core/avisos.js';
 import { COMPUESTOS, MAX_PARADAS, mejorEstrategia, textoPrecision } from '../engine/neumaticos.js';
 import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal, pestanas, $, $$, dinero, barra, cuentaAtras } from '../core/ui.js';
@@ -18,8 +18,7 @@ import { candidatosGalactico, tacticosDisponibles, puedePedirGalactico, MERCADO 
 const u = await montar({ activo: 'escuderia' });
 const main = document.getElementById('main');
 if (!u) { location.href = 'entrar.html'; throw new Error('sin sesión'); }
-await refrescarPerfil();
-const d = await cargarDatos();
+const [, d] = await Promise.all([refrescarPerfil(), cargarDatos()]);
 barraDirecto(d);
 if (!u.perfil?.equipoId) { elegirEquipo(); throw new Error('sin equipo'); }
 
@@ -83,9 +82,14 @@ const repintar = (...tabs) => tabs.forEach(t => { if (pintados.has(t) || t === t
 const irA = pestanas($('#tabs').parentElement, { alCambiar: (id) => { tabActual = id; if (!pintados.has(id) && E.priv) { pintados.add(id); PINTAR[id](); } } });
 
 const iguales = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-E.pp = Object.fromEntries(await Promise.all(misPilotos.map(async p => [p.id, await store().get(`pilotos_priv/${p.id}`).catch(() => null)])));
-if (ev) E.estrategias = await store().list('estrategias', [['uid', '==', u.uid], ['eventoId', '==', ev.id]]).catch(() => []);
-const docOfertas = await store().get(`mercado_ofertas/T${d.temporada}`).catch(() => null);
+// Todo lo que no depende de nada más, a la vez
+const [pps, estrategias, docOfertas] = await Promise.all([
+    Promise.all(misPilotos.map(async p => [p.id, await store().get(`pilotos_priv/${p.id}`).catch(() => null)])),
+    ev ? store().list('estrategias', [['uid', '==', u.uid], ['eventoId', '==', ev.id]]).catch(() => []) : [],
+    store().get(`mercado_ofertas/T${d.temporada}`).catch(() => null),
+]);
+E.pp = Object.fromEntries(pps);
+E.estrategias = estrategias;
 let privRaw = null;
 escuchar(`equipos_priv/${eqId}`, (p) => {
     if (iguales(p, privRaw)) return;
@@ -354,11 +358,13 @@ function pintarCoche() {
     const slots = proyectos.filter(p => p.tipo === 'area').length + pendID.length;
     const obra = proyectos.some(p => p.tipo === 'inst') || pendInst.length;
     // Parque cerrado durante la jornada: no se puede encargar I+D
-    const pc = jornadaEnCurso(misEventos, [liga, 'INT'], ahora());
+    const cierre = cierreTecnico(d.eventosLiga(liga), liga, d.cfg.fase, ahora());
+    const pc = jornadaEnCurso(misEventos, [liga, 'INT'], ahora()) || cierre;
     el.innerHTML = `<div class="rejilla rejilla-2" style="align-items:start">
     <div class="tarjeta">
       <div class="tarjeta-titulo"><h2>Desarrollo</h2><span class="muted peq">${slots} de ${SLOTS_ID} proyectos en marcha</span></div>
-      ${pc ? `<div class="aviso-caja" style="margin-bottom:10px"><b>Parque cerrado.</b> Durante la jornada no se puede tocar el coche. Vuelve a encargar mejoras en <span data-cuenta="${pc.fin}" data-corta>${cuentaAtras(pc.fin, true)}</span>. Las que terminen antes se montarán al acabar la jornada.</div>` : ''}
+      ${cierre ? `<div class="aviso-caja" style="margin-bottom:10px"><b>Cierre técnico.</b> ${cierre.motivo === 'liga' ? 'Tu liga ha terminado' : 'Se está jugando el Mundial'}: hasta que acabe el Mundial no se pueden encargar mejoras. Las que ya estaban en marcha terminan con normalidad.</div>` : ''}
+      ${pc && !cierre ? `<div class="aviso-caja" style="margin-bottom:10px"><b>Parque cerrado.</b> Durante la jornada no se puede tocar el coche. Vuelve a encargar mejoras en <span data-cuenta="${pc.fin}" data-corta>${cuentaAtras(pc.fin, true)}</span>. Las que terminen antes se montarán al acabar la jornada.</div>` : ''}
       ${Object.entries(AREAS).map(([k, a]) => {
           const n = priv.coche?.[k] || 0;
           const activo = proyectos.find(p => p.tipo === 'area' && p.clave === k) || pendID.find(p => p.params?.area === k);
@@ -471,7 +477,7 @@ function mercadoHtml() {
     let cuerpo;
     if (!abierto) cuerpo = ['mundial', 'mercado'].includes(d.cfg.fase) ? '<p>El mercado está abierto: ofertas, traspasos y trueques se hacen desde la página de Mercado.</p><div class="fila-botones"><a class="btn" href="mercado.html">Ir al mercado</a></div>' : '<p class="muted">El mercado ya ha cerrado.</p>';
     else if (mia) cuerpo = `<p>Has ofrecido <b>${dinero(mia.importe)}</b> y a ${esc(d.nombre(mia.tactico))} por <b>${esc(d.nombre(mia.pid))}</b>.</p>
-        <p class="muted peq">Cuenta si al final ${esc(d.apellido(mia.pid))} es el Galáctico de su liga y tu escudería termina entre las ${MERCADO.topComprador} primeras. Su escudería podrá aceptarla en el mercado; si no, la liga da prioridad a las ofertas.</p>
+        <p class="muted peq">Solo será válida si al terminar la liga tu escudería sigue entre las ${MERCADO.topComprador} primeras (no basta con estarlo ahora), tienes el dinero y ${esc(d.apellido(mia.pid))} es el Galáctico de su liga. Su escudería podrá aceptarla en el mercado; si no, la liga da prioridad a las ofertas.</p>
         <div class="fila-botones"><button class="btn btn-peligro btn-peq" id="cancelar-oferta">Retirar oferta</button></div>`;
     else if (!puede) cuerpo = `<p class="muted">Solo las ${MERCADO.topComprador} mejores escuderías de cada liga pueden pedir un Galáctico. Ahora vais ${pos ? `${pos}º` : 'sin clasificar'}.</p>`;
     else if (!candidatos.length || !tacticos.length) cuerpo = `<p class="muted">${!tacticos.length ? 'Ninguno de tus pilotos puede salir como Táctico ahora mismo (tiene que estar fuera del top 5 y su compañero ser local).' : 'Todavía no hay candidatos: faltan carreras.'}</p>`;

@@ -56,6 +56,17 @@ export function jornadaEnCurso(eventos, ligas, t) {
     return null;
 }
 
+// Cierre técnico: desde que termina la liga nacional de un equipo hasta que acaba el Mundial no se pueden
+// encargar mejoras del coche (las que ya estaban en marcha terminan con normalidad).
+export function cierreTecnico(eventos, liga, fase, t) {
+    if (fase === 'mundial') return { motivo: 'mundial' };
+    if (fase !== 'nacional') return null;
+    const suyos = eventos.filter(e => e.liga === liga);
+    if (!suyos.length) return null;
+    const fin = Math.max(...suyos.flatMap(e => Object.values(e.sesiones || {}).map(s => s.revealAt || 0)));
+    return fin && fin <= t ? { motivo: 'liga' } : null;
+}
+
 export function sesionesOrdenadas(evento) {
     return SESIONES.filter(t => evento.sesiones?.[t]).map(t => ({ tipo: t, ...evento.sesiones[t] }));
 }

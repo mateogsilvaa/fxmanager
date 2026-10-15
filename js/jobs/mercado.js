@@ -71,8 +71,18 @@ export async function abrirMercado(ctx, { tablas, deadline }) {
 
     // 2. Galácticos: uno por liga. Las ofertas hechas durante la temporada cuentan.
     const docOfertas = await store.get(`mercado_ofertas/T${temporada}`);
-    const previas = Object.entries(docOfertas?.ofertas || {}).map(([eq, o]) => ({ eq, ...o }))
-        .filter(o => o.pid && (posEq[o.eq] || 99) <= MERCADO.topComprador && (privs[o.eq]?.presupuesto || 0) >= o.importe && equipos[o.eq]?.liga !== pil[o.pid]?.liga);
+    // Las ofertas hechas durante la temporada solo cuentan si al final se cumplen las condiciones
+    // (estar entre las 3 mejores de tu liga al terminar y tener el dinero); si no, se anulan y se avisa.
+    const motivoInvalida = (o) => !o.pid ? 'oferta incompleta'
+        : (posEq[o.eq] || 99) > MERCADO.topComprador ? `tu escudería ha terminado ${posEq[o.eq] ? `${posEq[o.eq]}ª` : 'fuera del top'} de su liga y solo pueden fichar Galácticos las ${MERCADO.topComprador} primeras`
+        : (privs[o.eq]?.presupuesto || 0) < o.importe ? 'ya no tienes el dinero que ofreciste'
+        : equipos[o.eq]?.liga === pil[o.pid]?.liga ? 'el piloto ya es de tu liga' : null;
+    const todasPrevias = Object.entries(docOfertas?.ofertas || {}).map(([eq, o]) => ({ eq, ...o }));
+    for (const o of todasPrevias) {
+        const mot = motivoInvalida(o);
+        if (mot) notificar(ctx, o.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: `Tu oferta por ${nombre(o.pid)} no es válida`, texto: `Se anula porque ${mot}. No se te cobra nada.` });
+    }
+    const previas = todasPrevias.filter(o => !motivoInvalida(o));
     const elegidos = elegirGalacticos({ tablas, pilotos: activos(pil), ofertas: previas, rng, despedidos });
     const galacticos = elegidos.map(g => ({ ...g, nombre: nombre(g.pid), estado: 'pendiente', decision: duenoReal(ctx, g.eq) ? null : 'liga' }));
     const pidsG = new Set(galacticos.map(g => g.pid));

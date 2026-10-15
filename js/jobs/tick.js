@@ -16,7 +16,7 @@ import {
 } from '../engine/juego.js';
 import {
     crearContexto, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, cargarEventos, sesionesOrdenadas,
-    notificar, noticia, movimiento, nombrePiloto, volcar, idResultado, idEstrategia, idResumen, duenoReal, jornadaEnCurso,
+    notificar, noticia, movimiento, nombrePiloto, volcar, idResultado, idEstrategia, idResumen, duenoReal, jornadaEnCurso, cierreTecnico,
 } from './comun.js';
 import { nombreManagerIA, noticiaManagerIA, conIA } from '../engine/prensa-ia.js';
 import { noticiaAmbiente, rumorMejora } from '../engine/ambiente.js';
@@ -888,6 +888,7 @@ const ACCIONES = {
         if (!AREAS[area]) throw new Error('Área no válida');
         const pc = await parqueCerrado(ctx, a.equipoId);
         if (pc) throw new Error(`Parque cerrado: no se puede tocar el coche hasta que acabe la jornada (${new Date(pc.fin).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', weekday: 'short', hour: '2-digit', minute: '2-digit' })}).`);
+        if (cierreTecnico(await cargarEventos(ctx, ctx.temporada), ctx.equipos[a.equipoId]?.liga, ctx.cfg.fase, ctx.ahora)) throw new Error('Cierre técnico: desde que acaba tu liga hasta que termina el Mundial no se pueden encargar mejoras.');
         const nivel = priv.coche?.[area] || 0;
         if (nivel >= NIVEL_MAX_AREA) throw new Error('Esa área ya está al máximo.');
         const activos = (priv.proyectos || []).filter(p => p.tipo === 'area');
@@ -1399,7 +1400,7 @@ async function diario(ctx) {
             const rng = crearRng(`${ctx.secreto}|iadia|${dia}|${eqId}`);
             const prox = eventos.filter(e => e.liga === eq.liga).map(e => ({ e, t: Math.min(...sesionesOrdenadas(e).map(s => s.lockAt)) })).filter(x => x.t > ctx.ahora).sort((a, b) => a.t - b.t)[0]?.e;
             const activosID = (priv.proyectos || []).filter(p => p.tipo === 'area');
-            if (activosID.length < 1 && !jornadaEnCurso(eventos, [eq.liga], ctx.ahora)) {
+            if (activosID.length < 1 && !jornadaEnCurso(eventos, [eq.liga], ctx.ahora) && !cierreTecnico(eventos, eq.liga, ctx.cfg.fase, ctx.ahora)) {
                 const area = decisionIA(priv, prox?.circuito, rng);
                 if (area) {
                     const nivel = priv.coche?.[area] || 0;

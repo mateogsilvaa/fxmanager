@@ -5,22 +5,32 @@ import { LIGAS_NACIONALES, SESIONES, SESION_INFO, PUNTOS_CARRERA_LARGA, PUNTOS_V
 import { ratingsLiga } from '../engine/rating.js';
 import { fijarPaisMundial } from './ui.js';
 
-const TTL = 60_000;
-function cacheGet(k) {
-    if (DEMO) return null;
-    try { const v = JSON.parse(sessionStorage.getItem(k)); if (v && Date.now() - v.t < TTL) return v.d; } catch { }
-    return null;
+// Caché local con "stale-while-revalidate": si la copia guardada es reciente se usa al instante y,
+// si tiene más de FRESCO, se pide la nueva en segundo plano para la siguiente pantalla.
+// Lo que se publica entre medias (resultados nuevos) se pide aparte en cargarDatos, así que no se pierde nada.
+const FRESCO = 30_000, USABLE = 15 * 60_000;
+const enVuelo = {};
+function cacheLeer(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+function cacheSet(k, d) {
+    if (DEMO) return;
+    const v = JSON.stringify({ t: Date.now(), d });
+    try { localStorage.setItem(k, v); }
+    catch { try { Object.keys(localStorage).filter(x => x.startsWith('fxres:')).forEach(x => localStorage.removeItem(x)); localStorage.setItem(k, v); } catch { } }
 }
-function cacheSet(k, d) { if (DEMO) return; try { sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), d })); } catch { } }
-export function limpiarCache() { try { Object.keys(sessionStorage).filter(k => k.startsWith('fx:')).forEach(k => sessionStorage.removeItem(k)); } catch { } }
+export function limpiarCache() {
+    for (const s of [localStorage, sessionStorage]) { try { Object.keys(s).filter(k => k.startsWith('fx:')).forEach(k => s.removeItem(k)); } catch { } }
+}
+function cacheGet(k) { const c = DEMO ? null : cacheLeer(k); return c && Date.now() - c.t < FRESCO ? c.d : null; }
 
 async function getCache(path) {
+    if (DEMO) return store().get(path);
     const k = `fx:${path}`;
-    const c = cacheGet(k);
-    if (c) return c;
-    const d = await store().get(path);
-    cacheSet(k, d);
-    return d;
+    const c = cacheLeer(k);
+    const edad = c ? Date.now() - c.t : Infinity;
+    const pedir = () => (enVuelo[k] ||= store().get(path).then(d => { cacheSet(k, d); return d; }).finally(() => { delete enVuelo[k]; }));
+    if (edad < FRESCO) return c.d;
+    if (edad < USABLE) { pedir().catch(() => { }); return c.d; }
+    return pedir();
 }
 
 // Resultado completo (vueltas, incidentes). Inmutable una vez publicado → se cachea en localStorage.

@@ -68,7 +68,7 @@ if (iArg < 0) {
 const minutos = +process.argv[iArg + 1] || 340;
 const hasta = Date.now() + minutos * 60_000;
 const REPOSO_MAX = 15 * 60_000;   // aunque no pase nada, un ciclo cada 15 min (mercado, avisos…)
-const HUECO_MIN = 4_000;          // entre dos ciclos seguidos
+const HUECO_MIN = 1_000;          // entre dos ciclos seguidos (las acciones se procesan casi al momento)
 const log = (m) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${m}`);
 
 const vivo = { cfg: null, eventos: [], equipos: [], privs: [], acciones: [], decisiones: [], prensa: [], avisos: [] };
@@ -144,7 +144,7 @@ while (Date.now() < hasta) {
     // Dormir hasta el próximo vencimiento, un cambio en Firestore o como mucho 30 s
     const venc = listosTodos ? proximoVencimiento(ahora) : ahora + 2_000;
     const espera = Math.max(1_000, Math.min(30_000, venc - ahora + 300, hasta - ahora));
-    await new Promise(res => { const t = setTimeout(res, espera); despertar = () => { clearTimeout(t); setTimeout(res, 1_500); }; });
+    await new Promise(res => { const t = setTimeout(res, espera); despertar = () => { clearTimeout(t); setTimeout(res, 250); }; });
     despertar = null;
 }
 quitar.forEach(f => f()); quitarEventos?.();
