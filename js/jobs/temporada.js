@@ -236,8 +236,6 @@ export async function nuevaTemporada(store, { ahora = Date.now(), reglamento = '
     const secreto = (await store.get('secreto/juego').catch(() => null))?.clave || 'sin-secreto';
     const rngReg = crearRng(`${secreto}|reglamento|${temporada}`);
     const cambio = reglamento === 'si' || (reglamento === 'azar' && rngReg.chance(PROB_CAMBIO_REGLAMENTO));
-    // Instalaciones afectadas: el túnel siempre (la aerodinámica cambia), el simulador casi siempre y una más al azar
-    const afectadas = cambio ? [['tunel', 2], ['simulador', 1], [rngReg.pick(['fabrica', 'boxes', 'academia']), 1]] : [];
     const tablas = await tablasTemporada(store, temporada);
     const ctx = crearContexto(store, { ahora });
     ctx.cfg = cfg;
@@ -276,33 +274,39 @@ export async function nuevaTemporada(store, { ahora = Date.now(), reglamento = '
     for (const [id, priv] of Object.entries(privs)) {
         priv.presupuesto = Math.round((priv.presupuesto || 0) * 0.5 + 8_000_000 + (cambio ? AYUDA_REGLAMENTO : 0));
         const coche = priv.coche || {};
-        // Normal: cada área baja 2 niveles. Cambio de reglamento: se conserva solo una cuarta parte.
-        priv.coche = Object.fromEntries(Object.entries(coche).map(([k, v]) => [k, cambio ? Math.floor(v * 0.25) : Math.max(0, v - 2)]));
+        const rngR = crearRng(`${secreto}|reset|${temporada}|${id}`);
+        // Normal: cada área pierde 1 o 2 niveles. Cambio de reglamento: pierde entre el 75% y el 85% (redondeando hacia arriba).
+        const fraccion = () => 0.75 + rngR.next() * 0.10;
+        priv.coche = Object.fromEntries(Object.entries(coche).map(([k, v]) => [k, Math.max(0, v - (cambio ? Math.ceil(v * fraccion()) : rngR.int(1, 2)))]));
+        // Instalaciones: normal no pierden nada; con cambio de reglamento pierden 1 o 2 niveles como máximo.
+        // En ambos casos quedan "sucias" tras la temporada: hay que hacer una limpieza (barata) para volver a usarlas.
         const perdidas = [];
-        if (cambio) {
-            priv.inst = { ...(priv.inst || {}) };
-            for (const [inst, n] of afectadas) {
-                const antes = priv.inst[inst] || 0;
-                if (antes > 0) { priv.inst[inst] = Math.max(0, antes - n); perdidas.push(`${INSTALACIONES[inst].nombre} ${antes}→${priv.inst[inst]}`); }
-            }
-            priv.descuentos = {};
+        const inst = { ...(priv.inst || {}) }, pausa = {};
+        for (const k of Object.keys(INSTALACIONES)) {
+            let n = inst[k] || 0;
+            if (cambio && n > 0) { const baja = Math.min(n, rngR.int(1, 2)); n -= baja; perdidas.push(`${INSTALACIONES[k].nombre} -${baja}`); }
+            if (n > 0) pausa[k] = n;
+            inst[k] = 0;
         }
+        priv.inst = inst; priv.instPausa = pausa;
+        if (cambio) priv.descuentos = {};
         priv.proyectos = [];
         priv.sponsor = null; priv.ofertasSponsor = [];
         priv.finanzas = [{ t: ahora, c: `Inicio de la temporada ${temporada + 1}`, v: 0 }, ...(cambio ? [{ t: ahora, c: 'Ayuda de la liga por el cambio de reglamento', v: AYUDA_REGLAMENTO }] : []), ...(priv.finanzas || [])].slice(0, 60);
         ctx.sucios.privs.add(id);
+        if (Object.keys(pausa).length) notificar(ctx, id, { remitente: 'Fábrica', tipo: 'limpieza', titulo: 'Limpieza requerida tras la temporada', texto: `Tus instalaciones (${Object.keys(pausa).map(k => INSTALACIONES[k].nombre).join(', ')}) necesitan una limpieza antes de volver a usarse. Hazla en Mi escudería → Mejoras (cuesta ${(ECO.limpiezaPorNivel / 1000).toFixed(0)} k€ por nivel).` });
         if (cambio) notificar(ctx, id, {
             remitente: 'Dirección de la liga', tipo: 'reglamento', titulo: `Cambio de reglamento para la temporada ${temporada + 1}`,
-            texto: `Las normas técnicas cambian: tu coche conserva solo una cuarta parte de su desarrollo.${perdidas.length ? ` Instalaciones afectadas: ${perdidas.join(', ')}.` : ''} La liga te ingresa ${(AYUDA_REGLAMENTO / 1e6).toFixed(0)} M€ de ayuda. Todos empiezan casi de cero: es el momento de dar el golpe.`,
+            texto: `Las normas técnicas cambian: tu coche pierde entre el 75% y el 85% de su desarrollo.${perdidas.length ? ` Instalaciones afectadas: ${perdidas.join(', ')}.` : ''} La liga te ingresa ${(AYUDA_REGLAMENTO / 1e6).toFixed(0)} M€ de ayuda. Todos empiezan casi de cero: es el momento de dar el golpe.`,
         });
     }
     if (cambio) noticia(ctx, {
         titulo: `Revolución técnica: nuevo reglamento para la temporada ${temporada + 1}`,
-        texto: `La liga cambia las normas técnicas. Los coches pierden casi todo su desarrollo, el túnel de viento pierde dos niveles y ${afectadas.slice(1).map(([i]) => INSTALACIONES[i].nombre.toLowerCase()).join(' y ')} uno. Cada escudería recibe ${(AYUDA_REGLAMENTO / 1e6).toFixed(0)} M€ de ayuda. La parrilla se aprieta: cualquiera puede ganar.`,
+        texto: `La liga cambia las normas técnicas. Los coches pierden entre el 75% y el 85% de su desarrollo y las instalaciones hasta dos niveles. Cada escudería recibe ${(AYUDA_REGLAMENTO / 1e6).toFixed(0)} M€ de ayuda. La parrilla se aprieta: cualquiera puede ganar.`,
         tipo: 'fase',
     });
     await volcar(ctx);
-    await store.merge('config/juego', { temporada: temporada + 1, fase: 'pretemporada', mundial: { pais: cfg.mundial?.pais || null, nombre: cfg.mundial?.nombre || null, participantes: [] }, palmares: [...(cfg.palmares || []), palmares], ultimoDiario: null, reglamento: { temporada: temporada + 1, cambio, afectadas: afectadas.map(([i, n]) => ({ inst: i, niveles: n })) } });
+    await store.merge('config/juego', { temporada: temporada + 1, fase: 'pretemporada', mundial: { pais: cfg.mundial?.pais || null, nombre: cfg.mundial?.nombre || null, participantes: [] }, palmares: [...(cfg.palmares || []), palmares], ultimoDiario: null, reglamento: { temporada: temporada + 1, cambio } });
     await reconstruirCatalogo(store, await store.get('config/juego'));
     palmares.cambioReglamento = cambio;
     return palmares;

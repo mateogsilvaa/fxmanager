@@ -905,10 +905,25 @@ const ACCIONES = {
         return { ok: true, coste, horas };
     },
 
+    // Limpieza tras la temporada: la instalación vuelve a su nivel (y a funcionar)
+    async inst_limpiar(ctx, a) {
+        const priv = privDe(ctx, a.equipoId);
+        const inst = a.params?.inst;
+        const n = priv.instPausa?.[inst];
+        if (!INSTALACIONES[inst] || !n) throw new Error('Esa instalación no necesita limpieza.');
+        const coste = n * ECO.limpiezaPorNivel;
+        if ((priv.presupuesto || 0) < coste) throw new Error(`Presupuesto insuficiente (necesitas ${M(coste)}).`);
+        movimiento(priv, `Limpieza de ${INSTALACIONES[inst].nombre}`, -coste, ctx.ahora);
+        priv.inst = { ...(priv.inst || {}), [inst]: n };
+        priv.instPausa = Object.fromEntries(Object.entries(priv.instPausa).filter(([k]) => k !== inst));
+        return { ok: true, coste };
+    },
+
     async inst_mejorar(ctx, a) {
         const priv = privDe(ctx, a.equipoId);
         const inst = a.params?.inst;
         if (!INSTALACIONES[inst]) throw new Error('Instalación no válida');
+        if (priv.instPausa?.[inst]) throw new Error('Primero hay que hacer la limpieza de esa instalación.');
         const nivel = priv.inst?.[inst] || 0;
         if (nivel >= NIVEL_MAX_INST) throw new Error('Ya está al máximo.');
         if ((priv.proyectos || []).some(p => p.tipo === 'inst')) throw new Error('Ya hay una obra en marcha en las instalaciones.');

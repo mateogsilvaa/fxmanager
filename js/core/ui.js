@@ -16,7 +16,15 @@ export function bandera(nac, { ancho = 20, titulo = true } = {}) {
     return `<img class="bandera" src="https://flagcdn.com/w40/${esc(n)}.png" srcset="https://flagcdn.com/w80/${esc(n)}.png 2x" width="${ancho}" height="${alto}" alt="${esc(PAISES[n] || n.toUpperCase())}" ${titulo ? `title="${esc(PAISES[n] || n.toUpperCase())}"` : ''} loading="lazy">`;
 }
 
+// País donde se corre el Mundial: su bandera representa a la liga Intercontinental
+let paisMundial = null;
+export function fijarPaisMundial(p) { paisMundial = p || null; }
+
 export function banderaLiga(liga, opts) {
+    if (liga === 'INT' && paisMundial) {
+        const b = bandera(paisMundial, opts);
+        return b.replace('<img class="bandera"', '<img class="bandera" data-mundial="1"').replace(/(alt|title)="[^"]*"/g, (m, k) => `${k}="Mundial · ${PAISES[paisMundial.toLowerCase()] || paisMundial}"`);
+    }
     if (liga === 'INT') {
         const t = opts?.ancho || 20;
         return `<span class="bandera-int" title="Intercontinental"><svg width="${t}" height="${Math.round(t * 0.75)}" viewBox="0 0 24 18" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="9" r="7.5"/><path d="M4.5 9h15M12 1.5c2.5 2.2 2.5 12.8 0 15M12 1.5c-2.5 2.2-2.5 12.8 0 15"/></svg></span>`;

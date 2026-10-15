@@ -3,6 +3,7 @@ import { store, ahora, DEMO } from './app.js';
 import { compactar, descompactar, construirTemporada, proyeccionMundial } from '../engine/stats.js';
 import { LIGAS_NACIONALES, SESIONES, SESION_INFO, PUNTOS_CARRERA_LARGA, PUNTOS_VR } from '../engine/constants.js';
 import { ratingsLiga } from '../engine/rating.js';
+import { fijarPaisMundial } from './ui.js';
 
 const TTL = 60_000;
 function cacheGet(k) {
@@ -41,6 +42,8 @@ function puntosR3(r) {
 export async function cargarDatos() {
     const [cfg, cat] = await Promise.all([getCache('config/juego'), getCache('catalogo/actual')]);
     const temporada = cfg?.temporada || cat?.temporada || 1;
+    // La bandera del Mundial es la del país de su sede (el de los circuitos de la liga Intercontinental)
+    fijarPaisMundial(Object.values(cat?.eventos || {}).find(e => e.liga === 'INT')?.circuito?.pais || cfg?.mundial?.pais);
     const resumen = await getCache(`resumen/T${temporada}`);
     const compactas = resumen?.json ? JSON.parse(resumen.json).sesiones : [];
     const ya = new Set(compactas.map(x => x.sid));

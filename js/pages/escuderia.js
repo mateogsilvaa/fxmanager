@@ -122,7 +122,7 @@ escuchar(`decisiones/${hoy()}_${eqId}`, (dec) => {
     if (E.priv) repintar('hoy');
 });
 
-const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico', reparar: 'Reparación', identidad: 'Cambio de imagen', comprar_filial: 'Compra de filial', plaza_responder: 'Oferta de plaza', entrenar: 'Entrenamiento' };
+const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', inst_limpiar: 'Limpieza', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico', reparar: 'Reparación', identidad: 'Cambio de imagen', comprar_filial: 'Compra de filial', plaza_responder: 'Oferta de plaza', entrenar: 'Entrenamiento' };
 function avisarAccion(a) {
     if (a.estado === 'error') toast(`${NOMBRES_ACCION[a.tipo] || a.tipo}: ${a.resultado?.error}`, 'error');
     else if (a.tipo === 'entrenar') toast(a.resultado?.sube ? `${a.resultado.piloto}: ${ENTRENO.attrs[a.resultado.attr]} +${a.resultado.sube} (ahora ${a.resultado.valor})` : `${a.resultado?.piloto}: el entrenamiento no ha dado fruto esta vez`, a.resultado?.sube ? undefined : 'error');
@@ -379,7 +379,11 @@ function pintarCoche() {
       <div class="tarjeta-titulo"><h2>Instalaciones</h2></div>
       ${Object.entries(INSTALACIONES).map(([k, a]) => {
           const n = priv.inst?.[k] || 0;
+          const sucia = priv.instPausa?.[k] || 0;
+          const limpiando = pendientes('inst_limpiar').some(p => p.params?.inst === k);
           const activo = proyectos.find(p => p.tipo === 'inst' && p.clave === k) || pendInst.find(p => p.params?.inst === k);
+          if (sucia) return `<div style="padding:12px 0;border-top:1px solid var(--hair2)"><div class="fila-entre"><div><b>${esc(a.nombre)}</b> <span class="insignia peligro">Limpieza requerida</span><div class="muted peq">Nivel ${sucia}/${NIVEL_MAX_INST} guardado. No funciona hasta que se limpie tras la temporada.</div></div>
+            <button class="btn btn-sec btn-peq" data-limpiar="${k}" ${limpiando || priv.presupuesto < sucia * ECO.limpiezaPorNivel ? 'disabled' : ''}>${limpiando ? 'En cola…' : `Limpiar · ${dinero(sucia * ECO.limpiezaPorNivel)}`}</button></div></div>`;
           return `<div style="padding:12px 0;border-top:1px solid var(--hair2)">
             <div class="fila-entre"><div><b>${esc(a.nombre)}</b> <span class="muted peq">nivel ${n}/${NIVEL_MAX_INST}</span><div class="muted peq">${esc(a.desc)}${k === 'simulador' ? ` Ahora: ${tandasSimulador(n)} pruebas al día.` : ''}</div></div>
             ${activo ? '' : n >= NIVEL_MAX_INST ? '<span class="ok peq">Al máximo</span>' : `<button class="btn btn-sec btn-peq" data-inst="${k}" ${obra || priv.presupuesto < costeInstalacion(n) ? 'disabled' : ''}>Ampliar · ${dinero(costeInstalacion(n))}</button>`}</div>
@@ -394,6 +398,7 @@ function pintarCoche() {
         if (!await confirmar(`¿Invertir <b>${dinero(coste)}</b> en ${esc(AREAS[area].nombre.toLowerCase())}${urgente ? ' (urgente)' : ''}?`)) return;
         await lanzar('id_iniciar', { area, urgente }, 'Mejora encargada');
     }));
+    $$('[data-limpiar]', el).forEach(b => b.addEventListener('click', () => lanzar('inst_limpiar', { inst: b.dataset.limpiar }, 'Limpieza encargada')));
     $$('[data-inst]', el).forEach(b => b.addEventListener('click', async () => {
         const k = b.dataset.inst, n = priv.inst?.[k] || 0;
         if (!await confirmar(`¿Ampliar ${esc(INSTALACIONES[k].nombre.toLowerCase())} por <b>${dinero(costeInstalacion(n))}</b>? Tarda ${horasInstalacion(n)} h.`)) return;

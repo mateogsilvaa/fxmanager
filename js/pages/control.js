@@ -416,9 +416,9 @@ async function pintarTemporada() {
         <div class="fila"><select id="fase">${['pretemporada', 'nacional', 'mundial', 'mercado', 'cerrada'].map(f => `<option ${cfg?.fase === f ? 'selected' : ''}>${f}</option>`).join('')}</select><button class="btn btn-sec" id="b-fase">Forzar fase</button></div></div>
       <div class="tarjeta"><h3>Mercado</h3><p class="muted">${m ? `Estado: <b>${esc(m.estado)}</b>${m.deadline ? ` · cierre ${fecha(m.deadline)}` : ''}` : 'Se abre solo al terminar el Mundial.'}</p>
         <div class="fila"><button class="btn btn-sec" id="b-mercado" ${m ? 'disabled' : ''}>Abrir mercado ahora</button><button class="btn btn-sec" id="b-cerrar" ${m && m.estado !== 'cerrado' ? '' : 'disabled'}>Cerrar mercado ahora</button><a class="btn btn-sec" href="mercado.html">Ver</a></div></div>
-      <div class="tarjeta"><h3>Nueva temporada</h3><p class="muted">Guarda el palmarés y la historia, reinicia presupuestos (50% + 8 M€), baja 2 niveles cada área del coche y pasa a pretemporada. Haz esto con el mercado cerrado.</p>
+      <div class="tarjeta"><h3>Nueva temporada</h3><p class="muted">Guarda el palmarés y la historia, reinicia presupuestos (50% + 8 M€), quita 1 o 2 niveles a cada área del coche (las instalaciones piden una limpieza) y pasa a pretemporada. Haz esto con el mercado cerrado.</p>
         <label style="display:block;margin:10px 0">Cambio de reglamento<select id="reglamento"><option value="no">No</option><option value="si">Sí</option><option value="azar">Al azar (20%)</option></select></label>
-        <p class="muted peq">Con cambio de reglamento el coche conserva solo una cuarta parte de su desarrollo, el túnel de viento pierde 2 niveles, el simulador 1 y otra instalación al azar 1. Todos reciben 2 M€ de ayuda.</p>
+        <p class="muted peq">Con cambio de reglamento el coche pierde entre el 75% y el 85% de cada área (redondeando hacia arriba) y las instalaciones hasta 2 niveles. Todos reciben 2 M€ de ayuda.</p>
         <button class="btn" id="b-nueva">Empezar temporada ${(cfg?.temporada || 1) + 1}</button></div>
       <div class="tarjeta"><h3>Mantenimiento</h3><p class="muted">Útil si algo se ve desactualizado.</p>
         <div class="fila"><button class="btn btn-sec" id="b-cat">Regenerar catálogo</button><button class="btn btn-sec" id="b-res">Reconstruir clasificaciones</button></div></div>

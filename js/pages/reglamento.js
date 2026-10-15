@@ -110,8 +110,8 @@ ${tablaTexto(['Sale dinero por', 'Cuánto'], [
 <p><b>Parque cerrado:</b> desde que cierra la estrategia de los libres hasta que se publica la última carrera de la jornada no se puede encargar ninguna mejora del coche. Si una mejora termina durante la jornada, la pieza espera en fábrica y se monta al acabar.</p>
 <p>Instalaciones (${dinero(costeInstalacion(0))} el primer nivel, hasta 5): ${Object.values(INSTALACIONES).map(i => `<b>${i.nombre}</b> (${i.desc.replace(/[.]$/, '').toLowerCase()})`).join('; ')}.</p>
 <p>Al acabar la temporada recibes un resumen con tu posición, puntos, victorias, podios, tus pilotos, el Mundial y el dinero.</p>
-<p>Al empezar una temporada nueva cada área baja 2 niveles y el presupuesto se queda en la mitad más 8 M€.</p>
-<p><b>Temporadas con cambio de reglamento.</b> Algunas temporadas la liga cambia las normas técnicas: el coche conserva solo una cuarta parte de su desarrollo, el túnel de viento pierde 2 niveles, el simulador 1 y otra instalación al azar 1. Todas las escuderías reciben 2 M€ de ayuda. Se anuncia en las noticias y te llega un aviso.</p>`)}
+<p>Al empezar una temporada nueva cada área del coche pierde 1 o 2 niveles y el presupuesto se queda en la mitad más 8 M€. Las instalaciones no pierden nivel, pero necesitan una <b>limpieza</b> (${dinero(ECO.limpiezaPorNivel)} por nivel) antes de volver a usarse.</p>
+<p><b>Temporadas con cambio de reglamento.</b> Algunas temporadas la liga cambia las normas técnicas: el coche pierde entre el 75% y el 85% de su desarrollo (redondeando hacia arriba) y cada instalación hasta 2 niveles. Todas las escuderías reciben 2 M€ de ayuda. Se anuncia en las noticias y te llega un aviso.</p>`)}
 
 ${seccion('cada-dia', 'Qué hacer cada día', `
 <ol>
