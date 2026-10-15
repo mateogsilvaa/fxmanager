@@ -1,6 +1,6 @@
 import { montar } from '../core/layout.js';
 import { cargarDatos, limpiarCache } from '../core/datos.js';
-import { store, usuario, esAdmin, ahora, DEMO } from '../core/app.js';
+import { store, usuario, esAdmin, ahora, DEMO, olvidarSombra } from '../core/app.js';
 import { VAPID_PUBLIC_KEY } from '../config.js';
 import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal, pestanas, $, $$, dinero } from '../core/ui.js';
 import { LIGAS, LIGAS_NACIONALES, SESIONES, SESION_INFO, PAISES, NAC_LOCAL } from '../engine/constants.js';
@@ -11,6 +11,7 @@ import { reconstruirCatalogo } from '../jobs/catalogo.js';
 import { crearContexto, horarioSesion, idResumen, idResultado, volcar } from '../jobs/comun.js';
 import { compactar } from '../engine/stats.js';
 import { pintarUso as dibujarUso } from './control-uso.js';
+import { pintarSimulador as dibujarSimulador } from './control-simulador.js';
 import {
     inicializarJuego, borrarTodo, validarParrilla, importarParrilla, crearEvento, guardarEventos, borrarEvento,
     prepararMercado, cerrarMercado, nuevaTemporada,
@@ -24,14 +25,36 @@ let d = await cargarDatos();
 let cfg = (await store().get('config/juego')) || null;
 
 main.innerHTML = `
-<div class="cabecera-pagina"><div><div class="etiqueta">Organización</div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div><a class="btn btn-sec" href="sombra.html" target="_blank" rel="noopener">Jugar en modo sombra</a></div>
+<div class="cabecera-pagina"><div><div class="etiqueta">Organización</div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div><div id="caja-sombra"></div></div>
 <div class="pestanas" id="tabs">
   <button data-tab="estado">Estado y ciclo</button><button data-tab="calendario">Calendario</button><button data-tab="parrilla">Parrilla</button>
-  <button data-tab="usuarios">Usuarios</button><button data-tab="uso">Uso</button><button data-tab="noticias">Noticias</button><button data-tab="avisos">Avisos</button><button data-tab="temporada">Temporada</button>
+  <button data-tab="usuarios">Usuarios</button><button data-tab="uso">Uso</button><button data-tab="noticias">Noticias</button><button data-tab="avisos">Avisos</button><button data-tab="temporada">Temporada</button><button data-tab="simulador">Simulador</button>
 </div>
-${['estado', 'calendario', 'parrilla', 'usuarios', 'uso', 'noticias', 'avisos', 'temporada'].map(t => `<section data-panel="${t}" id="p-${t}"></section>`).join('')}`;
-const PINTAR = { estado: pintarEstado, calendario: pintarCalendario, parrilla: pintarParrilla, usuarios: pintarUsuarios, uso: pintarUso, noticias: pintarNoticias, avisos: pintarAvisos, temporada: pintarTemporada };
+${['estado', 'calendario', 'parrilla', 'usuarios', 'uso', 'noticias', 'avisos', 'temporada', 'simulador'].map(t => `<section data-panel="${t}" id="p-${t}"></section>`).join('')}`;
+const PINTAR = { estado: pintarEstado, calendario: pintarCalendario, parrilla: pintarParrilla, usuarios: pintarUsuarios, uso: pintarUso, noticias: pintarNoticias, avisos: pintarAvisos, temporada: pintarTemporada, simulador: () => dibujarSimulador($('#p-simulador'), cfg) };
 pestanas($('#tabs').parentElement, { alCambiar: (id) => PINTAR[id]() });
+
+// Modo sombra: la escudería que el admin lleva en secreto (se usa como la suya en toda la web)
+async function pintarSombra() {
+    const caja = $('#caja-sombra');
+    if (!caja) return;
+    const s = await store().get('secreto/sombra').catch(() => null);
+    const mia = s?.uid === usuario().uid;
+    caja.innerHTML = s?.equipoId
+        ? `<div class="tarjeta" style="padding:10px 14px"><div class="muted peq">${mia ? 'Llevas en secreto' : 'Otra cuenta lleva en secreto'}</div><b>${esc(d.nombreEquipo(s.equipoId))}</b>
+            <div class="fila" style="margin-top:8px">${mia ? '<a class="btn btn-peq" href="escuderia.html">Mi escudería</a>' : ''}<button class="btn btn-sec btn-peq" id="dejar-sombra">Dejarla</button></div></div>`
+        : '<a class="btn btn-sec" href="sombra.html">Jugar en modo sombra</a>';
+    $('#dejar-sombra')?.addEventListener('click', async () => {
+        if (!await confirmar(`¿Dejar <b>${esc(d.nombreEquipo(s.equipoId))}</b>? Volverá a llevarla la IA.`, { peligro: true })) return;
+        await store().del('secreto/sombra');
+        olvidarSombra();
+        await reconstruirCatalogo(store(), cfg).catch(() => { });
+        limpiarCache();
+        toast('Has dejado la escudería en sombra');
+        location.reload();
+    });
+}
+pintarSombra();
 
 async function recargar() { limpiarCache(); d = await cargarDatos(); cfg = await store().get('config/juego'); }
 const ocupado = async (btn, fn) => {

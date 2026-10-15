@@ -1,6 +1,6 @@
 import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, limpiarCache } from '../core/datos.js';
-import { store, ahora, encolar, escuchar, escucharConsulta, reclamarEquipo, refrescarPerfil, enSombra } from '../core/app.js';
+import { store, ahora, encolar, escuchar, escucharConsulta, reclamarEquipo, refrescarPerfil, enSombra, olvidarSombra } from '../core/app.js';
 import { reconstruirCatalogo } from '../jobs/catalogo.js';
 import { jornadaEnCurso, cierreTecnico } from '../jobs/comun.js';
 import { estadoAvisos, activarAvisos } from '../core/avisos.js';
@@ -79,6 +79,7 @@ ${['hoy', 'carrera', 'coche', 'equipo', 'rivales'].map(t => `<section data-panel
 document.getElementById('dejar-sombra')?.addEventListener('click', async () => {
     if (!await confirmar(`¿Dejar <b>${esc(eq.nombre)}</b>? Volverá a llevarla la IA.`, { peligro: true })) return;
     await store().del('secreto/sombra');
+    olvidarSombra();
     await reconstruirCatalogo(store(), d.cfg).catch(() => { });
     limpiarCache();
     location.href = 'sombra.html';

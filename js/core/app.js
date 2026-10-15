@@ -2,10 +2,20 @@
 import { MemStore } from './memstore.js';
 
 const params = new URLSearchParams(location.search);
-if (params.has('demo')) { try { localStorage.setItem('fx-demo', params.get('demo') === '0' ? '' : '1'); if (params.get('demo') === '0') sessionStorage.removeItem('fx-demo-estado'); } catch { } }
-let demoActivo = false;
-try { demoActivo = localStorage.getItem('fx-demo') === '1'; } catch { }
-export const DEMO = demoActivo;
+// ?demo=1 → demo de la temporada 1 · ?demo=t2 → vista previa de la temporada 2 · ?demo=0 → salir
+if (params.has('demo')) {
+    try {
+        const v = params.get('demo') === '0' ? '' : (params.get('demo') || '1');
+        if (sessionStorage.getItem('fx-demo') !== v) sessionStorage.removeItem('fx-demo-estado');
+        sessionStorage.setItem('fx-demo', v);
+        localStorage.removeItem('fx-demo');
+    } catch { }
+}
+let demoActivo = '';
+try { demoActivo = sessionStorage.getItem('fx-demo') || ''; } catch { }
+export const DEMO = !!demoActivo;
+export const DEMO_VARIANTE = demoActivo;
+const FICHEROS_DEMO = { 1: 'demo.json', t2: 'demo-t2.json' };
 
 let _store = null, _auth = null, _fb = null, _offset = 0;
 let _usuario = null; // {uid, email, perfil}
@@ -22,7 +32,7 @@ export function iniciar() {
             let guardado = null;
             try { guardado = JSON.parse(sessionStorage.getItem('fx-demo-estado')); } catch { }
             if (!guardado) {
-                const demo = await (await fetch(new URL('../../data/demo.json', import.meta.url))).json();
+                const demo = await (await fetch(new URL(`../../data/${FICHEROS_DEMO[demoActivo] || 'demo.json'}`, import.meta.url))).json();
                 guardado = { offset: demo.ahora - Date.now(), datos: demo.datos };
             }
             _offset = guardado.offset;
@@ -75,6 +85,7 @@ export function iniciar() {
                         _usuario = { uid: u.uid, email: u.email, perfil };
                     }
                     marcarVisita(u.uid);
+                    await sombraAdmin(u.uid);
                 } else _usuario = null;
                 if (primera) { primera = false; res(); } else oyentes.forEach(f => f(_usuario));
             });
@@ -82,6 +93,22 @@ export function iniciar() {
     })();
     return listo;
 }
+
+// Modo sombra: el admin que lleva en secreto una escudería la tiene como suya en todas las páginas, igual que
+// cualquier mánager (se deja desde Control). Se recuerda en el navegador y se comprueba en segundo plano.
+async function sombraAdmin(uid) {
+    if (!_usuario?.perfil?.isAdmin || _usuario.perfil.equipoId) return;
+    const clave = `fx-sombra-${uid}`;
+    let guardada = null;
+    try { guardada = localStorage.getItem(clave) || null; } catch { }
+    const leer = () => _store.get('secreto/sombra').then(s => (s?.uid === uid && s.equipoId) || null).catch(() => guardada);
+    const aplicar = (eq) => { try { eq ? localStorage.setItem(clave, eq) : localStorage.removeItem(clave); } catch { } if (eq) fijarSombra(eq); };
+    if (guardada) {
+        aplicar(guardada);
+        leer().then(eq => { if (eq !== guardada) { aplicar(eq); location.reload(); } });
+    } else aplicar(await leer());
+}
+export function olvidarSombra() { try { Object.keys(localStorage).filter(k => k.startsWith('fx-sombra-')).forEach(k => localStorage.removeItem(k)); } catch { } _sombra = null; }
 
 // Última visita (como mucho una escritura cada 10 minutos por navegador)
 function marcarVisita(uid) {
@@ -140,7 +167,7 @@ export async function recuperar(email) {
     await _fb.sendPasswordResetEmail(_auth, email);
 }
 export async function salir() {
-    if (DEMO) { try { localStorage.removeItem('fx-demo'); sessionStorage.removeItem('fx-demo-estado'); } catch { } location.href = 'index.html'; return; }
+    if (DEMO) { try { sessionStorage.removeItem('fx-demo'); sessionStorage.removeItem('fx-demo-estado'); } catch { } location.href = 'index.html'; return; }
     await _fb.signOut(_auth);
     location.href = 'index.html';
 }

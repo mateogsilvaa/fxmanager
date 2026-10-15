@@ -891,3 +891,20 @@ a.sesion-fila:hover { background: var(--panel-warm); color: var(--ink); }
 .tabla-uso tbody tr { cursor: pointer; }
 .tabla-uso tbody tr:hover, .tabla-uso tr.sel { background: var(--acc-bg); }
 .tip-uso { position: fixed; z-index: 120; background: var(--ink); color: var(--bg); font: 600 12px var(--sans); padding: 5px 8px; pointer-events: none; white-space: nowrap; }
+
+.mercado-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1px; background: var(--hair); border: 1px solid var(--hair); margin-bottom: 28px; }
+.mercado-kpis > div { background: var(--panel); padding: 14px 16px; display: grid; gap: 2px; }
+.mercado-kpis b { font: 700 26px/1 var(--cond); font-variant-numeric: tabular-nums; }
+.mercado-kpis span { font: 700 10px var(--sans); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.gal-pujas { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.gal-pujas > span { font-size: 12px; color: var(--muted); }
+.gal-pujas > span.top { color: var(--ink); }
+.gal-pujas > span.mia { color: var(--green); }
+.gal-pujas small { font: 700 9px var(--sans); color: var(--blue); }
+.gal-cand .btn { align-self: center; }
+.puja-cab { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+.puja-claves { margin: 0 0 12px; padding-left: 18px; font-size: 14px; color: var(--body); }
+.puja-claves li { margin: 4px 0; }
+.tabla-vacantes td { vertical-align: middle; }
+.insignia.ok { color: var(--green); }
+.chips-equipos { display: flex; flex-wrap: wrap; gap: 6px 14px; }

@@ -28,7 +28,7 @@ import { ACCIONES_NOVEDADES, procesarLlamadas, diarioNovedades, generarLlamadas,
 import { noticiasSesion, previaJornada } from '../engine/cronica.js';
 import { MERCADO } from '../engine/mercado.js';
 import { asegurarPool, lesionTrasAccidente, lesionesAntesDeSesion, lesionesTrasCarrera, curarLesiones, ACCIONES_PILOTOS } from './pilotos.js';
-import { iaMercadoDiario } from './mercado.js';
+import { iaMercadoDiario, actualizarMercadoAbierto } from './mercado.js';
 import { efectosRamas } from '../engine/ramas.js';
 import { ACCIONES_RAMAS, ramasIA } from './ramas.js';
 import { ACCIONES_JUNTAS, procesarJuntas, abrirJuntaSiToca } from './juntas.js';
@@ -64,7 +64,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
         if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
     }
 
-    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, procesarLlamadas, procesarJuntas, diario, transicionesFase, recordatorios, avisosOrganizacion];
+    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, procesarLlamadas, procesarJuntas, diario, transicionesFase, actualizarMercadoAbierto, recordatorios, avisosOrganizacion];
     const errores = [];
     for (const paso of pasos) {
         try { await paso(ctx); await volcar(ctx); }

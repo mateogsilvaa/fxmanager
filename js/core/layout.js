@@ -1,5 +1,5 @@
 // Cabecera, navegación (arriba en escritorio, abajo en móvil) y pie
-import { iniciar, usuario, esAdmin, salir, DEMO, store, escucharConsulta } from './app.js';
+import { iniciar, usuario, esAdmin, salir, DEMO, DEMO_VARIANTE, store, escucharConsulta } from './app.js';
 import { LIGAS, LIGAS_NACIONALES, SESION_INFO } from '../engine/constants.js';
 import { esc, banderaLiga, $, activarCuentas } from './ui.js';
 
@@ -52,7 +52,7 @@ function pintarCabecera(activo, ligaActiva) {
     cab.id = 'cabecera';
     const a = (href, txt, clave, extra = '') => `<a href="${href}" class="${activo === clave ? 'activo' : ''}" ${extra}>${txt}</a>`;
     cab.innerHTML = `
-    ${DEMO ? `<div class="aviso-demo">Modo demostración · nada se guarda · <a href="index.html?demo=0">salir</a></div>` : ''}
+    ${DEMO ? `<div class="aviso-demo">${DEMO_VARIANTE === 't2' ? 'Vista previa de la temporada 2' : 'Modo demostración'} · nada se guarda · <a href="index.html?demo=0">salir</a></div>` : ''}
     <div class="barra-directo" id="barra-directo" hidden></div>
     <nav class="nav">
       <a class="marca" href="index.html"><span class="marca-x">X1</span><span>Hyper Race</span></a>

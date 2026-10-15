@@ -16,6 +16,7 @@ import { nombreAleatorio, EXTRANJEROS } from '../engine/nombres.js';
 import { cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, noticia, notificar, nombrePiloto, movimiento, duenoReal, volcar } from './comun.js';
 import { asegurarPool, elegirRetiros, esLibre } from './pilotos.js';
 import { estrellasPiloto, precioLibre } from '../engine/pool.js';
+import { descompactar, construirTemporada } from '../engine/stats.js';
 
 const M = (v) => `${(v / 1e6).toFixed(1).replace('.', ',')} M€`;
 export const refMercado = (temporada) => `mercado/T${temporada}`;
@@ -116,7 +117,7 @@ export async function abrirMercado(ctx, { tablas, deadline }) {
         plan: { despidos: despidos.map(conNombre), salvados: salvados.map(conNombre), retiros: retiros.map(conNombre) },
         galacticos, ofertas, solicitudes: {}, fichajes: [], fichas, trueques: [], movimientos: [],
         rookies: rookies.map(r => ({ id: r.id, nombre: r.nombre, apellido: r.apellido, nac: r.nac, liga: r.liga, edad: r.edad, estrellas: estrellasRookie(r.attrs, rng) })),
-        preferencias: {}, posiciones: { equipos: posEq, pilotos: posPil },
+        preferencias: {}, posiciones: { equipos: posEq, pilotos: posPil }, v: 2,
     };
     registrar(m, ctx, `Se abre el mercado: ${despidos.length} despidos, ${retiros.length} retiradas y ${galacticos.length} candidatos a Galáctico (solo se va uno por liga).`);
     await store.set(refMercado(temporada), m);
@@ -465,6 +466,40 @@ export const ACCIONES_MERCADO = {
         return { ok: true, lista };
     },
 };
+
+// ======================================================================
+// Mercados abiertos con la versión anterior (un solo Galáctico por liga): se completan con más candidatos
+// (hasta 3 por liga, solo se irá uno) y se rellena la bolsa de agentes libres. Se hace una sola vez.
+// ======================================================================
+export async function actualizarMercadoAbierto(ctx) {
+    if (!['mundial', 'mercado'].includes(ctx.cfg.fase)) return;
+    const T = ctx.cfg.temporada;
+    const m0 = await ctx.store.get(refMercado(T));
+    if (!m0 || m0.estado !== 'abierto' || (m0.v || 1) >= 2) return;
+    await asegurarPool(ctx);
+    const { m, pil } = await cargar(ctx);
+    const doc = await ctx.store.get(`resumen/T${T}`);
+    const sesiones = doc?.json ? JSON.parse(doc.json).sesiones.map(descompactar) : [];
+    const tablas = Object.fromEntries(LIGAS_NACIONALES.map(l => [l, construirTemporada(sesiones.filter(s => s.liga === l))]));
+    const fuera = new Set([...(m.plan?.despidos || []), ...(m.plan?.retiros || [])].map(d => d.pid));
+    const elegidos = elegirGalacticos({ tablas, pilotos: activos(pil), ofertas: (m.ofertas || []).filter(o => o.estado === 'pendiente'), rng: crearRng(`${ctx.secreto}|candidatos|${T}`), despedidos: fuera });
+    const nuevos = [];
+    for (const e of elegidos) {
+        const deLiga = m.galacticos.filter(g => g.liga === e.liga);
+        if (deLiga.some(g => g.pid === e.pid || g.eq === e.eq) || deLiga.length >= MERCADO.candidatos || deLiga.some(g => g.estado === 'vendido')) continue;
+        const g = { ...e, nombre: nombrePiloto(pil[e.pid]), estado: 'pendiente', decision: duenoReal(ctx, e.eq) ? null : 'liga' };
+        m.galacticos.push(g); nuevos.push(g);
+    }
+    m.galacticos.sort((a, b) => a.liga.localeCompare(b.liga) || a.pos - b.pos);
+    m.v = 2;
+    const fin = new Date(m.deadline).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', weekday: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    for (const g of nuevos) notificar(ctx, g.eq, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: `${g.nombre}, candidato a Galáctico de ${LIGAS[g.liga].nombre}`, texto: `La liga amplía los candidatos a Galáctico: hasta ${MERCADO.candidatos} por liga, pero solo se irá uno. Si llega una oferta por él puedes aceptarla o dejar que decida la liga al cerrar (${fin}).` });
+    registrar(m, ctx, `Se amplían los candidatos a Galáctico: ${nuevos.length} nuevos. De cada liga solo se irá uno.`);
+    noticia(ctx, { titulo: 'Más candidatos a Galáctico', texto: `La liga amplía la lista: ${LIGAS_NACIONALES.map(l => `${LIGAS[l].nombre}: ${m.galacticos.filter(g => g.liga === l).map(g => g.nombre).join(', ')}`).join(' · ')}. De cada liga solo cambiará uno. Además, ya se pueden fichar agentes libres para cubrir vacantes.`, tipo: 'mercado' });
+    await guardar(ctx, m);
+    ctx.diferir = null;
+    ctx.nota(`Mercado actualizado: ${nuevos.length} candidatos nuevos`);
+}
 
 // ======================================================================
 // La IA durante la ventana: puja por candidatos de otras ligas y vende los suyos si le pagan bien

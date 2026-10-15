@@ -9,6 +9,7 @@ import { LIGAS_NACIONALES, SESIONES, diaMadrid } from '../js/engine/constants.js
 import { proyeccionMundial, calcularRiesgo } from '../js/engine/stats.js';
 
 const DEMO = process.argv.includes('--demo');
+// --demo-t2: sigue con la temporada 2 y guarda data/demo-t2.json (vista previa con todas las novedades)
 // --demo-mercado: guarda la demo con el mercado abierto (para probar la página de Mercado)
 const DEMO_MERCADO = process.argv.includes('--demo-mercado');
 const RUTA_DEMO = process.argv.find(a => a.startsWith('--salida='))?.slice(9) || '../data/demo.json';
@@ -257,6 +258,71 @@ ok((await store.list('managers')).length === 2, 'Falta el historial de los mána
 const cfg2 = await store.get('config/juego');
 ok(cfg2.temporada === 2 && cfg2.fase === 'pretemporada', 'Nueva temporada mal iniciada');
 console.log('Palmarés T1:', Object.entries(palm.ligas).map(([l, v]) => `${l}: ${nom(v.piloto)}`).join(' · '), '| Mundial:', nom(palm.mundial));
+
+
+// ---- Vista previa de la temporada 2 (--demo-t2): se juega la primera jornada y se guarda data/demo-t2.json ----
+if (process.argv.includes('--demo-t2')) {
+    const { lesionTrasAccidente } = await import('../js/jobs/pilotos.js');
+    const { crearContexto, volcar, cargarEquipos, cargarPrivs } = await import('../js/jobs/comun.js');
+    const { ramasPendientes } = await import('../js/engine/ramas.js');
+    const T1 = FIN + 4 * D;
+    const ev2 = [];
+    LIGAS_NACIONALES.forEach((liga, li) => CIRC[liga].forEach((c, k) => {
+        const base = T1 + k * 4 * D + li * 10 * 60_000;
+        ev2.push(crearEvento({ temporada: 2, liga, ronda: k + 1, circuito: CIRCUITOS_POR_ID[c], horarios: Object.fromEntries(SESIONES.map(tp => [tp, base + OFF[tp]])) }));
+    }));
+    CIRC.INT.forEach((c, k) => {
+        const base = T1 + (5 + k) * 4 * D;
+        ev2.push(crearEvento({ temporada: 2, liga: 'INT', ronda: k + 1, circuito: CIRCUITOS_POR_ID[c], horarios: Object.fromEntries(SESIONES.map(tp => [tp, base + OFF[tp]])) }));
+    });
+    await guardarEventos(store, ev2);
+    // Ana sigue en Tramontana, juega mucho (le llegan llamadas) y tiene un coche con ramas por elegir
+    const dias = {};
+    for (let i = 1; i <= 7; i++) dias[diaMadrid(T1 - i * D)] = 95;
+    await store.merge('equipos/tramontana', { ownerId: 'u_ana', ownerNombre: 'Ana' });
+    await store.merge('usuarios/u_ana', { equipoId: 'tramontana', isAdmin: true, uso: { dias, horas: { 17: 300, 18: 400 } } });
+    await store.merge('equipos_priv/tramontana', { coche: { motor: 6, aero: 4, chasis: 3, fiabilidad: 3 }, presupuesto: 18_000_000 });
+    const GUARDAR = T1 + 2 * D + 20 * H;
+    let t2 = FIN + 2 * D, lesion = false;
+    while (t2 < GUARDAR) {
+        if (new Date(t2).getUTCHours() === 8 && new Date(t2).getUTCMinutes() === 0) {
+            await accion(humanos[0], 'checkin', {}, t2);
+            const priv = await store.get('equipos_priv/tramontana');
+            // Ana elige el primer camino de las ramas de motor y deja otras por elegir para la demo
+            for (const r of ramasPendientes(priv).filter(r => r.area === 'motor')) await accion(humanos[0], 'rama_elegir', { area: r.area, tier: r.tier, opcion: r.tier === 3 ? 'potencia' : 'mapaCarrera' }, t2);
+            if (!priv.sponsor) await accion(humanos[0], 'sponsor_firmar', { ofertaId: 'rendimiento' }, t2);
+        }
+        await ejecutarTick(store, { ahora: t2, log: () => { } });
+        const cfgT = await store.get('config/juego');
+        // Tras la primera jornada, un piloto de Ana se lesiona (para ver cómo se elige sustituto)
+        if (!lesion && cfgT.fase === 'nacional' && t2 > T1 + 2 * D) {
+            const c = crearContexto(store, { ahora: t2 }); c.cfg = cfgT; c.secreto = (await store.get('secreto/juego')).clave;
+            await cargarEquipos(c); await cargarPrivs(c);
+            const pid = (await store.list('pilotos')).find(p => p.equipoId === 'tramontana' && p.rol === 'P2')?.id;
+            for (let i = 0; i < 60 && pid && !lesion; i++) lesion = !!(await lesionTrasAccidente(c, { id: `demo${i}`, liga: 'ESP' }, { pid, eq: 'tramontana', tipo: 'R3' }));
+            await volcar(c);
+        }
+        t2 += 30 * 60_000;
+    }
+    // Una llamada esperando a Ana al abrir la demo
+    const v = { rival: 'Escudería Montjuïc' };
+    await store.set('llamadas/demo_t2', { uid: 'u_ana', equipoId: 'tramontana', dia: diaMadrid(GUARDAR), guion: 'junta_lobby', quien: 'rival', formato: 'llamada',
+        personaje: { tipo: 'manager', semilla: 'rival|montjuic', color: (await store.get('equipos/montjuic'))?.color || '#2a9d8f', nombre: 'Mánager de Escudería Montjuïc' },
+        titulo: `${v.rival} busca votos para la junta`, texto: 'Hola. Ya sabes que hay junta de pilotos. Si tus pilotos votan con nosotros, te lo agradeceremos… a nuestra manera.',
+        opciones: [{ id: 'pacto', texto: 'Cuenta con ello' }, { id: 'libre', texto: 'Mis pilotos votan lo que crean' }], vars: v,
+        disponible: GUARDAR - 10 * 60_000, expira: GUARDAR + 12 * H, eleccion: null, aplicada: false, creado: GUARDAR });
+    const juntas = await store.list('juntas');
+    console.log('T2:', (await store.get('config/juego')).fase, '| juntas', juntas.map(j => `${j.id} ${j.estado}`).join(', '), '| lesión', lesion);
+    ok(juntas.some(j => j.estado === 'abierta'), 'En la vista previa de la T2 debería haber una junta abierta');
+    // Se aligera la partida: fuera las vueltas de la temporada pasada, registros y avisos viejos
+    const datosT2 = store.volcar();
+    for (const [id, r] of Object.entries(datosT2.resultados || {})) if (r.temporada === 1) delete datosT2.resultados[id];
+    delete datosT2.logs; delete datosT2.acciones;
+    const viejas = (col, campo, n) => Object.entries(datosT2[col] || {}).sort((a, b) => (b[1][campo] || 0) - (a[1][campo] || 0)).slice(n).forEach(([id]) => delete datosT2[col][id]);
+    viejas('noticias', 'publishAt', 200); viejas('notificaciones', 'fecha', 120);
+    writeFileSync(new URL('../data/demo-t2.json', import.meta.url), JSON.stringify({ ahora: GUARDAR, datos: datosT2 }));
+    console.log('💾 data/demo-t2.json guardado');
+}
 
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\n✅ Temporada completa sin fallos');
 process.exit(fallos.length ? 1 : 0);

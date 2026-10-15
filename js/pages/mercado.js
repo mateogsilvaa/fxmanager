@@ -1,7 +1,7 @@
 import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, limpiarCache } from '../core/datos.js';
 import { store, encolar, escuchar, ahora } from '../core/app.js';
-import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, dinero, $, $$, activarCuentas, confirmar } from '../core/ui.js';
+import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, dinero, $, $$, activarCuentas, confirmar, modal } from '../core/ui.js';
 import { celdaPiloto, celdaEquipo } from '../core/componentes.js';
 import { avatarPiloto } from '../core/avatar.js';
 import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL, PAISES } from '../engine/constants.js';
@@ -67,34 +67,81 @@ function pintarFases() {
 }
 
 // ---------------------------------------------------------------- Galácticos por liga
+// ¿Puede mi escudería pujar por este candidato? Devuelve null si puede o el motivo si no
+function motivoNoPuja(c) {
+    if (!m || m.estado === 'cerrado' || m.deadline <= ahora()) return 'El mercado no está abierto.';
+    if (!miEq) return u ? 'Necesitas dirigir una escudería.' : 'Entra con tu cuenta para pujar.';
+    const eq = d.equipo(miEq);
+    const pos = m.posiciones?.equipos?.[miEq];
+    if ((pos || 99) > MERCADO.topComprador) return `Solo pueden pujar las ${MERCADO.topComprador} mejores escuderías de cada liga${pos ? ` (la tuya acabó ${pos}ª)` : ''}.`;
+    if ((m.galacticos || []).some(g => g.destino?.eq === miEq)) return 'Ya has fichado un Galáctico.';
+    if (c && c.liga === eq?.liga) return 'Tiene que ser de otra liga.';
+    if (c && c.estado !== 'pendiente') return 'Ya no está en juego.';
+    return null;
+}
+function pujasDe(pid) { return (m?.ofertas || []).filter(o => o.pid === pid && o.estado === "pendiente").sort((a, b) => b.importe - a.importe); }
+
 function candidatoHtml(c, { real }) {
     const p = d.piloto(c.pid), eq = d.equipo(c.eq);
-    const ofs = real ? (m.ofertas || []).filter(o => o.pid === c.pid && o.estado === 'pendiente') : [];
-    const mejor = Math.max(0, ...ofs.map(o => o.importe));
+    const ofs = real ? pujasDe(c.pid) : [];
     const estado = !real ? 'pendiente' : c.estado;
     const via = { aceptada: 'oferta aceptada', oferta: 'la liga elige la mejor oferta', solicitud: 'solicitud a la liga', ia: 'decide la liga', suerte: '¡por sorpresa!' };
+    const mia = ofs.find(o => o.eq === miEq);
     const pie = !real ? `<span class="muted">${c.pts} puntos</span>`
         : estado === 'vendido' ? `<span class="gal-sale">Se va a ${celdaEquipo(d, c.destino.eq)} · ${dinero(c.destino.importe)} · ${via[c.destino.via] || ''}</span>`
         : estado === 'blindado' ? '<span class="muted">Se queda: blindado por su escudería</span>'
         : estado === 'se_queda' ? `<span class="muted">Se queda${c.motivo ? ` (${esc(c.motivo)})` : ''}</span>`
-        : ofs.length ? `<span>Mejor oferta <b>${dinero(mejor)}</b> · ${ofs.length} puja${ofs.length > 1 ? 's' : ''}</span>` : '<span class="muted">Sin pujas todavía</span>';
+        : ofs.length ? `<span class="gal-pujas">${ofs.slice(0, 3).map((o, i) => `<span class="${i ? '' : 'top'} ${o.eq === miEq ? 'mia' : ''}">${esc(d.equipo(o.eq)?.corto || d.nombreEquipo(o.eq))} <b>${dinero(o.importe)}</b>${o.ia ? ' <small>IA</small>' : ''}</span>`).join('')}${ofs.length > 3 ? `<span class="muted">+${ofs.length - 3}</span>` : ''}</span>`
+        : '<span class="muted">Sin pujas todavía</span>';
+    const puede = real && estado === 'pendiente' && !motivoNoPuja(c);
     return `<div class="gal-cand ${estado}">
       <span class="gal-av">${avatarPiloto(c.pid, eq?.color, 46)}</span>
       <div class="gal-info"><div class="gal-nom">${p ? `<a href="piloto.html?id=${esc(c.pid)}">${bandera(p.nac, { ancho: 16 })} ${esc(p.nombre)} <b>${esc(p.apellido)}</b></a>` : esc(c.nombre || '')} <span class="gal-pos">${c.pos}º</span></div>
-        <div class="peq">${celdaEquipo(d, c.eq)}</div>
+        <div class="peq">${celdaEquipo(d, c.eq)}${real && estado === 'pendiente' && c.decision === 'liga' ? ' <span class="insignia">decide la liga</span>' : ''}</div>
         <div class="peq gal-pie">${pie}</div></div>
-      ${real && estado === 'pendiente' && c.decision === 'liga' ? '<span class="insignia">Decide la liga</span>' : ''}</div>`;
+      ${puede ? `<button class="btn btn-peq ${mia ? 'btn-sec' : ''}" data-pujar="${esc(c.pid)}">${mia ? 'Subir puja' : 'Pujar'}</button>` : ''}</div>`;
 }
 function galacticosHtml(porLiga, { real }) {
     return `<div class="gal-ligas">${LIGAS_NACIONALES.map(l => {
         const lista = porLiga[l] || [];
         const vendido = lista.find(c => c.estado === 'vendido');
-        const cab = !real ? 'Si la temporada acabara hoy' : vendido ? `Sale ${esc(vendido.nombre || d.nombre(vendido.pid))}` : lista.some(c => c.estado === 'pendiente') ? 'En juego · solo sale uno' : 'Nadie cambia de liga';
+        const cab = !real ? 'Si la temporada acabara hoy' : vendido ? `Sale ${esc(vendido.nombre || d.nombre(vendido.pid))}` : lista.some(c => c.estado === 'pendiente') ? `${lista.filter(c => c.estado === 'pendiente').length} en juego · sale 1` : 'Nadie cambia de liga';
         return `<section class="gal-liga ${vendido ? 'resuelta' : ''}"><header>${banderaLiga(l, { ancho: 20 })}<h3>${esc(LIGAS[l].nombre)}</h3><span>${cab}</span></header>
           ${lista.length ? lista.map(c => candidatoHtml(c, { real })).join('') : '<p class="muted peq" style="margin:8px 0 0">Sin candidatos.</p>'}</section>`;
     }).join('')}</div>`;
 }
-
+// Ventana para pujar por un candidato desde la propia tarjeta
+function abrirPuja(pid) {
+    const g = (m.galacticos || []).find(x => x.pid === pid);
+    const ofs = pujasDe(pid);
+    const mejor = ofs[0]?.importe || 0;
+    const minimo = Math.max(MERCADO.importeMinimo, Math.ceil((mejor + 100_000) / 50_000) * 50_000);
+    const eq = d.equipo(miEq);
+    const suyos = pilotosDe(miEq);
+    const t = tacticoDe(suyos.filter(p => !(m.galacticos || []).some(x => x.pid === p.id && x.estado === 'pendiente')), miEq, eq?.liga) || tacticoDe(suyos, miEq, eq?.liga);
+    const otros = (m.galacticos || []).filter(x => x.liga === g.liga && x.pid !== pid && x.estado === 'pendiente').map(x => x.nombre);
+    const md = modal(`<h2 style="margin-top:0">Pujar por ${esc(g.nombre)}</h2>
+      <div class="puja-cab">${avatarPiloto(pid, d.equipo(g.eq)?.color, 64)}<div><div>${banderaLiga(g.liga, { ancho: 16 })} ${g.pos}º de ${esc(LIGAS[g.liga].nombre)} · ${esc(d.nombreEquipo(g.eq))}</div>
+        <div class="muted peq">${ofs.length ? `Mejor puja ahora: <b>${dinero(mejor)}</b> (${esc(d.nombreEquipo(ofs[0].eq))})` : 'Nadie ha pujado todavía.'}</div></div></div>
+      <ul class="puja-claves">
+        <li>Si su escudería acepta, <b>pagas tu oferta</b> y a cambio se va${t ? ` <b>${esc(t.nombre)} ${esc(t.apellido)}</b>` : ' tu segundo piloto'} a ${esc(d.nombreEquipo(g.eq))}.</li>
+        <li>Si nadie acepta antes del cierre, la liga elige la <b>mejor oferta</b> de entre todos los candidatos de ${esc(LIGAS[g.liga].nombre)}.</li>
+        ${otros.length ? `<li>Solo se va uno: si antes se cierra el traspaso de ${otros.map(esc).join(' o ')}, tu puja se anula sin coste.</li>` : ''}
+      </ul>
+      <label>Tu oferta (€)<input type="number" id="puja-imp" min="${MERCADO.importeMinimo}" step="50000" value="${minimo}"></label>
+      <p class="muted peq" id="puja-info"></p>
+      <div class="fila-botones"><button class="btn btn-sec" data-r="0">Cancelar</button><button class="btn" data-r="1">Enviar puja</button></div>`, { ancho: 520 });
+    const inp = md.el.querySelector('#puja-imp');
+    const info = () => { const v = +inp.value || 0; md.el.querySelector('#puja-info').textContent = v < MERCADO.importeMinimo ? `Lo mínimo son ${dinero(MERCADO.importeMinimo)}.` : v <= mejor ? 'Ojo: no superas la mejor puja actual.' : 'Superarías la mejor puja actual.'; };
+    inp.addEventListener('input', info); info();
+    md.el.querySelector('[data-r="0"]').addEventListener('click', () => md.cerrar());
+    md.el.querySelector('[data-r="1"]').addEventListener('click', () => {
+        const v = Math.round(+inp.value || 0);
+        if (v < MERCADO.importeMinimo) return toast(`Lo mínimo son ${dinero(MERCADO.importeMinimo)}`, 'error');
+        md.cerrar();
+        lanzar('mercado_galactico', { pid, importe: v }, `Puja de ${dinero(v)} enviada`);
+    });
+}
 // ---------------------------------------------------------------- Agentes libres
 function libresHtml({ puedeFichar }) {
     const libres = Object.entries(d.cat.pilotos).filter(([, p]) => !p.equipoId && p.estado === 'libre' && p.valoracion != null).map(([id, p]) => ({ id, ...p }));
@@ -166,34 +213,57 @@ function temporadaEnCurso() {
 }
 
 // ---------------------------------------------------------------- Mercado (abierto o cerrado)
+// Pilotos que tendrá cada escudería contando los cambios ya acordados (durante el Mundial se aplican al final)
+function plantillaFinal(eq) {
+    let n = pilotosDe(eq).length;
+    for (const c of m.pendientes || []) {
+        const ahora = d.piloto(c.pid)?.equipoId;
+        if (ahora === eq && c.eq !== eq) n--;
+        else if (c.eq === eq && ahora !== eq) n++;
+    }
+    return n;
+}
 function mercadoReal() {
     const abierto = m.estado !== 'cerrado' && m.deadline > ahora() - 60_000;
     const G = m.galacticos || [];
     const porLiga = Object.fromEntries(LIGAS_NACIONALES.map(l => [l, G.filter(g => g.liga === l).sort((a, b) => a.pos - b.pos)]));
-    const vacante = miEq && pilotosDe(miEq).length < 2;
-    const retiros = m.plan?.retiros || [];
+    const vacante = miEq && plantillaFinal(miEq) < 2;
+    const vacantes = [...(m.plan?.despidos || []).map(x => ({ ...x, tipo: x.motivo === 'directo' ? 'Despido' : 'Despido (peligro)' })), ...(m.plan?.retiros || []).map(x => ({ ...x, tipo: 'Retirada' }))]
+        .sort((a, b) => a.liga.localeCompare(b.liga));
+    const cubiertas = vacantes.filter(v => plantillaFinal(v.eq) >= 2).length;
+    const pujas = (m.ofertas || []).filter(o => o.estado === 'pendiente').length;
+    const libres = Object.values(d.cat.pilotos).filter(p => !p.equipoId && p.estado === 'libre' && p.valoracion != null).length;
+    const noPuja = abierto ? motivoNoPuja(null) : null;
     cuerpo.innerHTML = `
-    ${!abierto ? '<div class="info-caja" style="margin-bottom:30px">Mercado cerrado. Así quedan las parrillas para la próxima temporada.</div>' : ''}
+    ${!abierto ? '<div class="info-caja" style="margin-bottom:24px">Mercado cerrado. Así quedan las parrillas para la próxima temporada.</div>' : ''}
+    <div class="mercado-kpis">
+      ${abierto ? `<div><b data-cuenta="${m.deadline}"></b><span>para el cierre</span></div>` : `<div><b>Cerrado</b><span>${fecha(m.cerrado || m.deadline)}</span></div>`}
+      <div><b>${G.filter(g => g.estado === 'pendiente').length}</b><span>candidatos en juego</span></div>
+      <div><b>${pujas}</b><span>pujas activas</span></div>
+      <div><b>${cubiertas}/${vacantes.length}</b><span>vacantes cubiertas</span></div>
+      <div><b>${libres}</b><span>agentes libres</span></div>
+    </div>
     ${abierto && miEq ? '<div id="mi-mercado"></div>' : ''}
     <section style="margin-bottom:36px"><div class="tarjeta-titulo"><h2>Galácticos</h2><span>${G.filter(g => g.estado === 'vendido').length} de ${LIGAS_NACIONALES.length} ligas resueltas</span></div>
-      <p class="muted">Hasta ${MERCADO.candidatos} candidatos por liga; <b>solo sale uno</b>. En cuanto se cierra un traspaso, los demás candidatos de esa liga se quedan. Lo que siga pendiente lo decide la liga al cerrar: primero las ofertas, luego las solicitudes y luego la IA.</p>
+      <p class="muted">Hasta ${MERCADO.candidatos} candidatos por liga y <b>solo sale uno</b>: el primero por el que su escudería acepte una oferta. En cuanto sale, los demás de su liga se quedan. Lo que siga pendiente al cierre lo decide la liga: primero las ofertas, luego las solicitudes y luego la IA.</p>
+      ${abierto && noPuja && miEq ? `<p class="aviso-caja peq" style="margin:10px 0">${esc(noPuja)} Puedes seguir las pujas de los demás.</p>` : ''}
       ${G.length ? galacticosHtml(porLiga, { real: true }) : vacio('Sin Galácticos esta temporada.')}</section>
-    <div class="rejilla rejilla-lado" style="margin-bottom:36px">
-      <section class="tarjeta"><div class="tarjeta-titulo"><h2>Movimientos</h2><span>${(m.movimientos || []).length}</span></div>
-        ${(m.movimientos || []).length ? `<ul class="mov-lista">${m.movimientos.slice(0, 60).map(x => `<li class="mov ${esc(x.tipo || '')}"><i>${ICONO_MOV[x.tipo] || '·'}</i><div>${esc(x.texto)}<div class="muted peq">${hace(x.t)}</div></div></li>`).join('')}</ul>` : vacio('Todavía no se ha cerrado ninguna operación.')}
+    <div class="rejilla rejilla-lado" style="margin-bottom:36px;align-items:start">
+      <section class="tarjeta"><div class="tarjeta-titulo"><h2>Vacantes</h2><span>${cubiertas} de ${vacantes.length} cubiertas</span></div>
+        <p class="muted peq">Asientos que se quedan libres por despidos y retiradas. Se cubren fichando a un agente libre o a un piloto de otra escudería; las que sigan libres al cierre reciben un rookie.</p>
+        ${vacantes.length ? `<div class="tabla-scroll"><table class="tabla tabla-vacantes"><thead><tr><th>Escudería</th><th>Se va</th><th>Por qué</th><th>Estado</th></tr></thead><tbody>
+          ${vacantes.map(v => `<tr class="${v.eq === miEq ? 'yo' : ''}"><td><span class="con-bandera">${banderaLiga(v.liga, { ancho: 14 })}${celdaEquipo(d, v.eq)}</span></td><td>${esc(v.nombre || d.nombre(v.pid))}</td>
+            <td class="peq muted">${esc(v.tipo)}${v.tipo === 'Retirada' ? ` · ${v.edad} años` : ` · ${v.pos}º vs ${v.posComp}º`}</td><td>${plantillaFinal(v.eq) >= 2 ? '<span class="insignia ok">Cubierta</span>' : '<span class="insignia peligro">Libre</span>'}</td></tr>`).join('')}
+        </tbody></table></div>` : vacio('Sin vacantes.')}
+        ${(m.plan.salvados || []).length ? `<details style="margin-top:12px"><summary class="peq"><b>Salvan el asiento (${m.plan.salvados.length})</b></summary>${m.plan.salvados.map(x => `<p class="peq" style="margin:6px 0"><b>${esc(x.nombre || d.nombre(x.pid))}</b> (${esc(d.nombreEquipo(x.eq))}): ${x.pos}º, pero su compañero acabó ${x.posComp}º.</p>`).join('')}</details>` : ''}
       </section>
       <aside class="pila">
-        <section class="tarjeta"><div class="tarjeta-titulo"><h2>Vacantes</h2><span>${m.plan.despidos.length + retiros.length}</span></div>
-          ${m.plan.despidos.map(x => `<div class="declaracion"><div class="meta"><span class="con-bandera">${banderaLiga(x.liga, { ancho: 12 })}<span class="txt">${esc(d.nombreEquipo(x.eq))} · ${x.motivo === 'directo' ? 'despido' : 'despido (zona de peligro)'}</span></span></div><p><b>${esc(x.nombre || d.nombre(x.pid))}</b>: ${x.pos}º con su compañero ${x.posComp}º.</p></div>`).join('')}
-          ${retiros.map(x => `<div class="declaracion"><div class="meta"><span class="con-bandera">${banderaLiga(x.liga, { ancho: 12 })}<span class="txt">${esc(d.nombreEquipo(x.eq))} · retirada</span></span></div><p><b>${esc(x.nombre || d.nombre(x.pid))}</b> cuelga el casco con ${x.edad} años.</p></div>`).join('')}
-          ${!m.plan.despidos.length && !retiros.length ? vacio('Sin vacantes.') : ''}
-        </section>
-        <section class="tarjeta"><div class="tarjeta-titulo"><h2>Salvan el asiento</h2><span>${m.plan.salvados?.length || 0}</span></div>
-          ${(m.plan.salvados || []).map(x => `<div class="declaracion"><div class="meta"><span class="con-bandera">${banderaLiga(x.liga, { ancho: 12 })}<span class="txt">${esc(d.nombreEquipo(x.eq))}</span></span></div><p><b>${esc(x.nombre || d.nombre(x.pid))}</b>: ${x.pos}º, pero su compañero acabó ${x.posComp}º. El coche no daba para más.</p></div>`).join('') || vacio('Nadie.')}
+        <section class="tarjeta"><div class="tarjeta-titulo"><h2>En directo</h2><span>${(m.movimientos || []).length}</span></div>
+          ${(m.movimientos || []).length ? `<ul class="mov-lista">${m.movimientos.slice(0, 40).map(x => `<li class="mov ${esc(x.tipo || '')}"><i>${ICONO_MOV[x.tipo] || '·'}</i><div>${esc(x.texto)}<div class="muted peq">${hace(x.t)}</div></div></li>`).join('')}</ul>` : vacio('Todavía no se ha cerrado ninguna operación.')}
         </section>
         <section class="tarjeta"><div class="tarjeta-titulo"><h2>Con ficha de fichaje</h2><span>${Object.keys(m.fichas || {}).length}</span></div>
-          ${Object.keys(m.fichas || {}).length ? `<ul class="lista">${Object.keys(m.fichas).map(eq => `<li><span class="con-bandera">${banderaLiga(d.equipo(eq)?.liga, { ancho: 16 })}${celdaEquipo(d, eq)}</span></li>`).join('')}</ul>` : vacio('Nadie todavía.')}
-          <p class="muted peq" style="margin:10px 0 0">Pueden hacer trueques de pilotos entre ellas.</p>
+          <p class="muted peq">Pueden cambiarse pilotos entre ellas (trueques uno por uno).</p>
+          ${Object.keys(m.fichas || {}).length ? `<div class="chips-equipos">${Object.keys(m.fichas).map(eq => `<span>${banderaLiga(d.equipo(eq)?.liga, { ancho: 14 })} ${celdaEquipo(d, eq)}</span>`).join('')}</div>` : vacio('Nadie todavía.')}
         </section>
       </aside>
     </div>
@@ -201,6 +271,7 @@ function mercadoReal() {
       <div class="tabla-scroll"><table class="tabla"><tbody>${m.elegidos.map(x => { const pid = x.rookie || x.libre; return `<tr><td>${celdaEquipo(d, x.eq)}</td><td>${d.piloto(pid) ? celdaPiloto(d, pid) : esc(x.nombre)}</td><td><span class="insignia ${x.rookie ? 'rookie' : ''}">${x.rookie ? 'Rookie' : 'Agente libre'}</span></td></tr>`; }).join('')}</tbody></table></div></section>` : ''}
     ${libresHtml({ puedeFichar: abierto && vacante })}`;
     if (abierto && miEq) miMercado($('#mi-mercado'));
+    $$('[data-pujar]', cuerpo).forEach(b => b.addEventListener('click', () => abrirPuja(b.dataset.pujar)));
     activarLibres(cuerpo, { puedeFichar: abierto && vacante });
 }
 
@@ -212,7 +283,7 @@ function miMercado(el) {
     const posEq = m.posiciones?.equipos?.[miEq];
     const posPil = m.posiciones?.pilotos || {};
     const miG = (m.galacticos || []).find(g => g.eq === miEq && g.estado === 'pendiente');
-    const vacante = suyos.length < 2;
+    const vacante = plantillaFinal(miEq) < 2;
     const esTop = (posEq || 99) <= MERCADO.topComprador;
     const yaG = (m.galacticos || []).some(g => g.destino?.eq === miEq);
     const ficha = !!m.fichas?.[miEq];
