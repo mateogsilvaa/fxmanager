@@ -91,7 +91,8 @@ export async function abrirMercado(ctx, { tablas, deadline }) {
         if (mot) notificar(ctx, o.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: `Tu oferta por ${nombre(o.pid)} no es válida`, texto: `Se anula porque ${mot}. No se te cobra nada.` });
     }
     const previas = todasPrevias.filter(o => !motivoInvalida(o));
-    const elegidos = elegirGalacticos({ tablas, pilotos: activos(pil), ofertas: previas, rng, despedidos });
+    // Con una sola liga no hay Galácticos (no hay a dónde irse)
+    const elegidos = LIGAS_NACIONALES.length < 2 ? [] : elegirGalacticos({ tablas, pilotos: activos(pil), ofertas: previas, rng, despedidos });
     const galacticos = elegidos.map(g => ({ ...g, nombre: nombre(g.pid), estado: 'pendiente', decision: duenoReal(ctx, g.eq) ? null : 'liga' }));
     const pidsG = new Set(galacticos.map(g => g.pid));
     const ofertas = previas.filter(o => pidsG.has(o.pid)).map((o, i) => ({ id: `o${i}`, pid: o.pid, eq: o.eq, importe: o.importe, estado: 'pendiente', fecha: o.fecha || ctx.ahora }));

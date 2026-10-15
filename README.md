@@ -30,6 +30,16 @@ Navegador (web estática)  ──lee/escribe──▶  Firestore  ◀──tiemp
    4. *Estado* → **Ejecutar ciclo ahora** una vez.
    5. Pasa el enlace: la gente se registra, elige escudería en «Mi escudería» y a jugar.
 
+## Partidas de amigos (FX Manager público)
+
+Cualquiera puede crear su propia liga desde `descubre.html` → «Mis partidas» (`partidas.html`): elige cuántas ligas nacionales (1–5), si hay Mundial, cuántas jornadas, cada cuántos días y a qué hora. Invita con un enlace o un código.
+
+- **La liga original no cambia**: sigue en las colecciones raíz de Firestore. Cada partida nueva vive aislada en `partidas/{id}/...` con la misma estructura (`js/core/partida-store.js` añade el prefijo), con su propia parrilla y su propio calendario generados (`js/engine/generador.js`).
+- **El worker las lleva todas**: `worker/run.mjs` vigila cada partida en tiempo real, crea las nuevas, juega sus temporadas y pasa de temporada solo un día después de cerrar el mercado.
+- **Su admin solo tiene gestión ligera** (`partida.html`): invitar, abrir o cerrar la inscripción, echar a alguien, nombrar admins o archivarla. El control completo (`control.html`) es solo de la administración: pestaña *Partidas* para verlas todas y controlar cualquiera, y *Errores* para los fallos de la web y del worker.
+- Como mucho 3 partidas activas por persona. Ojo con el plan gratuito de Firestore (50 000 lecturas al día): cada partida activa suma lecturas; si crece, toca pasar al plan Blaze.
+- `node worker/prueba-partidas.mjs` lo prueba todo en memoria.
+
 ## Frecuencia del ciclo
 
 El repositorio es público, así que los minutos de GitHub Actions son gratis. El worker se queda encendido escuchando Firestore en tiempo real: procesa las acciones de los mánagers en segundos y simula/publica cada sesión a su hora. Cada turno dura unas 5 h 40 min y al acabar lanza el siguiente; un cron cada 2 horas lo rearranca si la cadena se corta. Como los datos se escuchan en vivo, un ciclo sin trabajo cuesta unas 4 lecturas de Firestore.

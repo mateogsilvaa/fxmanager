@@ -1,5 +1,6 @@
 rules_version = '2';
 // FX Manager · Hyper Race X1
+// Partida original en las colecciones raíz + partidas de amigos en partidas/{pid}/...
 // Pega este archivo en Firebase Console > Firestore Database > Reglas > Publicar
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -88,11 +89,13 @@ service cloud.firestore {
       allow read: if autenticado() && (uid() == userId || esAdmin());
       allow create: if autenticado() && uid() == userId
         && request.resource.data.isAdmin == false
+        && request.resource.data.keys().hasOnly(['nombre', 'email', 'isAdmin', 'equipoId', 'estado', 'creado'])
         && request.resource.data.equipoId == null
         && request.resource.data.estado == 'pendiente';
       allow update: if esAdmin() || (
         autenticado() && uid() == userId && (
-          soloCambian(['nombre'])
+          (soloCambian(['nombre']) && request.resource.data.nombre is string && request.resource.data.nombre.size() <= 40)
+          || (soloCambian(['partidas']) && request.resource.data.partidas is list && request.resource.data.partidas.size() <= 20)
           || (soloCambian(['ultimoAcceso']) && request.resource.data.ultimoAcceso is number)
           || soloCambian(['uso'])
           || soloCambian(['ultimoAcceso', 'uso'])
@@ -122,7 +125,8 @@ service cloud.firestore {
       allow create: if autenticado()
         && request.resource.data.uid == uid()
         && request.resource.data.estado == 'pendiente'
-        && request.resource.data.tipo is string
+        && request.resource.data.tipo is string && request.resource.data.tipo.size() <= 40
+        && request.resource.data.params is map
         && (duenoDe(request.resource.data.equipoId) || esAdmin())
         && request.resource.data.keys().hasOnly(['uid', 'equipoId', 'tipo', 'params', 'creado', 'estado']);
       allow update, delete: if esAdmin();
@@ -183,6 +187,189 @@ service cloud.firestore {
     match /secreto/{id} { allow read, write: if esAdmin(); }
     match /mercado_priv/{id} { allow read, write: if esAdmin(); }
     match /logs/{id} { allow read, write: if esAdmin(); }
+
+    // ======================================================================
+    // Partidas de amigos: partidas/{pid} (pública) y su juego en partidas/{pid}/<coleccion>/<doc>.
+    // Mismas reglas que la partida original, pero la pertenencia sale de partidas/{pid}/miembros/{uid}.
+    // Quien crea una partida solo la pide: la parrilla, el calendario y todo lo demás lo escribe el servidor.
+    // ======================================================================
+    function partidaP(pid) { return get(/databases/$(database)/documents/partidas/$(pid)).data; }
+    function adminP(pid) { return autenticado() && uid() in partidaP(pid).get('admins', []); }
+    function miembroP(pid) { return autenticado() && exists(/databases/$(database)/documents/partidas/$(pid)/miembros/$(uid())); }
+    function fichaP(pid) { return get(/databases/$(database)/documents/partidas/$(pid)/miembros/$(uid())).data; }
+    function cfgP(pid) { return get(/databases/$(database)/documents/partidas/$(pid)/config/juego).data; }
+    function duenoP(pid, eq) { return autenticado() && get(/databases/$(database)/documents/partidas/$(pid)/equipos/$(eq)).data.get('ownerId', null) == uid(); }
+
+    match /partidas/{pid} {
+      allow read: if true;
+      allow create: if autenticado()
+        && request.resource.data.creador == uid()
+        && request.resource.data.estado == 'solicitada'
+        && request.resource.data.keys().hasOnly(['nombre', 'creador', 'creadorNombre', 'ajustes', 'estado', 'creada', 'publica', 'descripcion'])
+        && request.resource.data.nombre is string && request.resource.data.nombre.size() >= 3 && request.resource.data.nombre.size() <= 40
+        && request.resource.data.ajustes is map
+        && pid.size() >= 6 && pid.size() <= 24;
+      allow update, delete: if esAdmin();
+
+      // Público dentro de la partida
+      match /config/{id} { allow read: if true; allow write: if esAdmin(); }
+      match /catalogo/{id} { allow read: if true; allow write: if esAdmin(); }
+      match /resumen/{id} { allow read: if true; allow write: if esAdmin(); }
+      match /eventos/{id} { allow read: if true; allow write: if esAdmin(); }
+      match /pilotos/{id} { allow read: if true; allow write: if esAdmin(); }
+      match /mercado/{id} { allow read: if true; allow write: if esAdmin(); }
+      match /mercado_ofertas/{id} { allow read: if true; allow write: if esAdmin(); }
+      match /managers/{id} { allow read: if true; allow write: if esAdmin(); }
+      match /ingenieros/{id} { allow read: if true; allow write: if esAdmin(); }
+      match /juntas/{id} { allow read: if true; allow write: if esAdmin(); }
+      match /resultados/{id} {
+        allow read: if esAdmin() || (resource != null && resource.data.publishAt <= ahora());
+        allow write: if esAdmin();
+      }
+      match /noticias/{id} {
+        allow read: if esAdmin() || resource.data.publishAt <= ahora();
+        allow write: if esAdmin();
+      }
+
+      // Miembros: te unes tú mismo si la partida es pública o con su código; luego eliges escudería
+      match /miembros/{u} {
+        allow read: if esAdmin() || miembroP(pid);
+        allow create: if autenticado() && u == uid()
+          && request.resource.data.uid == uid()
+          && request.resource.data.equipoId == null
+          && request.resource.data.keys().hasOnly(['uid', 'nombre', 'codigo', 'equipoId', 'unido'])
+          && request.resource.data.nombre is string && request.resource.data.nombre.size() <= 40
+          && partidaP(pid).estado == 'activa'
+          && (partidaP(pid).get('publica', false) == true
+              || request.resource.data.codigo == get(/databases/$(database)/documents/partidas_priv/$(pid)).data.codigo);
+        allow update: if esAdmin() || (
+          autenticado() && u == uid() && soloCambian(['equipoId'])
+          && resource.data.get('equipoId', null) == null
+          && getAfter(/databases/$(database)/documents/partidas/$(pid)/equipos/$(request.resource.data.equipoId)).data.ownerId == uid()
+        );
+        allow delete: if esAdmin();
+      }
+
+      // Escuderías: un miembro sin equipo puede reclamar una libre si la inscripción está abierta
+      match /equipos/{equipoId} {
+        allow read: if true;
+        allow update: if esAdmin() || (
+          autenticado()
+          && resource.data.get('ownerId', null) == null
+          && resource.data.get('grupo', null) == null
+          && resource.data.get('filialDe', null) == null
+          && request.resource.data.ownerId == uid()
+          && soloCambian(['ownerId', 'ownerNombre'])
+          && cfgP(pid).inscripcion == true
+          && miembroP(pid)
+          && fichaP(pid).get('equipoId', null) == null
+          && getAfter(/databases/$(database)/documents/partidas/$(pid)/miembros/$(uid())).data.equipoId == equipoId
+        );
+        allow create, delete: if esAdmin();
+      }
+      match /equipos_priv/{equipoId} {
+        allow read: if esAdmin() || duenoP(pid, equipoId);
+        allow write: if esAdmin();
+      }
+      match /pilotos_priv/{pilotoId} {
+        allow read: if esAdmin() || (resource != null && duenoP(pid, resource.data.equipoId));
+        allow write: if esAdmin();
+      }
+      match /negociaciones/{id} {
+        allow read: if esAdmin() || (resource != null && autenticado() && uid() in resource.data.get('uids', []));
+        allow write: if esAdmin();
+      }
+      match /llamadas/{id} {
+        allow read: if esAdmin() || resource == null || (autenticado() && resource.data.uid == uid());
+        allow update: if esAdmin() || (
+          autenticado() && resource.data.uid == uid() && soloCambian(['eleccion'])
+          && resource.data.eleccion == null && resource.data.aplicada == false
+          && resource.data.disponible <= ahora() && resource.data.expira > ahora()
+        );
+        allow create, delete: if esAdmin();
+      }
+      match /estrategias/{id} {
+        allow read: if esAdmin() || (resource != null && resource.data.uid == uid());
+        allow create, update: if esAdmin() || (
+          autenticado()
+          && request.resource.data.uid == uid()
+          && duenoP(pid, request.resource.data.equipoId)
+          && id == request.resource.data.eventoId + '_' + request.resource.data.tipo + '_' + request.resource.data.equipoId
+          && get(/databases/$(database)/documents/partidas/$(pid)/eventos/$(request.resource.data.eventoId)).data.sesiones[request.resource.data.tipo].lockAt > ahora()
+        );
+        allow delete: if esAdmin();
+      }
+      match /acciones/{id} {
+        allow read: if esAdmin() || (resource != null && resource.data.uid == uid());
+        allow create: if autenticado()
+          && request.resource.data.uid == uid()
+          && request.resource.data.estado == 'pendiente'
+          && request.resource.data.tipo is string && request.resource.data.tipo.size() <= 40
+          && request.resource.data.params is map
+          && (duenoP(pid, request.resource.data.equipoId) || esAdmin())
+          && request.resource.data.keys().hasOnly(['uid', 'equipoId', 'tipo', 'params', 'creado', 'estado']);
+        allow update, delete: if esAdmin();
+      }
+      // Gestión ligera: el admin de la partida pide cambios y el servidor los valida y aplica
+      match /gestion/{id} {
+        allow read: if esAdmin() || adminP(pid);
+        allow create: if adminP(pid)
+          && request.resource.data.uid == uid()
+          && request.resource.data.estado == 'pendiente'
+          && request.resource.data.tipo is string && request.resource.data.tipo.size() <= 30
+          && request.resource.data.params is map
+          && request.resource.data.keys().hasOnly(['uid', 'tipo', 'params', 'creado', 'estado']);
+        allow update, delete: if esAdmin();
+      }
+      match /notificaciones/{id} {
+        allow read: if esAdmin() || (resource != null && resource.data.uid == uid());
+        allow update: if autenticado() && resource.data.uid == uid() && soloCambian(['leida']);
+        allow create, delete: if esAdmin();
+      }
+      match /decisiones/{id} {
+        allow read: if esAdmin() || resource == null || resource.data.uid == uid();
+        allow update: if esAdmin() || (
+          autenticado() && resource.data.uid == uid() && resource.data.aplicada == false
+          && resource.data.expira > ahora() && soloCambian(['eleccion']) && request.resource.data.eleccion is string
+        );
+        allow create, delete: if esAdmin();
+      }
+      match /prensa/{id} {
+        allow read: if esAdmin() || (resource != null && resource.data.uid == uid());
+        allow update: if autenticado() && resource.data.uid == uid() && resource.data.aplicada == false
+          && resource.data.disponible <= ahora() && resource.data.expira > ahora()
+          && soloCambian(['eleccion']) && request.resource.data.eleccion is string;
+        allow create, delete: if esAdmin();
+      }
+      match /paddock/{id} {
+        allow read: if true;
+        allow create: if autenticado()
+          && request.resource.data.uid == uid()
+          && duenoP(pid, request.resource.data.equipoId)
+          && id == request.resource.data.dia + '_' + uid()
+          && request.resource.data.texto is string
+          && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 240
+          && request.resource.data.fecha > ahora() - 600000 && request.resource.data.fecha < ahora() + 600000
+          && request.resource.data.keys().hasOnly(['uid', 'nombre', 'equipoId', 'liga', 'texto', 'fecha', 'dia']);
+        allow delete: if esAdmin() || (autenticado() && resource.data.uid == uid());
+      }
+      // Todo lo demás (secretos, votos de las juntas, registros…) solo el servidor
+      match /{coleccion}/{id} { allow read, write: if esAdmin(); }
+    }
+    // Código de invitación: solo lo ven los administradores de su partida
+    match /partidas_priv/{pid} {
+      allow read: if esAdmin() || adminP(pid);
+      allow write: if esAdmin();
+    }
+    // Errores de la web: cualquiera puede dejar uno (pequeño y con forma fija); solo administración los ve
+    match /errores/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['origen', 'partida', 'texto', 'url', 'uid', 't', 'ua'])
+        && request.resource.data.origen == 'web'
+        && request.resource.data.texto is string && request.resource.data.texto.size() <= 2000
+        && (!('url' in request.resource.data) || (request.resource.data.url is string && request.resource.data.url.size() <= 300))
+        && (!('ua' in request.resource.data) || (request.resource.data.ua is string && request.resource.data.ua.size() <= 300));
+      allow read, update, delete: if esAdmin();
+    }
 
     // Restos de la temporada anterior (para poder borrarlos desde el panel)
     match /{coleccion}/{id} {

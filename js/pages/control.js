@@ -1,6 +1,6 @@
 import { montar } from '../core/layout.js';
 import { cargarDatos, limpiarCache } from '../core/datos.js';
-import { store, usuario, esAdmin, ahora, DEMO, olvidarSombra } from '../core/app.js';
+import { store, usuario, esAdmin, ahora, DEMO, olvidarSombra, PARTIDA, partida } from '../core/app.js';
 import { VAPID_PUBLIC_KEY } from '../config.js';
 import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal, pestanas, $, $$, dinero } from '../core/ui.js';
 import { LIGAS, LIGAS_NACIONALES, SESIONES, SESION_INFO, PAISES, NAC_LOCAL } from '../engine/constants.js';
@@ -12,6 +12,7 @@ import { crearContexto, horarioSesion, idResumen, idResultado, volcar } from '..
 import { compactar } from '../engine/stats.js';
 import { pintarUso as dibujarUso } from './control-uso.js';
 import { pintarSimulador as dibujarSimulador } from './control-simulador.js';
+import { pintarPartidas as dibujarPartidas, pintarErrores as dibujarErrores } from './control-partidas.js';
 import {
     inicializarJuego, borrarTodo, validarParrilla, importarParrilla, crearEvento, guardarEventos, borrarEvento,
     prepararMercado, cerrarMercado, nuevaTemporada,
@@ -25,13 +26,13 @@ let d = await cargarDatos();
 let cfg = (await store().get('config/juego')) || null;
 
 main.innerHTML = `
-<div class="cabecera-pagina"><div><div class="etiqueta">Organización</div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div><div id="caja-sombra"></div></div>
+<div class="cabecera-pagina"><div><div class="etiqueta">Organización</div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}${PARTIDA ? `<b class="aviso">Partida de amigos: ${esc(partida()?.nombre || PARTIDA)} · <a href="control.html?p=0">volver a la original</a></b>` : ''}</p></div><div id="caja-sombra"></div></div>
 <div class="pestanas" id="tabs">
   <button data-tab="estado">Estado y ciclo</button><button data-tab="calendario">Calendario</button><button data-tab="parrilla">Parrilla</button>
-  <button data-tab="usuarios">Usuarios</button><button data-tab="uso">Uso</button><button data-tab="noticias">Noticias</button><button data-tab="avisos">Avisos</button><button data-tab="temporada">Temporada</button><button data-tab="simulador">Simulador</button>
+  <button data-tab="usuarios">Usuarios</button><button data-tab="uso">Uso</button><button data-tab="noticias">Noticias</button><button data-tab="avisos">Avisos</button><button data-tab="temporada">Temporada</button><button data-tab="simulador">Simulador</button><button data-tab="partidas">Partidas</button><button data-tab="errores">Errores</button>
 </div>
-${['estado', 'calendario', 'parrilla', 'usuarios', 'uso', 'noticias', 'avisos', 'temporada', 'simulador'].map(t => `<section data-panel="${t}" id="p-${t}"></section>`).join('')}`;
-const PINTAR = { estado: pintarEstado, calendario: pintarCalendario, parrilla: pintarParrilla, usuarios: pintarUsuarios, uso: pintarUso, noticias: pintarNoticias, avisos: pintarAvisos, temporada: pintarTemporada, simulador: () => dibujarSimulador($('#p-simulador'), cfg) };
+${['estado', 'calendario', 'parrilla', 'usuarios', 'uso', 'noticias', 'avisos', 'temporada', 'simulador', 'partidas', 'errores'].map(t => `<section data-panel="${t}" id="p-${t}"></section>`).join('')}`;
+const PINTAR = { estado: pintarEstado, calendario: pintarCalendario, parrilla: pintarParrilla, usuarios: pintarUsuarios, uso: pintarUso, noticias: pintarNoticias, avisos: pintarAvisos, temporada: pintarTemporada, simulador: () => dibujarSimulador($('#p-simulador'), cfg), partidas: () => dibujarPartidas($('#p-partidas')), errores: () => dibujarErrores($('#p-errores')) };
 pestanas($('#tabs').parentElement, { alCambiar: (id) => PINTAR[id]() });
 
 // Modo sombra: la escudería que el admin lleva en secreto (se usa como la suya en toda la web)

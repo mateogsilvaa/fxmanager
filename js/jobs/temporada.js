@@ -8,7 +8,7 @@ import { nombreManagerIA, conIA } from '../engine/prensa-ia.js';
 import { normalizarCircuito } from '../engine/circuitos.js';
 import {
     crearContexto, cargarEventos, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, horarioSesion, noticia, notificar,
-    nombrePiloto, volcar, idResumen, sinId, movimiento, duenoReal,
+    nombrePiloto, volcar, idResumen, sinId, movimiento, duenoReal, rutaPerfil,
 } from './comun.js';
 import { reconstruirCatalogo } from './catalogo.js';
 import { ratingsLiga } from '../engine/rating.js';
@@ -246,7 +246,7 @@ export async function despidosManagers(ctx, { tablas, equipos, repM = {} }) {
             if (eq.ownerId) {
                 notificar(ctx, fila.eq, { remitente: 'Consejo de administración', tipo: 'despido', titulo: 'Estás despedido', texto: `El consejo de ${eq.nombre} no está contento: ${pos} y un rating de ${rating}/100. Has perdido la escudería. Puedes elegir otra libre en Mi escudería.` });
                 noticia(ctx, { titulo: `${eq.ownerNombre || 'El mánager'}, despedido de ${eq.nombre}`, texto: `Tras acabar ${pos}, el consejo decide cambiar de rumbo. Le sustituye ${conIA(nuevoIA)}.`, liga, tipo: 'mercado' });
-                ctx.ops.push({ op: 'merge', path: `usuarios/${eq.ownerId}`, data: { equipoId: null, aviso: `Te han despedido de ${eq.nombre} (${pos}, rating ${rating}). Elige otra escudería.` } });
+                ctx.ops.push({ op: 'merge', path: rutaPerfil(ctx, eq.ownerId), data: { equipoId: null, aviso: `Te han despedido de ${eq.nombre} (${pos}, rating ${rating}). Elige otra escudería.` } });
                 ctx.ops.push({ op: 'merge', path: `equipos/${fila.eq}`, data: { ownerId: null, ownerNombre: null, managerIA: nuevoIA } });
                 eq.ownerId = null; eq.ownerNombre = null;
             } else {

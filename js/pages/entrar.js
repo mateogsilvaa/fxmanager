@@ -4,7 +4,10 @@ import { $, toast, esc } from '../core/ui.js';
 
 await montar();
 const main = document.getElementById('main');
-if (usuario()) { location.href = 'escuderia.html'; }
+// A dónde volver después de entrar (solo páginas de esta web)
+const v = new URLSearchParams(location.search).get('volver') || '';
+const volver = /^[a-z-]+\.html(\?[\w=&%.-]*)?$/.test(v) ? v : 'escuderia.html';
+if (usuario()) { location.href = volver; }
 const modo = new URLSearchParams(location.search).get('modo') === 'registro' ? 'registro' : 'entrar';
 
 main.innerHTML = `<div class="caja-auth tarjeta">
@@ -32,12 +35,12 @@ const mostrarError = (e) => { $('#msg').innerHTML = `<span class="mal">${esc(err
 $('#f-entrar').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
-    try { await entrar(f.get('email'), f.get('pass')); location.href = 'escuderia.html'; } catch (err) { mostrarError(err); }
+    try { await entrar(f.get('email'), f.get('pass')); location.href = volver; } catch (err) { mostrarError(err); }
 });
 $('#f-registro').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
-    try { await registrar(f.get('nombre').trim(), f.get('email'), f.get('pass')); location.href = 'escuderia.html'; } catch (err) { mostrarError(err); }
+    try { await registrar(f.get('nombre').trim(), f.get('email'), f.get('pass')); location.href = volver === 'escuderia.html' ? 'partidas.html' : volver; } catch (err) { mostrarError(err); }
 });
 $('#olvido').addEventListener('click', async () => {
     const email = $('#f-entrar [name=email]').value;

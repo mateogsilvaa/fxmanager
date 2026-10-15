@@ -13,7 +13,8 @@ function fusionar(dst, src) {
 export class MemStore {
     constructor(datos = {}) { this.d = copia(datos); this.lecturas = 0; this.escrituras = 0; this._n = 0; }
 
-    _split(path) { const i = path.indexOf('/'); return [path.slice(0, i), path.slice(i + 1)]; }
+    // La colección es todo menos el último tramo (así funcionan también las subcolecciones: partidas/x/equipos/y)
+    _split(path) { const i = path.lastIndexOf('/'); return [path.slice(0, i), path.slice(i + 1)]; }
 
     async get(path) {
         this.lecturas++;

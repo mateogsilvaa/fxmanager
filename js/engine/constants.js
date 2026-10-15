@@ -8,7 +8,17 @@ export const LIGAS = {
     AUS: { id: 'AUS', nombre: 'Australia', pais: 'au', color: '#e9c46a', gentilicio: 'australiana' },
     INT: { id: 'INT', nombre: 'Intercontinental', pais: null, color: '#b388ff', gentilicio: 'mundial' },
 };
-export const LIGAS_NACIONALES = ['ESP', 'ITA', 'GBR', 'GER', 'AUS'];
+export const LIGAS_TODAS = ['ESP', 'ITA', 'GBR', 'GER', 'AUS'];
+// Ligas que se juegan en la partida actual. La partida original juega las cinco; una partida de amigos puede elegir
+// menos (y jugar sin Mundial). Se fija al cargar la partida (web) o antes de cada ciclo de cada partida (worker).
+export const LIGAS_NACIONALES = [...LIGAS_TODAS];
+export const MUNDIAL_ACTIVO = { si: true };
+export function fijarLigas(ligas = null, sinMundial = false) {
+    const l = Array.isArray(ligas) && ligas.length ? LIGAS_TODAS.filter(x => ligas.includes(x)) : LIGAS_TODAS;
+    LIGAS_NACIONALES.splice(0, LIGAS_NACIONALES.length, ...l);
+    MUNDIAL_ACTIVO.si = !sinMundial;
+}
+export const fijarLigasDe = (cfg) => fijarLigas(cfg?.ligas || null, !!cfg?.sinMundial);
 
 // Nacionalidad (ISO-2) que cuenta como "local" en cada liga
 export const NAC_LOCAL = { ESP: 'es', ITA: 'it', GBR: 'gb', GER: 'de', AUS: 'au' };

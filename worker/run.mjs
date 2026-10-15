@@ -1,4 +1,4 @@
-// Ciclo automático del juego (lo lanza GitHub Actions).
+// Ciclo automático del juego (lo lanza GitHub Actions). Lleva la partida original y todas las partidas de amigos.
 // Modo normal: un ciclo y termina.  Modo continuo (--continuo MIN): se queda encendido MIN minutos
 // escuchando Firestore en tiempo real y ejecuta el ciclo en cuanto hay algo que hacer
 // (una acción de un mánager, una elección, una sesión que cierra o se publica, un proyecto que acaba…).
@@ -10,7 +10,9 @@ import { getFirestore, doc, getDoc, setDoc, collection, query, where, onSnapshot
 import { FIREBASE_CONFIG, VAPID_PUBLIC_KEY } from '../js/config.js';
 import { FirestoreStore } from '../js/core/store.js';
 import { ejecutarTick } from '../js/jobs/tick.js';
-import { finDiaMadrid } from '../js/engine/constants.js';
+import { finDiaMadrid, fijarLigas, fijarLigasDe } from '../js/engine/constants.js';
+import { storeDe } from '../js/core/partida-store.js';
+import { crearPartida } from '../js/jobs/partidas.js';
 
 const { BOT_EMAIL, BOT_PASSWORD } = process.env;
 if (!BOT_EMAIL || !BOT_PASSWORD) {
@@ -57,9 +59,38 @@ if (VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
         catch (e) { return e.statusCode === 404 || e.statusCode === 410 ? 'caducada' : 'error'; }
     };
 }
+// Partidas de amigos activas (la original va aparte, en las colecciones raíz)
+const listarPartidas = async () => (await store.list('partidas', [['estado', 'in', ['solicitada', 'activa']]]).catch(() => []));
+// Errores del ciclo → colección global "errores" (se ven en Control → Errores)
+async function registrarError(pid, origen, texto) {
+    try { await store.set(`errores/${store.nuevoId('errores')}`, { origen, partida: pid || 'principal', texto: String(texto).slice(0, 1500), t: Date.now() }); } catch { }
+}
+// Un ciclo de una partida concreta (fija antes sus ligas: cada partida puede jugar menos de cinco)
+async function cicloPartida(pid, opts = {}) {
+    const st = storeDe(store, pid);
+    let cfg = null;
+    if (pid) { cfg = await st.get('config/juego').catch(() => null); fijarLigasDe(cfg); }
+    try {
+        const r = await ejecutarTick(st, { origen: 'worker', push, ...opts });
+        if (r.errores?.length) await registrarError(pid, 'worker', r.errores.join(' | '));
+        if (pid && cfg) {
+            const c2 = await st.get('config/juego').catch(() => cfg);
+            await store.merge(`partidas/${pid}`, { fase: c2.fase, temporada: c2.temporada, ultimoCiclo: Date.now() }).catch(() => { });
+        }
+        return r;
+    } finally { fijarLigas(); }
+}
+
 const iArg = process.argv.indexOf('--continuo');
 if (iArg < 0) {
     const r = await ejecutarTick(store, { origen: 'worker', forzar: process.argv.includes('--forzar'), push });
+    if (r.errores?.length) await registrarError('', 'worker', r.errores.join(' | '));
+    for (const p of await listarPartidas()) {
+        try {
+            if (p.estado === 'solicitada') await crearPartida(store, p, { log: console.log });
+            else await cicloPartida(p.id, { forzar: process.argv.includes('--forzar') });
+        } catch (e) { console.error(`Partida ${p.id}:`, e.message); await registrarError(p.id, 'worker', e.stack || e.message); }
+    }
     console.log(JSON.stringify({ ok: r.ok, errores: r.errores, notas: r.notas, lecturas: store.lecturas, escrituras: store.escrituras }, null, 2));
     process.exit(r.ok === false && !r.omitido ? 1 : 0);
 }
@@ -67,89 +98,133 @@ if (iArg < 0) {
 // ---------------- Modo continuo ----------------
 const minutos = +process.argv[iArg + 1] || 340;
 const hasta = Date.now() + minutos * 60_000;
-const REPOSO_MAX = 15 * 60_000;   // aunque no pase nada, un ciclo cada 15 min (mercado, avisos…)
 const HUECO_MIN = 1_000;          // entre dos ciclos seguidos (las acciones se procesan casi al momento)
 const log = (m) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${m}`);
-
-const vivo = { cfg: null, eventos: [], equipos: [], privs: [], acciones: [], decisiones: [], prensa: [], avisos: [], llamadas: [] };
-const listos = new Set();
 const lista = (snap) => snap.docs.map(d => ({ id: d.id, ...d.data() }));
 let despertar = null;
 const avisar = () => despertar?.();
-const quitar = [];
-const escuchar = (nombre, ref, alCambiar) => quitar.push(onSnapshot(ref, (snap) => { alCambiar(snap); listos.add(nombre); avisar(); }, (e) => log(`listener ${nombre}: ${e.code || e.message}`)));
 
-let temporadaEventos = null, quitarEventos = null;
-escuchar('cfg', doc(db, 'config/juego'), (s) => {
-    vivo.cfg = s.exists() ? s.data() : null;
-    const t = vivo.cfg?.temporada || 1;
-    if (t !== temporadaEventos) {
-        temporadaEventos = t;
-        quitarEventos?.();
-        listos.delete('eventos');
-        quitarEventos = onSnapshot(query(collection(db, 'eventos'), where('temporada', '==', t)), (snap) => { vivo.eventos = lista(snap); listos.add('eventos'); avisar(); }, (e) => log(`listener eventos: ${e.code || e.message}`));
+// Cada partida tiene su vigía: escucha en tiempo real lo que le hace falta y sabe cuándo le toca un ciclo.
+// La original repasa cada 15 min aunque no pase nada; las de amigos, cada hora (para gastar pocas lecturas).
+class Vigia {
+    constructor(pid) {
+        this.pid = pid; this.pre = pid ? `partidas/${pid}/` : '';
+        this.reposo = pid ? 60 * 60_000 : 15 * 60_000;
+        this.vivo = { cfg: null, eventos: [], equipos: [], privs: [], acciones: [], decisiones: [], prensa: [], avisos: [], llamadas: [], gestion: [] };
+        this.listos = new Set(); this.quitar = []; this.ultimo = 0; this.atasco = { venc: null, t: 0 };
+        this.temporada = null; this.quitarEventos = null;
+        const necesarios = ['cfg', 'eventos', 'equipos', 'privs', 'acciones', 'decisiones', 'prensa', 'llamadas'];
+        if (!pid) necesarios.push('avisos'); else necesarios.push('gestion');
+        this.necesarios = necesarios;
+        const P = this.pre;
+        this.escuchar('cfg', doc(db, `${P}config/juego`), (s) => {
+            this.vivo.cfg = s.exists() ? s.data() : null;
+            const t = this.vivo.cfg?.temporada || 1;
+            if (t !== this.temporada) {
+                this.temporada = t;
+                this.quitarEventos?.();
+                this.listos.delete('eventos');
+                this.quitarEventos = onSnapshot(query(collection(db, `${P}eventos`), where('temporada', '==', t)), (snap) => { this.vivo.eventos = lista(snap); this.listos.add('eventos'); avisar(); }, (e) => log(`${this.nombre} eventos: ${e.code || e.message}`));
+            }
+        });
+        this.escuchar('equipos', collection(db, `${P}equipos`), (s) => { this.vivo.equipos = lista(s); });
+        this.escuchar('privs', collection(db, `${P}equipos_priv`), (s) => { this.vivo.privs = lista(s); });
+        this.escuchar('acciones', query(collection(db, `${P}acciones`), where('estado', '==', 'pendiente')), (s) => { this.vivo.acciones = lista(s); });
+        this.escuchar('decisiones', query(collection(db, `${P}decisiones`), where('aplicada', '==', false)), (s) => { this.vivo.decisiones = lista(s); });
+        this.escuchar('prensa', query(collection(db, `${P}prensa`), where('aplicada', '==', false)), (s) => { this.vivo.prensa = lista(s); });
+        this.escuchar('llamadas', query(collection(db, `${P}llamadas`), where('aplicada', '==', false)), (s) => { this.vivo.llamadas = lista(s); });
+        if (!pid) this.escuchar('avisos', query(collection(db, 'avisos_admin'), where('estado', '==', 'pendiente')), (s) => { this.vivo.avisos = lista(s); });
+        else this.escuchar('gestion', query(collection(db, `${P}gestion`), where('estado', '==', 'pendiente')), (s) => { this.vivo.gestion = lista(s); });
     }
-});
-escuchar('equipos', collection(db, 'equipos'), (s) => { vivo.equipos = lista(s); });
-escuchar('privs', collection(db, 'equipos_priv'), (s) => { vivo.privs = lista(s); });
-escuchar('acciones', query(collection(db, 'acciones'), where('estado', '==', 'pendiente')), (s) => { vivo.acciones = lista(s); });
-escuchar('decisiones', query(collection(db, 'decisiones'), where('aplicada', '==', false)), (s) => { vivo.decisiones = lista(s); });
-escuchar('prensa', query(collection(db, 'prensa'), where('aplicada', '==', false)), (s) => { vivo.prensa = lista(s); });
-escuchar('avisos', query(collection(db, 'avisos_admin'), where('estado', '==', 'pendiente')), (s) => { vivo.avisos = lista(s); });
-escuchar('llamadas', query(collection(db, 'llamadas'), where('aplicada', '==', false)), (s) => { vivo.llamadas = lista(s); });
-
-// Próximo instante en el que el ciclo tiene trabajo por horario
-function proximoVencimiento(ahora) {
-    let t = finDiaMadrid(ahora);
-    for (const ev of vivo.eventos) for (const s of Object.values(ev.sesiones || {})) {
-        if (s.estado === 'programada') t = Math.min(t, s.lockAt);
-        else if (s.estado === 'simulada') t = Math.min(t, s.revealAt);
+    get nombre() { return this.pid ? `partida ${this.pid}` : 'principal'; }
+    escuchar(n, ref, f) { this.quitar.push(onSnapshot(ref, (snap) => { f(snap); this.listos.add(n); avisar(); }, (e) => log(`${this.nombre} ${n}: ${e.code || e.message}`))); }
+    parar() { this.quitar.forEach(f => f()); this.quitarEventos?.(); }
+    get listo() { return this.necesarios.every(n => this.listos.has(n)); }
+    proximo(ahora) {
+        const v = this.vivo;
+        let t = finDiaMadrid(ahora);
+        for (const ev of v.eventos) for (const s of Object.values(ev.sesiones || {})) {
+            if (s.estado === 'programada') t = Math.min(t, s.lockAt);
+            else if (s.estado === 'simulada') t = Math.min(t, s.revealAt);
+        }
+        for (const p of v.privs) for (const pr of p.proyectos || []) t = Math.min(t, pr.retenida || pr.fin);
+        for (const d of [...v.decisiones, ...v.prensa, ...v.llamadas]) t = Math.min(t, d.expira);
+        return Math.min(t, this.ultimo + this.reposo);
     }
-    for (const p of vivo.privs) for (const pr of p.proyectos || []) t = Math.min(t, pr.retenida || pr.fin);
-    for (const d of vivo.decisiones) t = Math.min(t, d.expira);
-    for (const d of vivo.prensa) t = Math.min(t, d.expira);
-    for (const d of vivo.llamadas) t = Math.min(t, d.expira);
-    return t;
-}
-function motivo(ahora, ultimo) {
-    if (vivo.acciones.length) return `${vivo.acciones.length} acción(es)`;
-    if (vivo.decisiones.some(d => d.eleccion)) return 'decisión elegida';
-    if (vivo.prensa.some(d => d.eleccion)) return 'respuesta a la prensa';
-    if (vivo.llamadas.some(d => d.eleccion)) return 'respuesta a una llamada';
-    if (push && vivo.avisos.length) return 'aviso de la organización';
-    const venc = proximoVencimiento(ahora);
-    // si algo vencido no se resuelve (p. ej. un error), no insistir más de una vez por minuto
-    if (venc <= ahora && !(venc === atasco.venc && ahora - atasco.t < 60_000)) { atasco.venc = venc; atasco.t = ahora; return 'vencimiento'; }
-    if (ahora - ultimo >= REPOSO_MAX) return 'repaso periódico';
-    return null;
+    motivo(ahora) {
+        const v = this.vivo;
+        if (v.acciones.length) return `${v.acciones.length} acción(es)`;
+        if (v.gestion.length) return 'gestión de la partida';
+        if (v.decisiones.some(d => d.eleccion)) return 'decisión elegida';
+        if (v.prensa.some(d => d.eleccion)) return 'respuesta a la prensa';
+        if (v.llamadas.some(d => d.eleccion)) return 'respuesta a una llamada';
+        if (push && v.avisos.length) return 'aviso de la organización';
+        const venc = this.proximo(ahora);
+        if (ahora - this.ultimo >= this.reposo) return 'repaso periódico';
+        // si algo vencido no se resuelve (p. ej. un error), no insistir más de una vez por minuto
+        if (venc <= ahora && !(venc === this.atasco.venc && ahora - this.atasco.t < 60_000)) { this.atasco.venc = venc; this.atasco.t = ahora; return 'vencimiento'; }
+        return null;
+    }
+    async ciclo(ahora, m) {
+        this.ultimo = ahora;
+        const v = this.vivo;
+        if (this.pid) fijarLigasDe(v.cfg);
+        try {
+            const r = await ejecutarTick(storeDe(store, this.pid), {
+                ahora, origen: 'worker', log: () => { }, precarga: { eventos: v.eventos, equipos: v.equipos, privs: v.privs },
+                extra: { continuoHasta: hasta }, push,
+            });
+            if (r.errores?.length) { log(`${this.nombre} · ciclo (${m}) con errores: ${r.errores.join(' | ')}`); await registrarError(this.pid, 'worker', r.errores.join(' | ')); return false; }
+            if (!r.omitido) log(`${this.nombre} · ciclo (${m}) ${r.duracionMs} ms${r.notas?.length ? ' · ' + r.notas.slice(-4).join(' · ') : ''}`);
+            if (this.pid && v.cfg) await store.merge(`partidas/${this.pid}`, { fase: v.cfg.fase, temporada: v.cfg.temporada, ultimoCiclo: ahora }).catch(() => { });
+            return true;
+        } catch (e) { log(`${this.nombre} · ciclo (${m}) falló: ${e.stack || e}`); await registrarError(this.pid, 'worker', e.stack || e); return false; }
+        finally { if (this.pid) fijarLigas(); }
+    }
 }
 
-let ultimo = 0, ciclos = 0, fallos = 0;
-const atasco = { venc: null, t: 0 };
+const vigias = new Map([['', new Vigia('')]]);
+const porCrear = [];
+// Las partidas aparecen y desaparecen en directo: se crea un vigía para cada partida activa
+onSnapshot(query(collection(db, 'partidas'), where('estado', 'in', ['solicitada', 'activa'])), (snap) => {
+    const activas = new Set();
+    for (const p of lista(snap)) {
+        if (p.estado === 'solicitada') { if (!porCrear.some(x => x.id === p.id)) porCrear.push(p); continue; }
+        activas.add(p.id);
+        if (!vigias.has(p.id)) { vigias.set(p.id, new Vigia(p.id)); log(`Vigilando la partida ${p.id} (${p.nombre || ''})`); }
+    }
+    for (const [pid, v] of vigias) if (pid && !activas.has(pid)) { v.parar(); vigias.delete(pid); log(`Partida ${pid} ya no está activa`); }
+    avisar();
+}, (e) => log(`listener partidas: ${e.code || e.message}`));
+
+let ciclos = 0, fallos = 0;
 log(`Worker continuo durante ${minutos} min`);
 while (Date.now() < hasta) {
     const ahora = Date.now();
-    const listosTodos = ['cfg', 'eventos', 'equipos', 'privs', 'acciones', 'decisiones', 'prensa', 'avisos', 'llamadas'].every(n => listos.has(n));
-    const m = listosTodos && ahora - ultimo >= HUECO_MIN ? motivo(ahora, ultimo) : null;
-    if (m) {
-        ultimo = ahora;
-        try {
-            const r = await ejecutarTick(store, {
-                ahora, origen: 'worker', log: () => {}, precarga: { eventos: vivo.eventos, equipos: vivo.equipos, privs: vivo.privs },
-                extra: { continuoHasta: hasta }, push,
-            });
-            ciclos++;
-            if (r.errores?.length) { fallos++; log(`Ciclo (${m}) con errores: ${r.errores.join(' | ')}`); }
-            else if (!r.omitido) log(`Ciclo (${m}) ${r.duracionMs} ms${r.notas?.length ? ' · ' + r.notas.slice(-4).join(' · ') : ''}`);
-        } catch (e) { fallos++; log(`Ciclo (${m}) falló: ${e.stack || e}`); }
+    // 1. Partidas recién pedidas desde la web
+    if (porCrear.length) {
+        const p = porCrear.shift();
+        try { await crearPartida(store, p, { log }); } catch (e) { log(`No se pudo crear la partida ${p.id}: ${e.stack || e}`); await registrarError(p.id, 'creación', e.stack || e); await store.merge(`partidas/${p.id}`, { estado: 'error', motivo: String(e.message || e).slice(0, 200) }).catch(() => { }); }
         continue;
     }
-    // Dormir hasta el próximo vencimiento, un cambio en Firestore o como mucho 30 s
-    const venc = listosTodos ? proximoVencimiento(ahora) : ahora + 2_000;
+    // 2. La primera partida a la que le toque un ciclo (la original va siempre primero)
+    let hecho = false;
+    for (const v of vigias.values()) {
+        if (!v.listo || ahora - v.ultimo < HUECO_MIN) continue;
+        const m = v.motivo(ahora);
+        if (!m) continue;
+        ciclos++;
+        if (!(await v.ciclo(ahora, m))) fallos++;
+        hecho = true;
+        break;
+    }
+    if (hecho) continue;
+    // 3. Dormir hasta el próximo vencimiento de cualquier partida, un cambio en Firestore o como mucho 30 s
+    const venc = Math.min(...[...vigias.values()].map(v => v.listo ? v.proximo(ahora) : ahora + 2_000));
     const espera = Math.max(1_000, Math.min(30_000, venc - ahora + 300, hasta - ahora));
     await new Promise(res => { const t = setTimeout(res, espera); despertar = () => { clearTimeout(t); setTimeout(res, 250); }; });
     despertar = null;
 }
-quitar.forEach(f => f()); quitarEventos?.();
-log(`Fin del turno: ${ciclos} ciclos, ${fallos} con errores, ${store.lecturas} lecturas y ${store.escrituras} escrituras (sin contar listeners)`);
+for (const v of vigias.values()) v.parar();
+log(`Fin del turno: ${ciclos} ciclos, ${fallos} con errores, ${vigias.size} partidas vigiladas, ${store.lecturas} lecturas y ${store.escrituras} escrituras (sin contar listeners)`);
 process.exit(0);

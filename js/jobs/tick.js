@@ -16,7 +16,7 @@ import {
 } from '../engine/juego.js';
 import {
     crearContexto, cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, cargarEventos, sesionesOrdenadas,
-    notificar, noticia, movimiento, nombrePiloto, volcar, idResultado, idEstrategia, idResumen, duenoReal, jornadaEnCurso, cierreTecnico,
+    notificar, noticia, movimiento, nombrePiloto, volcar, rutaPerfil, idResultado, idEstrategia, idResumen, duenoReal, jornadaEnCurso, cierreTecnico,
 } from './comun.js';
 import { nombreManagerIA, noticiaManagerIA, conIA } from '../engine/prensa-ia.js';
 import { noticiaAmbiente, rumorMejora } from '../engine/ambiente.js';
@@ -33,6 +33,7 @@ import { efectosRamas } from '../engine/ramas.js';
 import { ACCIONES_RAMAS, ramasIA } from './ramas.js';
 import { ACCIONES_JUNTAS, procesarJuntas, abrirJuntaSiToca } from './juntas.js';
 import { normasDe } from '../engine/juntas.js';
+import { procesarGestion, autoTemporada } from './partidas.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const M = (v) => `${(v / 1e6).toFixed(2).replace('.', ',')} M€`;
@@ -64,7 +65,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
         if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
     }
 
-    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, procesarLlamadas, procesarJuntas, diario, transicionesFase, actualizarMercadoAbierto, recordatorios, avisosOrganizacion];
+    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarGestion, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, procesarLlamadas, procesarJuntas, diario, transicionesFase, actualizarMercadoAbierto, recordatorios, avisosOrganizacion, autoTemporada];
     const errores = [];
     for (const paso of pasos) {
         try { await paso(ctx); await volcar(ctx); }
@@ -157,7 +158,7 @@ async function deshacerManager(ctx, eqId, eq) {
     eq.ownerId = null; eq.ownerNombre = null;
     ctx.ops.push({ op: 'merge', path: `equipos/${eqId}`, data: { ownerId: null, ownerNombre: null } });
     ctx.ops.push({
-        op: 'merge', path: `usuarios/${uid}`, data: {
+        op: 'merge', path: rutaPerfil(ctx, uid), data: {
             equipoId: null,
             aviso: `${nombre} forma parte de un grupo con escuderías en varios países y no se puede elegir al inscribirse. Se ha deshecho lo que hiciste con ella: elige otra escudería.`,
         },
@@ -436,7 +437,8 @@ async function recordatorios(ctx) {
 
 // Avisos personalizados que manda la organización desde Control → Avisos
 async function avisosOrganizacion(ctx) {
-    if (!ctx.push) return;
+    // Los avisos de la organización son globales: solo los envía el ciclo de la partida original
+    if (!ctx.push || ctx.cfg?.partida) return;
     const cola = await ctx.store.list('avisos_admin', [['estado', '==', 'pendiente']]);
     if (!cola.length) return;
     const docs = (await ctx.store.list('suscripciones')).filter(d => d.subs?.length);
@@ -1027,7 +1029,7 @@ const ACCIONES = {
             if (priv.sponsor?.temporada !== ctx.temporada) priv.sponsor = null;
         }
         ctx.catalogoSucio = true;
-        ctx.ops.push({ op: 'merge', path: `usuarios/${a.uid}`, data: { aviso: null } });
+        ctx.ops.push({ op: 'merge', path: rutaPerfil(ctx, a.uid), data: { aviso: null } });
         notificar(ctx, a.equipoId, {
             remitente: 'Dirección de la liga', tipo: 'bienvenida', titulo: `Bienvenido a ${ctx.equipos[a.equipoId].nombre}`,
             texto: 'Firma un patrocinador, recoge tu recompensa diaria cada día y usa el simulador antes de cada jornada. ¡Suerte!',
@@ -1169,7 +1171,7 @@ const ACCIONES = {
         nuevo.viaOferta = true; viejo.viaOferta = false;
         ctx.ops.push({ op: 'merge', path: `equipos/${oferta.equipoId}`, data: { ownerId: uid, ownerNombre, viaOferta: true } });
         ctx.ops.push({ op: 'merge', path: `equipos/${a.equipoId}`, data: { ownerId: null, ownerNombre: null, viaOferta: false } });
-        ctx.ops.push({ op: 'merge', path: `usuarios/${uid}`, data: { equipoId: oferta.equipoId } });
+        ctx.ops.push({ op: 'merge', path: rutaPerfil(ctx, uid), data: { equipoId: oferta.equipoId } });
         priv.ofertasPlaza = [];
         const pn = ctx.privs[oferta.equipoId];
         if (pn) {
@@ -1540,7 +1542,7 @@ async function transicionesFase(ctx) {
         noticia(ctx, { titulo: '¡Arrancan las ligas nacionales!', texto: 'Cinco ligas, cien pilotos y veinte plazas para el Mundial. Que empiece el espectáculo.', tipo: 'fase' });
         ctx.nota('Fase → nacional');
     }
-    if (ctx.cfg.fase === 'nacional' && nac.length && nac.every(publicado)) {
+    if (ctx.cfg.fase === 'nacional' && int.length && nac.length && nac.every(publicado)) {
         const resumenDoc = await ctx.store.get(`resumen/${idResumen(ctx.temporada)}`);
         const sesiones = resumenDoc ? JSON.parse(resumenDoc.json).sesiones.map(descompactar) : [];
         const tablas = {};
@@ -1582,6 +1584,11 @@ async function transicionesFase(ctx) {
             noticia(ctx, { titulo: 'Se cierra la inscripción', texto: 'Ya se ha disputado la primera jornada de todas las ligas: hasta la próxima temporada nadie más puede ponerse al frente de una escudería.', tipo: 'fase' });
             ctx.nota('Inscripción cerrada tras la primera jornada');
         }
+    }
+    // Partidas sin Mundial: al acabar las ligas nacionales se pasa directamente al mercado
+    if (ctx.cfg.fase === 'nacional' && !int.length && nac.length && nac.every(publicado)) {
+        await prepararMercado(ctx);
+        ctx.nota('Fase → mercado (sin Mundial)');
     }
     if (ctx.cfg.fase === 'mundial' && int.length && int.every(publicado)) {
         await prepararMercado(ctx);

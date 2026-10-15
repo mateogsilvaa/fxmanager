@@ -1,10 +1,10 @@
 import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, cargarNoticias } from '../core/datos.js';
 import { esc, vacio, activarCuentas } from '../core/ui.js';
-import { store } from '../core/app.js';
+import { store, PARTIDA, partida } from '../core/app.js';
 import { juntaHtml } from '../core/juntas-ui.js';
 import { tiraLigas, bloqueLiga, destacadosMundial, tarjetasDestacados } from '../core/preview-liga.js';
-import { LIGAS_NACIONALES } from '../engine/constants.js';
+import { LIGAS_NACIONALES, MUNDIAL_ACTIVO } from '../engine/constants.js';
 
 const FASES = {
     pretemporada: 'Pretemporada', nacional: 'Ligas nacionales', mundial: 'Liga Intercontinental',
@@ -17,16 +17,24 @@ const [d, noticias] = await Promise.all([cargarDatos(), cargarNoticias(120)]);
 barraDirecto(d);
 
 const mundial = d.cfg.fase === 'mundial';
+function resumenLigas() {
+    const n = LIGAS_NACIONALES.length;
+    if (n === 5) return 'Cinco ligas nacionales, cien pilotos y veinte plazas para el Mundial. Dirige una escudería y pelea por ellas.';
+    const ligas = n === 1 ? 'Una liga, veinte pilotos' : `${n} ligas nacionales, ${n * 20} pilotos`;
+    return `${ligas}${MUNDIAL_ACTIVO.si ? ' y un Mundial al final' : ''}. Dirige una escudería y pelea por el título.`;
+}
+// Visitantes de la liga original: una invitación discreta a crear su propia liga
+const invitacion = !u && !PARTIDA ? '<a class="invita-liga" href="descubre.html"><b>¿Quieres tu propia liga?</b> Crea un campeonato con tus amigos en un minuto →</a>' : '';
 const cta = u?.perfil?.equipoId ? `<a class="btn" href="escuderia.html">Mi escudería</a>`
     : u ? `<a class="btn" href="escuderia.html">Elegir escudería</a>`
     : `<a class="btn" href="entrar.html?modo=registro">Crear cuenta</a><a class="btn btn-sec" href="entrar.html">Entrar</a>`;
 
-const hero = `<section class="hero">
+const hero = `${invitacion}<section class="hero">
   <div class="etiqueta">${esc(FASES[d.cfg.fase] || '')} · Temporada ${d.temporada}</div>
-  <h1>${mundial ? 'El Mundial' : 'Hyper Race X1'}</h1>
+  <h1>${mundial ? 'El Mundial' : PARTIDA ? esc(partida()?.nombre || 'Hyper Race X1') : 'Hyper Race X1'}</h1>
   <p>${mundial
       ? `Los 20 mejores pilotos de las cinco ligas se juegan el título en ${esc(d.cfg.mundial?.nombre || 'la sede del Mundial')}. Cada punto vale el triple en premios.`
-      : 'Cinco ligas nacionales, cien pilotos y veinte plazas para el Mundial. Dirige una escudería y pelea por ellas.'}</p>
+      : resumenLigas()}</p>
   <div class="fila">${cta}</div>
 </section>`;
 
@@ -42,7 +50,7 @@ if (mundial) {
 } else {
     main.innerHTML = `${hero}
     <section class="portada-seccion carrusel" aria-roledescription="carrusel" aria-label="Las cinco ligas">
-      <div class="tarjeta-titulo"><h2>Las cinco ligas</h2><span class="solo-escritorio">Cuenta atrás para la próxima sesión</span></div>
+      <div class="tarjeta-titulo"><h2>${LIGAS_NACIONALES.length === 5 ? 'Las cinco ligas' : LIGAS_NACIONALES.length === 1 ? 'La liga' : 'Las ligas'}</h2><span class="solo-escritorio">Cuenta atrás para la próxima sesión</span></div>
       ${tiraLigas(d, { carrusel: true })}
       <div class="carrusel-pista">${LIGAS_NACIONALES.map((l, i) => `<div class="carrusel-diapo" role="group" aria-roledescription="diapositiva" aria-label="${i + 1} de ${LIGAS_NACIONALES.length}">${bloqueLiga(d, l, noticias)}</div>`).join('')}</div>
       <div class="carrusel-ctrl">

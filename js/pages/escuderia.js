@@ -1,6 +1,6 @@
 import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, limpiarCache } from '../core/datos.js';
-import { store, ahora, encolar, escuchar, escucharConsulta, reclamarEquipo, refrescarPerfil, enSombra, olvidarSombra } from '../core/app.js';
+import { store, ahora, encolar, escuchar, escucharConsulta, reclamarEquipo, refrescarPerfil, enSombra, olvidarSombra, PARTIDA, partida, esMiembro } from '../core/app.js';
 import { reconstruirCatalogo } from '../jobs/catalogo.js';
 import { jornadaEnCurso, cierreTecnico } from '../jobs/comun.js';
 import { estadoAvisos, activarAvisos } from '../core/avisos.js';
@@ -29,6 +29,11 @@ const main = document.getElementById('main');
 if (!u) { location.href = 'entrar.html'; throw new Error('sin sesión'); }
 const [, d] = await Promise.all([refrescarPerfil(), cargarDatos()]);
 barraDirecto(d);
+// En una partida de amigos hay que ser miembro para elegir escudería
+if (PARTIDA && !esMiembro() && !u.perfil?.isAdmin) {
+    main.innerHTML = `<div class="caja-auth tarjeta"><h1>${esc(partida()?.nombre || 'Partida')}</h1><p class="muted">No estás en esta partida. Si te han pasado el código, únete desde «Mis partidas».</p><div class="fila"><a class="btn" href="partidas.html?unirse=${PARTIDA}">Unirme</a><a class="btn btn-sec" href="index.html?p=0">Volver</a></div></div>`;
+    throw new Error('sin equipo');
+}
 if (!u.perfil?.equipoId) { elegirEquipo(); throw new Error('sin equipo'); }
 
 // ======================================================================

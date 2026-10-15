@@ -1,6 +1,6 @@
 // Cabecera, navegación (arriba en escritorio, abajo en móvil) y pie
-import { iniciar, usuario, esAdmin, salir, DEMO, DEMO_VARIANTE, store, escucharConsulta } from './app.js';
-import { LIGAS, LIGAS_NACIONALES, SESION_INFO } from '../engine/constants.js';
+import { iniciar, usuario, esAdmin, esAdminPartida, salir, DEMO, DEMO_VARIANTE, store, escucharConsulta, PARTIDA, partida } from './app.js';
+import { LIGAS, LIGAS_NACIONALES, SESION_INFO, MUNDIAL_ACTIVO } from '../engine/constants.js';
 import { esc, banderaLiga, $, activarCuentas } from './ui.js';
 
 const ICONOS = {
@@ -46,6 +46,15 @@ async function proponerAvisos() {
     });
 }
 
+// "Partidas" solo aparece a quien juega alguna partida de amigos (o está en una); a los visitantes, la landing.
+// Para el grupo de la liga original no cambia nada.
+function enlacePartidas(u) {
+    const a = (href, txt) => `<a href="${href}">${txt}</a>`;
+    if (!u) return a('descubre.html', 'Crea tu liga');
+    if (PARTIDA || (u.perfil?.partidas || []).length || (u.perfil?.estado !== 'aprobado' && !u.perfil?.isAdmin)) return a('partidas.html', 'Partidas');
+    return '';
+}
+
 function pintarCabecera(activo, ligaActiva) {
     const u = usuario();
     const cab = document.getElementById('cabecera') || document.body.insertBefore(document.createElement('header'), document.body.firstChild);
@@ -55,14 +64,15 @@ function pintarCabecera(activo, ligaActiva) {
     ${DEMO ? `<div class="aviso-demo">${DEMO_VARIANTE === 't2' ? 'Vista previa de la temporada 2' : 'Modo demostración'} · nada se guarda · <a href="index.html?demo=0">salir</a></div>` : ''}
     <div class="barra-directo" id="barra-directo" hidden></div>
     <nav class="nav">
-      <a class="marca" href="index.html"><span class="marca-x">X1</span><span>Hyper Race</span></a>
+      <a class="marca" href="index.html"><span class="marca-x">X1</span><span>${PARTIDA ? esc(partida()?.nombre || 'Hyper Race') : 'Hyper Race'}</span></a>
       <div class="nav-enlaces">
         ${a(`liga.html?l=${ligaActiva || 'ESP'}`, 'Ligas', '', ligaActiva ? 'data-liga-activa' : '')}
         ${a('mercado.html', 'Mercado', 'mercado')}
         ${a('estadisticas.html', 'Estadísticas', 'estadisticas')}
         ${a('reglamento.html', 'Cómo funciona', 'reglamento')}
         <span class="nav-sep"></span>
-        ${u ? `${esAdmin() ? a('control.html', 'Control', 'control') : ''}
+        ${enlacePartidas(u)}
+        ${u ? `${esAdmin() ? a('control.html', 'Control', 'control') : ''}${PARTIDA && !esAdmin() && esAdminPartida() ? a('partida.html', 'Gestionar', 'partida') : ''}
           <button id="btn-salir" title="Cerrar sesión">Salir</button>
           <a href="escuderia.html" class="btn btn-nav">Mi escudería<span class="punto" data-punto hidden></span></a>`
         : `<a href="entrar.html" class="btn btn-nav">Entrar</a>`}
@@ -88,6 +98,8 @@ function pintarCabecera(activo, ligaActiva) {
         hoja.className = 'hoja-mas';
         hoja.innerHTML = `<div>
           <a href="mercado.html">Mercado</a><a href="paddock.html">Paddock</a><a href="reglamento.html">Cómo funciona</a>
+          ${u ? '<a href="partidas.html">Mis partidas</a>' : '<a href="descubre.html">Crea tu liga con amigos</a>'}
+          ${u && PARTIDA && esAdminPartida() ? '<a href="partida.html">Gestionar la partida</a>' : ''}
           ${u && esAdmin() ? '<a href="control.html">Control</a>' : ''}
           ${u ? `<button data-salir>Cerrar sesión (${esc(u.perfil?.nombre || u.email)})</button>` : '<a href="entrar.html">Entrar o registrarse</a>'}
         </div>`;
@@ -118,7 +130,7 @@ export function barraDirecto(datos) {
 
 // Selector de liga (chips con bandera) para la cabecera de páginas de liga
 export function selectorLigas(activa) {
-    return `<div class="selector-ligas">${[...LIGAS_NACIONALES, 'INT'].map(l => `<a href="liga.html?l=${l}" class="${l === activa ? 'activo' : ''}">${banderaLiga(l, { ancho: 18, titulo: false })}${esc(l === 'INT' ? 'Mundial' : LIGAS[l].nombre)}</a>`).join('')}</div>`;
+    return `<div class="selector-ligas">${[...LIGAS_NACIONALES, ...(MUNDIAL_ACTIVO.si ? ['INT'] : [])].map(l => `<a href="liga.html?l=${l}" class="${l === activa ? 'activo' : ''}">${banderaLiga(l, { ancho: 18, titulo: false })}${esc(l === 'INT' ? 'Mundial' : LIGAS[l].nombre)}</a>`).join('')}</div>`;
 }
 
 function pintarPie() {

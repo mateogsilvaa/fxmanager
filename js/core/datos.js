@@ -1,7 +1,7 @@
 // Carga de datos públicos de la temporada y utilidades derivadas
-import { store, ahora, DEMO } from './app.js';
+import { store, ahora, DEMO, PARTIDA } from './app.js';
 import { compactar, descompactar, construirTemporada, proyeccionMundial } from '../engine/stats.js';
-import { LIGAS_NACIONALES, SESIONES, SESION_INFO, PUNTOS_CARRERA_LARGA, PUNTOS_VR } from '../engine/constants.js';
+import { LIGAS_NACIONALES, SESIONES, SESION_INFO, PUNTOS_CARRERA_LARGA, PUNTOS_VR, fijarLigasDe } from '../engine/constants.js';
 import { ratingsLiga } from '../engine/rating.js';
 import { fijarPaisMundial } from './ui.js';
 
@@ -24,7 +24,7 @@ function cacheGet(k) { const c = DEMO ? null : cacheLeer(k); return c && Date.no
 
 async function getCache(path) {
     if (DEMO) return store().get(path);
-    const k = `fx:${path}`;
+    const k = `fx:${PARTIDA || "_"}:${path}`;
     const c = cacheLeer(k);
     const edad = c ? Date.now() - c.t : Infinity;
     const pedir = () => (enVuelo[k] ||= store().get(path).then(d => { cacheSet(k, d); return d; }).finally(() => { delete enVuelo[k]; }));
@@ -35,7 +35,7 @@ async function getCache(path) {
 
 // Resultado completo (vueltas, incidentes). Inmutable una vez publicado → se cachea en localStorage.
 export async function resultado(sid) {
-    const k = `fxres:${sid}`;
+    const k = `fxres:${PARTIDA || "_"}:${sid}`;
     if (!DEMO) { try { const v = localStorage.getItem(k); if (v) return puntosR3(JSON.parse(v)); } catch { } }
     const r = await store().get(`resultados/${sid}`);
     if (r && !DEMO) { try { localStorage.setItem(k, JSON.stringify(r)); } catch { try { Object.keys(localStorage).filter(x => x.startsWith('fxres:')).slice(0, 20).forEach(x => localStorage.removeItem(x)); } catch { } } }
@@ -52,6 +52,7 @@ function puntosR3(r) {
 export async function cargarDatos() {
     const [cfg, cat] = await Promise.all([getCache('config/juego'), getCache('catalogo/actual')]);
     const temporada = cfg?.temporada || cat?.temporada || 1;
+    if (cfg?.ligas) fijarLigasDe(cfg);
     // La bandera del Mundial es la del país de su sede (el de los circuitos de la liga Intercontinental)
     fijarPaisMundial(Object.values(cat?.eventos || {}).find(e => e.liga === 'INT')?.circuito?.pais || cfg?.mundial?.pais);
     const resumen = await getCache(`resumen/T${temporada}`);
@@ -203,7 +204,7 @@ Datos.prototype.rankingManagers = function () {
 
 // Historial público de los mánagers (rating y resultados de cada temporada terminada)
 export async function cargarManagers() {
-    const k = 'fx:managers';
+    const k = `fx:${PARTIDA || '_'}:managers`;
     const c = cacheGet(k);
     if (c) return c;
     try { const l = await store().list('managers'); cacheSet(k, l); return l; }

@@ -99,6 +99,9 @@ export function movimiento(priv, concepto, importe, t) {
     priv.finanzas = [{ t, c: concepto, v: Math.round(importe) }, ...(priv.finanzas || [])].slice(0, 60);
 }
 
+// Dónde se guarda el equipo de una persona: en la partida original, su perfil; en una de amigos, su ficha de miembro
+export const rutaPerfil = (ctx, uid) => ctx.cfg?.partida ? `miembros/${uid}` : `usuarios/${uid}`;
+
 export function nombrePiloto(p) { return p ? `${p.nombre} ${p.apellido}` : '—'; }
 
 export async function volcar(ctx) {
