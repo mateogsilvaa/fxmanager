@@ -170,7 +170,11 @@ function contextoLlamada(ctx, eq, pil, rng) {
     const rivales = Object.entries(ctx.equipos).filter(([id, x]) => x.liga === e.liga && id !== eq);
     const rival = rivales.length ? rng.pick(rivales) : null;
     const persona = (() => { const n = crearIngeniero(rng, { cat: 'pista', estrellas: 1, liga: e.liga, usados: new Set(), n: 0 }); return `${n.nombre} ${n.apellido}`; })();
+    const vet = suyos.filter(p => (p.edad || 0) >= 32).sort((a, b) => (b.edad || 0) - (a.edad || 0))[0];
+    const les = (pr?.lesiones || []).find(l => l.restantes > 0);
     return {
+        vet: vet ? nombrePiloto(vet) : null, vetId: vet?.id || null, vetEdad: vet?.edad || null,
+        lesion: les ? nombrePiloto(pil[les.pid]) : null, lesionPid: les?.pid || null, rivalColor: rival?.[1].color || null,
         equipo: e.nombre, color: e.color, sponsor: pr?.sponsor?.marca || 'una marca', persona,
         p1: nombrePiloto(suyos[0]) || 'tu piloto', p2: nombrePiloto(suyos[1] || suyos[0]) || 'tu piloto', p1id: suyos[0]?.id, p2id: (suyos[1] || suyos[0])?.id,
         ingeniero: ing ? nombreIng(ing) : persona, ingId: ing?.id || null, rival: rival?.[1].nombre || 'un rival', rivalId: rival?.[0] || null,
@@ -191,37 +195,55 @@ export async function generarLlamadas(ctx, dia) {
         const dias = Object.entries(u?.uso?.dias || {}).filter(([d]) => d >= diaMadrid(ctx.ahora - 7 * 864e5));
         const media = dias.reduce((s, [, m]) => s + m, 0) / 7;
         const rng = crearRng(`${ctx.secreto}|llamada|${dia}|${eq}`);
-        if (!rng.chance(probLlamada(media))) continue;
+        // Quien juega mucho puede recibir una segunda llamada o carta más tarde
+        const n = rng.chance(probLlamada(media)) ? (media >= 30 && rng.chance(Math.min(0.6, media / 120)) ? 2 : 1) : 0;
+        for (let k = 0; k < n; k++) {
         const recientes = ctx.privs[eq].llamadasRecientes || [];
-        const g = rng.weighted(GUIONES.filter(x => !recientes.includes(x.id)), x => x.peso);
-        if (!g) continue;
         const v = contextoLlamada(ctx, eq, pil, rng);
-        const hora = horaHabitual(rng, u?.uso?.horas);
+        const cumple = (x) => !x.condicion || (x.condicion === 'veterano' && v.vetId) || (x.condicion === 'lesion' && v.lesionPid) || (x.condicion === 'junta' && ctx.juntaAbierta);
+        const g = rng.weighted(GUIONES.filter(x => !recientes.includes(x.id) && cumple(x)), x => x.peso * (x.condicion ? 3 : 1));
+        if (!g) continue;
+        const hora = (horaHabitual(rng, u?.uso?.horas) + (k ? rng.int(2, 5) : 0)) % 24;
         const disponible = Math.max(ctx.ahora, inicioDia + hora * 3600_000 - 30 * 60_000);
-        const personaje = g.quien === 'piloto' ? { tipo: 'piloto', semilla: g.texto.includes('{p2}') ? v.p2id : v.p1id, color: v.color, nombre: g.texto.includes('{p2}') ? v.p2 : v.p1 }
+        const pq = g.personaje === 'vet' ? 'vet' : g.texto.includes('{p2}') ? 'p2' : 'p1';
+        const personaje = g.quien === 'piloto' ? { tipo: 'piloto', semilla: v[`${pq}id`] || v.vetId, color: v.color, nombre: v[pq] }
             : g.quien === 'ingeniero' ? { tipo: 'ingeniero', semilla: v.ingId || v.persona, color: v.color, nombre: v.ingeniero }
             : g.quien === 'patrocinador' ? { tipo: 'patrocinador', semilla: v.sponsor, nombre: v.sponsor }
-            : g.quien === 'rival' ? { tipo: 'patrocinador', semilla: `rival|${v.rivalId}`, nombre: `Mánager de ${v.rival}` }
+            : g.quien === 'rival' ? { tipo: 'manager', semilla: `rival|${v.rivalId}`, color: v.rivalColor, nombre: `Mánager de ${v.rival}` }
+            : g.quien === 'medico' ? { tipo: 'periodista', semilla: `medico|${eq}`, nombre: `Dra. ${v.persona.split(' ').slice(-1)[0]}` }
             : { tipo: g.quien, semilla: v.persona, nombre: g.quien === 'fia' ? 'FIA' : v.persona };
-        ctx.ops.push({ op: 'set', path: `llamadas/${dia}_${eq}`, data: {
+        ctx.ops.push({ op: 'set', path: `llamadas/${dia}_${eq}${k ? '_2' : ''}`, data: {
             uid, equipoId: eq, dia, guion: g.id, quien: g.quien, formato: g.formato, personaje,
             titulo: rellenar(g.titulo, v), texto: rellenar(g.texto, v), opciones: g.opciones.map(o => ({ id: o.id, texto: rellenar(o.texto, v) })),
             vars: v, disponible, expira: finDiaMadrid(ctx.ahora), eleccion: null, aplicada: false, creado: ctx.ahora,
         } });
         ctx.privs[eq].llamadasRecientes = [g.id, ...recientes].slice(0, 6);
         ctx.sucios.privs.add(eq);
+        }
     }
 }
 
+const miles = (n) => Math.round(n).toLocaleString('es-ES');
 async function aplicarEfectos(ctx, eq, ef, v, rng) {
-    const out = { ...ef };
+    const out = { ...ef, chips: [] };
     if (ef.exito != null) { const r = rng.chance(ef.exito) ? ef.si : ef.no; return { ...(await aplicarEfectos(ctx, eq, r, v, rng)), texto: r.texto }; }
     const pr = priv(ctx, eq), e = ctx.equipos[eq];
+    const chip = (t, val) => out.chips.push({ t, v: Math.sign(val || 0) });
+    const sg = (n) => (n > 0 ? '+' : '−') + miles(Math.abs(n));
+    const nom = (a) => a === 'ambos' ? 'pilotos' : String((a === 'p2' ? v.p2 : a === 'vet' ? v.vet : v.p1) || 'piloto').split(' ').slice(-1)[0];
+    if (ef.dinero) chip(`${sg(ef.dinero)} €`, ef.dinero);
+    if (ef.fans) chip(`${sg(ef.fans)} fans`, ef.fans);
+    if (ef.rep) chip(`Reputación ${ef.rep > 0 ? '+' : '−'}${Math.abs(ef.rep)}`, ef.rep);
+    if (ef.repM) chip(`Tu reputación ${ef.repM > 0 ? '+' : '−'}${Math.abs(ef.repM)}`, ef.repM);
+    if (ef.moral) chip(`Moral ${nom(ef.moral.a)} ${ef.moral.v > 0 ? '+' : '−'}${Math.abs(ef.moral.v)}`, ef.moral.v);
+    if (ef.attr) chip(`${ENTRENO.attrs[ef.attr.attr] || ef.attr.attr} ${nom(ef.attr.a)} +${ef.attr.v}`, 1);
+    if (ef.simulador) chip(`+${ef.simulador} tandas de simulador`, 1);
+    if (ef.info) chip('Información del rival', 1);
     if (ef.dinero) movimiento(pr, ef.dinero > 0 ? 'Llamada: ingreso' : 'Llamada: gasto', ef.dinero, ctx.ahora);
     if (ef.fans) { e.fans = Math.max(0, (e.fans || 0) + ef.fans); ctx.ops.push({ op: 'merge', path: `equipos/${eq}`, data: { fans: e.fans } }); ctx.catalogoSucio = true; }
     if (ef.rep) repEquipo(ctx, eq, ef.rep, 'llamada');
     if (ef.repM && e.ownerId) await repManager(ctx, e.ownerId, ef.repM, e.ownerNombre);
-    const pids = (a) => a === 'ambos' ? [v.p1id, v.p2id] : [a === 'p2' ? v.p2id : v.p1id];
+    const pids = (a) => a === 'ambos' ? [v.p1id, v.p2id] : [a === 'p2' ? v.p2id : a === 'vet' ? v.vetId : v.p1id];
     if (ef.moral) {
         const ids = pids(ef.moral.a).filter(Boolean);
         const pp = await cargarPilotosPriv(ctx, ids);
@@ -234,8 +256,16 @@ async function aplicarEfectos(ctx, eq, ef, v, rng) {
     }
     if (ef.proyecto) {
         const p = (pr.proyectos || []).filter(x => x.fin > ctx.ahora).sort((a, b) => a.fin - b.fin)[0];
-        if (p) p.fin = Math.max(ctx.ahora, p.fin - ef.proyecto * 3600_000);
+        if (p) { p.fin = Math.max(ctx.ahora, p.fin - ef.proyecto * 3600_000); chip(`Mejora −${ef.proyecto} h`, 1); }
         else out.texto = 'No había ninguna mejora en marcha, así que no cambia nada.';
+    }
+    if (ef.noRetiro && v.vetId) {
+        const pp = (await cargarPilotosPriv(ctx, [v.vetId]))[v.vetId];
+        if (pp) { pp.noRetiro = ctx.cfg.temporada; ctx.sucios.pilotosPriv.add(v.vetId); chip('Sigue una temporada más', 1); }
+    }
+    if (ef.lesion && v.lesionPid) {
+        const l = (pr.lesiones || []).find(x => x.pid === v.lesionPid && x.restantes > 0);
+        if (l) { l.restantes = Math.max(1, l.restantes - ef.lesion); chip(`Vuelve ${ef.lesion} carrera antes`, 1); }
     }
     if (ef.simulador) { const dia = diaMadrid(ctx.ahora); pr.tandasExtra = { dia, n: (pr.tandasExtra?.dia === dia ? pr.tandasExtra.n : 0) + ef.simulador }; }
     if (ef.info && v.rivalId) {
@@ -256,12 +286,12 @@ export async function procesarLlamadas(ctx) {
         if (!l.eleccion && !caducada) continue;
         const g = GUIONES.find(x => x.id === l.guion);
         const op = l.eleccion && l.eleccion !== 'colgar' ? g?.opciones.find(o => o.id === l.eleccion) : null;
-        let resultado;
+        let resultado, r = null;
         if (op && ctx.privs[l.equipoId]) {
-            const r = await aplicarEfectos(ctx, l.equipoId, op.efectos || {}, l.vars || {}, crearRng(`${ctx.secreto}|llamadaRes|${l.id}`));
+            r = await aplicarEfectos(ctx, l.equipoId, op.efectos || {}, l.vars || {}, crearRng(`${ctx.secreto}|llamadaRes|${l.id}`));
             resultado = [rellenar(op.resultado || r.texto || '', l.vars || {}), r.texto && op.resultado ? rellenar(r.texto, l.vars || {}) : '', r.info || ''].filter(Boolean).join(' ');
         } else resultado = l.eleccion === 'colgar' ? 'Colgaste sin contestar.' : 'Llamada perdida.';
-        ctx.ops.push({ op: 'update', path: `llamadas/${l.id}`, data: { aplicada: true, resultado, procesada: ctx.ahora } });
+        ctx.ops.push({ op: 'update', path: `llamadas/${l.id}`, data: { aplicada: true, resultado, chips: r?.chips || [], procesada: ctx.ahora } });
         if (op) notificar(ctx, l.equipoId, { remitente: l.personaje?.nombre || 'Llamada', tipo: 'llamada', titulo: l.titulo, texto: resultado });
     }
 }

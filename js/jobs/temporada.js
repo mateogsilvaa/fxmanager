@@ -314,7 +314,8 @@ export async function nuevaTemporada(store, { ahora = Date.now(), reglamento = '
             inst[k] = 0;
         }
         priv.inst = inst; priv.instPausa = pausa;
-        if (cambio) priv.descuentos = {};
+        // Con reglamento nuevo los planos y las ramas de desarrollo dejan de valer
+        if (cambio) { priv.descuentos = {}; priv.ramas = {}; priv.planos = {}; }
         priv.proyectos = [];
         priv.sponsor = null; priv.ofertasSponsor = [];
         priv.finanzas = [{ t: ahora, c: `Inicio de la temporada ${temporada + 1}`, v: 0 }, ...(cambio ? [{ t: ahora, c: 'Ayuda de la liga por el cambio de reglamento', v: AYUDA_REGLAMENTO }] : []), ...(priv.finanzas || [])].slice(0, 60);

@@ -43,7 +43,7 @@ export async function resultado(sid) {
 }
 // La Carrera 3 reparte más puntos: también en las disputadas antes del cambio
 function puntosR3(r) {
-    if (r.tipo !== 'R3' || !r.filas) return r;
+    if (r.pf || r.tipo !== 'R3' || !r.filas) return r;
     let i = 0;
     for (const f of r.filas) f.pts = f.estado === 'FIN' ? (PUNTOS_CARRERA_LARGA[i++] || 0) + (r.vr?.pid === f.pid ? PUNTOS_VR : 0) : 0;
     return r;

@@ -10,6 +10,7 @@ import { ejecutarTick } from '../jobs/tick.js';
 import { reconstruirCatalogo } from '../jobs/catalogo.js';
 import { crearContexto, horarioSesion, idResumen, idResultado, volcar } from '../jobs/comun.js';
 import { compactar } from '../engine/stats.js';
+import { pintarUso as dibujarUso } from './control-uso.js';
 import {
     inicializarJuego, borrarTodo, validarParrilla, importarParrilla, crearEvento, guardarEventos, borrarEvento,
     prepararMercado, cerrarMercado, nuevaTemporada,
@@ -26,10 +27,10 @@ main.innerHTML = `
 <div class="cabecera-pagina"><div><div class="etiqueta">Organización</div><h1>Control</h1><p class="sub">Panel de la organización. ${DEMO ? '<b class="aviso">Modo demo: los cambios solo viven en esta pestaña.</b>' : ''}</p></div><a class="btn btn-sec" href="sombra.html" target="_blank" rel="noopener">Jugar en modo sombra</a></div>
 <div class="pestanas" id="tabs">
   <button data-tab="estado">Estado y ciclo</button><button data-tab="calendario">Calendario</button><button data-tab="parrilla">Parrilla</button>
-  <button data-tab="usuarios">Usuarios</button><button data-tab="noticias">Noticias</button><button data-tab="avisos">Avisos</button><button data-tab="temporada">Temporada</button>
+  <button data-tab="usuarios">Usuarios</button><button data-tab="uso">Uso</button><button data-tab="noticias">Noticias</button><button data-tab="avisos">Avisos</button><button data-tab="temporada">Temporada</button>
 </div>
-${['estado', 'calendario', 'parrilla', 'usuarios', 'noticias', 'avisos', 'temporada'].map(t => `<section data-panel="${t}" id="p-${t}"></section>`).join('')}`;
-const PINTAR = { estado: pintarEstado, calendario: pintarCalendario, parrilla: pintarParrilla, usuarios: pintarUsuarios, noticias: pintarNoticias, avisos: pintarAvisos, temporada: pintarTemporada };
+${['estado', 'calendario', 'parrilla', 'usuarios', 'uso', 'noticias', 'avisos', 'temporada'].map(t => `<section data-panel="${t}" id="p-${t}"></section>`).join('')}`;
+const PINTAR = { estado: pintarEstado, calendario: pintarCalendario, parrilla: pintarParrilla, usuarios: pintarUsuarios, uso: pintarUso, noticias: pintarNoticias, avisos: pintarAvisos, temporada: pintarTemporada };
 pestanas($('#tabs').parentElement, { alCambiar: (id) => PINTAR[id]() });
 
 async function recargar() { limpiarCache(); d = await cargarDatos(); cfg = await store().get('config/juego'); }
@@ -379,6 +380,15 @@ async function pintarUsuarios() {
         await store().merge(`usuarios/${c.dataset.admin}`, { isAdmin: c.checked });
         toast(c.checked ? 'Ahora es administrador' : 'Ya no es administrador');
     }));
+}
+
+// ======================================================================
+// USO: tiempo de juego, páginas, horas y calendario de actividad (ver control-uso.js)
+// ======================================================================
+async function pintarUso() {
+    const el = $('#p-uso');
+    el.innerHTML = '<div class="cargando"><span class="spinner"></span>Cargando…</div>';
+    dibujarUso(el, await store().list('usuarios'), d);
 }
 
 // ======================================================================

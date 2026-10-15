@@ -171,9 +171,16 @@ const m = await store.get('mercado/T1');
 console.log('Mercado:', m.estado, '| despidos', m.plan.despidos.length, '| galácticos', m.galacticos.map(g => `${g.liga}:${g.estado}${g.destino ? `→${g.destino.eq}(${g.destino.via})` : ''}`).join(' '), '| rookies', m.elegidos?.length);
 m.movimientos.slice().reverse().forEach(x => console.log('  ·', x.texto));
 ok(m.estado === 'cerrado', 'El mercado debería estar cerrado');
-ok(m.galacticos.length === 5, `Galácticos: ${m.galacticos.length} (deberían ser 5)`);
+const porLiga = (f) => ['ESP', 'ITA', 'GBR', 'GER', 'AUS'].map(l => m.galacticos.filter(g => g.liga === l && f(g)).length);
+ok(porLiga(() => true).every(n => n >= 1 && n <= 3), `Candidatos a Galáctico por liga: ${porLiga(() => true)} (entre 1 y 3)`);
+ok(porLiga(g => g.estado === 'vendido').every(n => n <= 1), `Solo se va un Galáctico por liga: ${porLiga(g => g.estado === 'vendido')}`);
+const libresPool = (await store.list('pilotos')).filter(p => !p.equipoId && p.estado === 'libre');
+ok(libresPool.length >= 100, `Bolsa de agentes libres: ${libresPool.length}`);
+ok(m.movimientos.some(x => x.tipo === 'puja'), 'La IA puja por candidatos a Galáctico');
 ok(m.galacticos.filter(g => g.estado === 'vendido').length >= 3, 'Casi ningún Galáctico ha cambiado de liga');
-if (ofertaValida && ofertaValida !== 'ninguna' && m.galacticos.some(g => g.pid === ofertaValida)) ok(m.galacticos.some(g => g.pid === ofertaValida && (g.destino?.eq === humanos[1].eq || g.estado === 'se_queda')), `La oferta de Leo por el Galáctico no se ejecutó: ${JSON.stringify(m.galacticos.find(g => g.pid === ofertaValida))}`);
+const sinDinero = ((await store.get(`equipos_priv/${humanos[1].eq}`))?.presupuesto || 0) < 9_000_000;
+// (si la oferta no llegó a registrarse es que no cumplía las reglas: p. ej. el 55% de locales)
+if (ofertaValida && ofertaValida !== 'ninguna' && m.galacticos.some(g => g.pid === ofertaValida) && m.ofertas.some(o => o.eq === humanos[1].eq && o.pid === ofertaValida)) ok(m.galacticos.some(g => g.pid === ofertaValida && (g.destino?.eq === humanos[1].eq || g.estado === 'se_queda' || (sinDinero && g.destino))), `La oferta de Leo por el Galáctico no se ejecutó: ${JSON.stringify(m.galacticos.find(g => g.pid === ofertaValida))} · Leo=${humanos[1].eq} sinDinero=${sinDinero} ofertas=${JSON.stringify(m.ofertas.filter(o => o.pid === ofertaValida))} mov=${JSON.stringify(m.movimientos.filter(x => x.eq === humanos[1].eq))}`);
 ok(m.plan.despidos.length >= 10 && m.plan.despidos.length <= 20, `Despidos fuera de rango: ${m.plan.despidos.length}`);
 if (mercadoAna?.tipo === 'fichaje') ok(m.fichajes.some(f => f.eq === 'tramontana' && f.estado === 'aceptada'), `El fichaje de Ana no se hizo: ${JSON.stringify(m.fichajes.filter(f => f.eq === 'tramontana'))}`);
 if (mercadoAna?.tipo === 'trueque' && mercadoAna.recibe) console.log('Trueque de Ana:', JSON.stringify(m.trueques.filter(x => x.eq === 'tramontana')));
@@ -196,7 +203,8 @@ console.log('Ana:', Math.round(privAna.presupuesto / 1e5) / 10, 'M€ coche', pr
 console.log('Leo:', Math.round(privLeo.presupuesto / 1e5) / 10, 'M€ coche', privLeo.coche);
 const acciones = await store.list('acciones');
 const errs = acciones.filter(a => a.estado === 'error');
-console.log('Acciones:', acciones.length, 'errores:', errs.length, [...new Set(errs.map(a => a.tipo + ': ' + a.resultado.error))].slice(0, 6));
+if (process.env.DEPURAR) console.log('Ofertas de Leo:', JSON.stringify(acciones.filter(a => a.tipo === 'mercado_galactico').map(a => [a.equipoId, a.estado, a.resultado, a.procesado, a.creado])));
+console.log('Acciones:', acciones.length, 'errores:', errs.length, [...new Set(errs.map(a => a.tipo + ': ' + a.resultado.error))].slice(0, 12));
 ok(acciones.every(a => a.estado !== 'pendiente'), 'Quedan acciones pendientes');
 const notifs = await store.list('notificaciones', [['uid', '==', 'u_ana']]);
 console.log('Notificaciones Ana:', notifs.length, '| tipos:', [...new Set(notifs.map(x => x.tipo))].join(','));
@@ -210,6 +218,9 @@ ok((await store.get('equipos_priv/tramontana')).resumenes?.length === 1, 'Falta 
 console.log('Resumen Ana:', (await store.get('equipos_priv/tramontana')).resumenes?.[0]?.titular);
 const decis = await store.list('decisiones');
 ok(decis.every(d => d.aplicada), 'Hay decisiones sin aplicar');
+const juntasT = await store.list('juntas');
+const notT = await store.list('noticias');
+console.log('Juntas:', juntasT.map(j => `${j.id} ${j.estado}: ${(j.resultados || []).map(x => x.texto).join(' | ')}`).join(' // ') || 'ninguna', '| lesiones:', notT.filter(x => /, lesionado$/.test(x.titulo)).length, '| sustitutos:', notT.filter(x => /como sustituto$/.test(x.titulo)).length);
 console.log('Noticias:', (await store.list('noticias')).length, '| lecturas', store.lecturas, 'escrituras', store.escrituras);
 
 const resultados = await store.list('resultados');

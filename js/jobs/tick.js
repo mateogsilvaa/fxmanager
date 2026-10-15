@@ -27,6 +27,12 @@ import { ACCIONES_MERCADO } from './mercado.js';
 import { ACCIONES_NOVEDADES, procesarLlamadas, diarioNovedades, generarLlamadas, novedadesActivas, repEquipo } from './novedades.js';
 import { noticiasSesion, previaJornada } from '../engine/cronica.js';
 import { MERCADO } from '../engine/mercado.js';
+import { asegurarPool, lesionTrasAccidente, lesionesAntesDeSesion, lesionesTrasCarrera, curarLesiones, ACCIONES_PILOTOS } from './pilotos.js';
+import { iaMercadoDiario } from './mercado.js';
+import { efectosRamas } from '../engine/ramas.js';
+import { ACCIONES_RAMAS, ramasIA } from './ramas.js';
+import { ACCIONES_JUNTAS, procesarJuntas, abrirJuntaSiToca } from './juntas.js';
+import { normasDe } from '../engine/juntas.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const M = (v) => `${(v / 1e6).toFixed(2).replace('.', ',')} M€`;
@@ -58,7 +64,7 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
         if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
     }
 
-    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, procesarLlamadas, diario, transicionesFase, recordatorios, avisosOrganizacion];
+    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, procesarLlamadas, procesarJuntas, diario, transicionesFase, recordatorios, avisosOrganizacion];
     const errores = [];
     for (const paso of pasos) {
         try { await paso(ctx); await volcar(ctx); }
@@ -529,12 +535,14 @@ function propuestaIngeniero(priv, evId, vidas, n, circuito, ritmo, rng) {
 }
 
 export async function simularUna(ctx, ev, tipo) {
+    // Lesionados: altas y sustitutos antes de formar la parrilla
+    await lesionesAntesDeSesion(ctx, ev);
     const equipos = await cargarEquipos(ctx);
     const privs = await cargarPrivs(ctx);
     const pilotos = await cargarPilotos(ctx);
     let lista;
     if (ev.liga === 'INT') lista = (ctx.cfg.mundial?.participantes || []).map(id => pilotos[id]).filter(p => p?.equipoId);
-    else lista = Object.values(pilotos).filter(p => p.liga === ev.liga && p.equipoId && p.estado !== 'libre');
+    else lista = Object.values(pilotos).filter(p => p.liga === ev.liga && p.equipoId && !['libre', 'lesionado', 'retirado'].includes(p.estado));
     if (!lista.length) { ctx.nota(`Sin pilotos para ${ev.id}`); return; }
     // Coches en el taller por daños graves sin reparación urgente: no corren esta sesión
     const dns = [];
@@ -590,6 +598,7 @@ export async function simularUna(ctx, ev, tipo) {
             id: p.id, equipoId: p.equipoId, attrs: pp.attrs || { ritmo: 70, consistencia: 70, agresividad: 65, defensa: 70 },
             moral: pp.moral ?? 60, forma: pp.forma ?? 0, coche: priv.coche || {}, setupQ: calidadSetup(setup, ideal),
             estr, riesgoFiab: (priv.riesgoFiab || 1) * (1 - 0.08 * (priv.inst?.boxes || 0)), boxes: priv.inst?.boxes || 0, _setup: setup,
+            mods: efectosRamas(priv),
         };
     });
 
@@ -604,19 +613,44 @@ export async function simularUna(ctx, ev, tipo) {
             parrilla = r.shuffle(lista.map(p => p.id));
         }
     }
+    // Normas de las juntas de pilotos (desde la temporada 2)
+    const conNormas = novedadesActivas(ctx.cfg);
+    const normas = conNormas ? normasDe(ctx.cfg) : null;
+    let mult = 1;
+    if (normas && tipo === 'R3' && ev.liga !== 'INT') {
+        const ultima = Math.max(...eventosLiga(ctx, ev.liga).map(e => e.ronda || 0));
+        if (ev.ronda === ultima) mult = normas.ultimaCarrera || 1;
+    }
+    if (normas && parrilla) {
+        if (tipo === 'R2' && normas.parrillaInvertida) parrilla = [...parrilla.slice(0, 8).reverse(), ...parrilla.slice(8)];
+        // Sanciones de la junta: puestos de penalización en la próxima carrera del piloto
+        const pend = (normas.sanciones || []).filter(s => datos.some(x => x.id === s.pid));
+        for (const s of pend) {
+            const i = parrilla.indexOf(s.pid);
+            if (i >= 0) { parrilla.splice(i, 1); parrilla.splice(Math.min(parrilla.length, i + s.puestos), 0, s.pid); }
+            notificar(ctx, pilotos[s.pid]?.equipoId, { remitente: 'FIA', tipo: 'junta', titulo: `${nombrePiloto(pilotos[s.pid])} cumple su sanción`, texto: `Sale ${s.puestos} puestos más atrás en la ${SESION_INFO[tipo].nombre}.` });
+        }
+        if (pend.length) {
+            const resto = (normas.sanciones || []).filter(s => !pend.includes(s));
+            ctx.cfg.normas = { ...normas, sanciones: resto };
+            await ctx.store.merge('config/juego', { normas: { sanciones: resto } });
+        }
+    }
     const rng = crearRng(`${ctx.secreto}|sim|${ev.id}|${tipo}`);
     const lluvia = crearRng(`${ctx.secreto}|meteo|${ev.id}|${tipo}`).next() < (ev.meteo?.[tipo] ?? 0);
-    const res = simularSesion({ tipo, circuito, pilotos: datos, parrilla, lluvia, rng, vidas });
+    const res = simularSesion({ tipo, circuito, pilotos: datos, parrilla, lluvia, rng, vidas, normas, mult });
     const ses = ev.sesiones[tipo];
     const doc = {
         eventoId: ev.id, liga: ev.liga, temporada: ev.temporada, ronda: ev.ronda, tipo,
         publishAt: ses.publishAt, revealAt: ses.revealAt, lluvia: res.lluvia, filas: res.filas, eventos: res.eventos, vr: res.vr, dns,
+        ...(res.pf ? { pf: 1 } : {}), ...(res.mult ? { mult: res.mult } : {}),
         circuito: { id: circuito.id, nombre: circuito.nombre, pais: circuito.pais, tiempoBase: circuito.tiempoBase },
         // datos internos (solo admin/worker) para informes de FP
         setups: Object.fromEntries(datos.map(d => [d.equipoId, d._setup])),
         simuladoEn: ctx.ahora,
     };
     await ctx.store.set(`resultados/${idResultado(ev.id, tipo)}`, doc);
+    await lesionesTrasCarrera(ctx, ev, tipo);
 }
 
 // ======================================================================
@@ -712,7 +746,7 @@ async function efectosPublicacion(ctx, ev, res) {
     for (const [eq, pts] of Object.entries(ptsEq)) {
         const priv = privs[eq];
         if (!priv) continue;
-        const premio = pts * ECO.premioPorPunto * (ev.liga === 'INT' ? ECO.multPremioMundial : 1);
+        const premio = Math.round(pts * ECO.premioPorPunto * (ev.liga === 'INT' ? ECO.multPremioMundial : 1) * (novedadesActivas(ctx.cfg) ? normasDe(ctx.cfg).premios || 1 : 1));
         if (premio > 0) { movimiento(priv, `Premio ${tipoNombre} (${ev.circuito.nombre})`, premio, ctx.ahora); ctx.sucios.privs.add(eq); }
         const fs = res.filas.filter(f => f.eq === eq);
         notificar(ctx, eq, {
@@ -754,6 +788,7 @@ async function danosGraves(ctx, ev, res) {
     for (const f of graves) {
         const priv = privs[f.eq];
         if (!priv) continue;
+        await lesionTrasAccidente(ctx, ev, { ...f, tipo: res.tipo });
         const nombre = nombrePiloto(pilotos[f.pid]);
         const humano = !!duenoReal(ctx, f.eq);
         ctx.sucios.privs.add(f.eq);
@@ -859,6 +894,7 @@ function privDe(ctx, eq) {
     return p;
 }
 
+const eventosLiga = (ctx, liga) => (ctx.eventos || []).filter(e => e.liga === liga);
 function proximoEvento(ctx, liga) {
     return (ctx.eventos || []).filter(ev => ev.liga === liga || (liga === '*' && true))
         .map(ev => ({ ev, fin: Math.max(...sesionesOrdenadas(ev).map(s => s.lockAt)) }))
@@ -1189,6 +1225,12 @@ const ACCIONES = {
     ...ACCIONES_MERCADO,
     // Ingenieros, negociaciones y blindaje de Galácticos (desde la temporada 2): ver jobs/novedades.js
     ...ACCIONES_NOVEDADES,
+    // Sustitutos de lesionados: ver jobs/pilotos.js
+    ...ACCIONES_PILOTOS,
+    // Ramas de desarrollo del coche: ver jobs/ramas.js
+    ...ACCIONES_RAMAS,
+    // Juntas de pilotos: ver jobs/juntas.js
+    ...ACCIONES_JUNTAS,
 };
 
 // ¿Está la escudería en parque cerrado ahora? (su liga, o el Mundial si tiene pilotos allí)
@@ -1238,7 +1280,8 @@ async function completarProyectos(ctx) {
                 if (conPlano && (priv.planos?.[p.clave] || 0) <= p.nivel) { const { [p.clave]: _u, ...resto } = priv.planos; priv.planos = resto; }
                 if (exito) {
                     priv.coche = { ...(priv.coche || {}), [p.clave]: Math.max(priv.coche?.[p.clave] || 0, p.nivel) };
-                    notificar(ctx, eq, { remitente: 'Departamento técnico', tipo: 'id', titulo: `${AREAS[p.clave].nombre} mejorada a nivel ${p.nivel}`, texto: 'La pieza ha superado las pruebas y ya está montada en los coches.' });
+                    const rama = novedadesActivas(ctx.cfg) && [3, 6, 9].includes(p.nivel) && !priv.ramas?.[p.clave]?.[p.nivel];
+                    notificar(ctx, eq, { remitente: 'Departamento técnico', tipo: 'id', titulo: `${AREAS[p.clave].nombre} mejorada a nivel ${p.nivel}`, texto: `La pieza ha superado las pruebas y ya está montada en los coches.${rama ? ' Se abre una nueva rama de desarrollo: elige el camino en Mi escudería → Coche.' : ''}` });
                     // Cooperación de grupo: los equipos hermanos desarrollan esa área un 25% más barata
                     const grupo = equipos[eq]?.grupo;
                     if (grupo) for (const [hid, h] of Object.entries(equipos)) {
@@ -1440,7 +1483,11 @@ async function diario(ctx) {
     const accViejas = (await ctx.store.list('acciones', [['creado', '<', ctx.ahora - 14 * 864e5]], { limit: 400 })).filter(a => a.estado !== 'pendiente');
     accViejas.forEach(a => ctx.ops.push({ op: 'del', path: `acciones/${a.id}` }));
     await caprichosIA(ctx, dia);
+    await asegurarPool(ctx);
+    ramasIA(ctx, dia);
+    await iaMercadoDiario(ctx, dia);
     await diarioNovedades(ctx, dia);
+    await abrirJuntaSiToca(ctx);
     await generarLlamadas(ctx, dia);
     ctx.cfg.ultimoDiario = dia;
     await ctx.store.merge('config/juego', { ultimoDiario: dia });
@@ -1511,6 +1558,7 @@ async function transicionesFase(ctx) {
             ctx.sucios.privs.add(eq);
             notificar(ctx, eq, { remitente: 'Dirección de la liga', tipo: 'mundial', titulo: `${nombrePiloto(pilotos[pid])} va al Mundial`, texto: `Cobras ${M(ECO.bonusClasificadoMundial)} y su asiento queda asegurado para la próxima temporada. En el Mundial cada punto vale el triple en premios.` });
         }
+        await curarLesiones(ctx);
         await ctx.store.merge('config/juego', { fase: 'mundial', mundial });
         ctx.cfg.fase = 'mundial';
         ctx.cfg.mundial = mundial;

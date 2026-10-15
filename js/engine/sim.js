@@ -1,5 +1,6 @@
 // Simulador de sesiones Hyper Race X1 (BAC Mono)
 import { SESION_INFO, PUNTOS_QUALY, PUNTOS_VR, puntosCarrera, esCarrera, esQualy } from './constants.js';
+import { tablaPuntos, puntosVR } from './juntas.js';
 import { COMPUESTOS, degradacion, factorVida, perdidaBoxes, limpiarEstrategia, paradaEnBoxes } from './neumaticos.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -19,6 +20,11 @@ export function ritmoBase(p, circuito, lluvia) {
     d += (1 - (p.setupQ ?? 0.7)) * 0.008 * (lluvia ? 0.5 : 1);
     d += -(((p.moral ?? 60) - 60) / 40) * 0.0015;
     d += -(p.forma ?? 0) * 0.001;
+    // Ramas de desarrollo: el carácter del coche según el circuito y la lluvia
+    const md = p.mods || {};
+    d += -(md.rectas || 0) * (circuito.motor / wSum) * 3;
+    d += -(md.curvas || 0) * ((circuito.aero + circuito.chasis) / wSum) * 1.5;
+    if (lluvia) d += -(md.lluvia || 0);
     return base * (1 + d);
 }
 
@@ -27,7 +33,7 @@ function perfil(p, circuito, lluvia) {
     const base = circuito.tiempoBase;
     return {
         pace: ritmoBase(p, circuito, lluvia),
-        sd: base * (0.0012 + (100 - a.consistencia) * 0.00007) * (lluvia ? 1.7 : 1),
+        sd: base * (0.0012 + (100 - a.consistencia) * 0.00007) * (lluvia ? 1.7 : 1) * (1 - (p.mods?.consistencia || 0)),
         pErr: (0.012 + (a.agresividad - 60) * 0.0002 + (100 - a.consistencia) * 0.0003) * (lluvia ? 2 : 1),
     };
 }
@@ -47,6 +53,7 @@ function simularVueltasSueltas(tipo, circuito, pilotos, lluvia, rng) {
     const filas = pilotos.map(p => {
         const f = nuevaFila(p);
         const pr = perfil(p, circuito, lluvia);
+        pr.pace *= 1 - (p.mods?.ritmoQualy || 0);
         const riesgo = fp ? 1 : clamp(p.estr?.riesgo ?? 2, 1, 3);
         const ganancia = [0, 0, 0.0015, 0.0035][riesgo];
         const multErr = [0, 0.6, 1, 1.9][riesgo] * (fp ? 0.5 : 1.6);
@@ -107,13 +114,16 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng, vidas) {
         const actitud = p.estr?.actitud || 'normal';
         pr.ritmo = ritmo;
         pr.pace *= ritmo === 'conservador' ? 1.0015 : ritmo === 'ataque' ? 0.998 : 1;
-        pr.deg = circuito.desgaste * 0.0007 * (ritmo === 'conservador' ? 0.7 : ritmo === 'ataque' ? 1.45 : 1) * (lluvia ? 0.6 : 1);
+        const md = p.mods || {};
+        pr.md = md;
+        pr.pace *= 1 - (md.ritmoCarrera || 0);
+        pr.deg = circuito.desgaste * 0.0007 * (ritmo === 'conservador' ? 0.7 : ritmo === 'ataque' ? 1.45 : 1) * (lluvia ? 0.6 : 1) * (1 - (md.deg || 0));
         pr.pErr *= ritmo === 'conservador' ? 0.6 : ritmo === 'ataque' ? 1.5 : 1;
         const fiab = p.coche?.fiabilidad || 0;
-        pr.pFallo = 0.056 * (1 - fiab / 12) * (ritmo === 'ataque' ? 1.3 : ritmo === 'conservador' ? 0.7 : 1) * (p.riesgoFiab || 1);
+        pr.pFallo = 0.056 * (1 - fiab / 12) * (ritmo === 'ataque' ? 1.3 : ritmo === 'conservador' ? 0.7 : 1) * (p.riesgoFiab || 1) * Math.max(0.2, 1 + (md.fallo || 0));
         pr.pCrash = 0.0012 * (actitud === 'agresiva' ? 1.8 : actitud === 'defensiva' ? 0.6 : 1) * (lluvia ? 2.5 : 1);
-        pr.ataque = p.attrs.agresividad * 0.6 + (p.attrs.adelantamiento ?? p.attrs.agresividad) * 0.4 + (actitud === 'agresiva' ? 10 : actitud === 'defensiva' ? -8 : 0);
-        pr.defensa = (p.attrs.defensa ?? 70) + (actitud === 'defensiva' ? 8 : actitud === 'agresiva' ? -3 : 0);
+        pr.ataque = p.attrs.agresividad * 0.6 + (p.attrs.adelantamiento ?? p.attrs.agresividad) * 0.4 + (actitud === 'agresiva' ? 10 : actitud === 'defensiva' ? -8 : 0) + (md.ataque || 0);
+        pr.defensa = (p.attrs.defensa ?? 70) + (actitud === 'defensiva' ? 8 : actitud === 'agresiva' ? -3 : 0) + (md.defensa || 0);
         pr.actitud = actitud;
         pr.dano = 0; // pérdida de ritmo por daños (toques)
         if (conNeumaticos) {
@@ -136,7 +146,7 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng, vidas) {
         for (const id of orden) {
             const p = porId[id], pr = perfiles[id], f = filas[id];
             let base = pr.pace * (1 + pr.dano);
-            if (conNeumaticos) base *= COMPUESTOS[pr.comp].ritmo * (1 + degradacion(pr.edad, vidasEv[pr.comp] * factorVida(pr.ritmo)));
+            if (conNeumaticos) base *= COMPUESTOS[pr.comp].ritmo * (1 + degradacion(pr.edad, vidasEv[pr.comp] * factorVida(pr.ritmo)) * (1 - (pr.md.deg || 0)));
             else base *= 1 + pr.deg * (v - 1);
             let t;
             if (neutral) {
@@ -145,7 +155,7 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng, vidas) {
             } else {
                 t = base + rng.gauss(0, pr.sd);
                 if (v === 1) {
-                    t += 2500 + rng.gauss(0, 300) - ((p.attrs.experiencia ?? 50) - 50) * 4 - (p.attrs.agresividad - 60) * 3 - (pr.actitud === 'agresiva' ? 150 : 0);
+                    t += 2500 + rng.gauss(0, 300) - ((p.attrs.experiencia ?? 50) - 50) * 4 - (p.attrs.agresividad - 60) * 3 - (pr.actitud === 'agresiva' ? 150 : 0) - (pr.md.salida || 0);
                     const pos0 = orden.indexOf(id);
                     if (pos0 > 2 && rng.chance(0.02 * (pr.actitud === 'agresiva' ? 1.8 : 1) * (lluvia ? 1.5 : 1))) {
                         if (rng.chance(0.2)) {
@@ -184,7 +194,7 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng, vidas) {
                     pr.plan = pr.plan.filter(x => x !== parada);
                     // pérdida en el pit lane (menor con coche de seguridad) + tiempo parado, que puede salir muy bien o muy mal
                     const pb = paradaEnBoxes(rng, p.boxes || 0);
-                    t += (pit - 2_600) * (neutral?.tipo === 'sc' ? 0.45 : neutral?.tipo === 'vsc' ? 0.65 : 1) + pb.ms;
+                    t += (pit - 2_600) * (neutral?.tipo === 'sc' ? 0.45 : neutral?.tipo === 'vsc' ? 0.65 : 1) + Math.max(0, pb.ms - (pr.md.boxes || 0));
                     pr.comp = parada.neumatico; pr.edad = 0;
                     f.neumaticos.push(parada.neumatico); f.paradas = (f.paradas || 0) + 1;
                     eventos.push({ v, tipo: 'parada', pid: id, neumatico: parada.neumatico, neutral: neutral?.tipo || null, parado: pb.ms, calidad: pb.calidad, motivo: pb.motivo || null });
@@ -231,7 +241,7 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng, vidas) {
                                 filas[perdedor].errores++;
                                 // A veces el toque deja daños: el coche va más lento el resto de la carrera
                                 const dano = rng.chance(0.4) ? Math.round(rng.range(0.002, 0.006) * 10000) / 10000 : 0;
-                                if (dano) perfiles[perdedor].dano += dano;
+                                if (dano) perfiles[perdedor].dano += dano * (1 - (perfiles[perdedor].md?.danos || 0));
                                 eventos.push({ v, tipo: 'toque', pid: id, pid2: a, perjudicado: perdedor, dano: dano || null });
                             }
                             idx--;
@@ -291,25 +301,30 @@ function simularCarrera(tipo, circuito, pilotos, parrilla, lluvia, rng, vidas) {
 }
 
 // vidas: vida real de los neumáticos en este evento (solo la usa la carrera con estrategia)
-export function simularSesion({ tipo, circuito, pilotos, parrilla, lluvia, rng, vidas = null }) {
+// normas: reglamento votado en las juntas de pilotos · mult: multiplicador de puntos (última carrera de la liga)
+export function simularSesion({ tipo, circuito, pilotos, parrilla, lluvia, rng, vidas = null, normas = null, mult = 1 }) {
     let r;
     if (esCarrera(tipo)) r = simularCarrera(tipo, circuito, pilotos, parrilla || [], lluvia, rng, vidas);
     else r = simularVueltasSueltas(tipo, circuito, pilotos, lluvia, rng);
     const res = { tipo, lluvia: !!lluvia, filas: r.filas, eventos: r.eventos, vr: null };
-    puntuar(res);
+    puntuar(res, normas, mult);
     return res;
 }
 
-export function puntuar(res) {
+export function puntuar(res, normas = null, mult = 1) {
     const { tipo, filas } = res;
     filas.forEach(f => { f.pts = 0; });
+    // Con normas los puntos quedan fijados en el resultado (pf) y no se recalculan después
+    if (normas) res.pf = 1;
+    if (mult !== 1) res.mult = mult;
     if (esQualy(tipo)) {
-        filas.forEach((f, i) => { if (f.mejor != null && i < PUNTOS_QUALY.length) f.pts = PUNTOS_QUALY[i]; });
+        const tq = normas ? tablaPuntos('qualy', normas) : PUNTOS_QUALY;
+        filas.forEach((f, i) => { if (f.mejor != null && i < tq.length) f.pts = tq[i]; });
         const pole = filas[0];
         if (pole && pole.mejor != null) res.vr = { pid: pole.pid, t: pole.mejor };
     } else if (esCarrera(tipo)) {
         const fin = filas.filter(f => f.estado === 'FIN');
-        const tabla = puntosCarrera(tipo);
+        const tabla = normas ? tablaPuntos(tipo, normas) : puntosCarrera(tipo);
         fin.forEach((f, i) => { if (i < tabla.length) f.pts = tabla[i]; });
         let best = null;
         fin.forEach(f => {
@@ -318,8 +333,9 @@ export function puntuar(res) {
         });
         if (best) {
             res.vr = best;
-            filas.find(f => f.pid === best.pid).pts += PUNTOS_VR;
+            filas.find(f => f.pid === best.pid).pts += normas ? puntosVR(normas) : PUNTOS_VR;
         }
+        if (mult !== 1) fin.forEach(f => { f.pts = Math.round(f.pts * mult); });
     }
     return res;
 }

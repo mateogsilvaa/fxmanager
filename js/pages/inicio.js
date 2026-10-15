@@ -1,6 +1,8 @@
 import { montar, barraDirecto } from '../core/layout.js';
 import { cargarDatos, cargarNoticias } from '../core/datos.js';
-import { esc, vacio } from '../core/ui.js';
+import { esc, vacio, activarCuentas } from '../core/ui.js';
+import { store } from '../core/app.js';
+import { juntaHtml } from '../core/juntas-ui.js';
 import { tiraLigas, bloqueLiga, destacadosMundial, tarjetasDestacados } from '../core/preview-liga.js';
 import { LIGAS_NACIONALES } from '../engine/constants.js';
 
@@ -98,3 +100,14 @@ function carrusel(raiz) {
     marcar(); programar();
 }
 carrusel(document.querySelector('.carrusel'));
+
+// ---------- Junta de pilotos (la abierta o la última) ----------
+store().list('juntas', [['temporada', '==', d.temporada]]).then(lista => {
+    const j = lista.sort((a, b) => b.n - a.n)[0];
+    if (!j) return;
+    const s = document.createElement('section');
+    s.className = 'portada-seccion';
+    s.innerHTML = juntaHtml(j) + (j.estado === 'abierta' && u?.perfil?.equipoId ? '<p class="muted peq"><a href="escuderia.html">Da tu consigna en Mi escudería →</a></p>' : '');
+    main.appendChild(s);
+    activarCuentas();
+}).catch(() => { });

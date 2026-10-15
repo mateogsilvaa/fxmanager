@@ -27,6 +27,8 @@ service cloud.firestore {
     match /managers/{id} { allow read: if true; allow write: if esAdmin(); }
     // Ingenieros (plantilla pública) y negociaciones entre escuderías (solo las ven las dos partes)
     match /ingenieros/{id} { allow read: if true; allow write: if esAdmin(); }
+    // Juntas de pilotos: públicas (las consignas de cada mánager van en juntas_votos, solo servidor)
+    match /juntas/{id} { allow read: if true; allow write: if esAdmin(); }
     match /negociaciones/{id} {
       allow read: if esAdmin() || (resource != null && autenticado() && uid() in resource.data.get('uids', []));
       allow write: if esAdmin();

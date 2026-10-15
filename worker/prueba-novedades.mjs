@@ -110,6 +110,75 @@ r = await accion('u_ana', 'tramontana', 'galactico_blindar', { importe: 4_500_00
 const m = await store.get('mercado/T1');
 ok(r.estado === 'hecha' && m.galacticos[0].estado === 'blindado' && m.ofertas[0].estado === 'anulada', 'Blindaje a 1,5× la puja: se queda y la oferta se anula');
 ok((await store.get('equipos/tramontana')).reputacion > 50, `La reputación del equipo se mueve (${(await store.get('equipos/tramontana')).reputacion})`);
+
+// ---------- Ramas de desarrollo ----------
+await store.merge('config/juego', { fase: 'pretemporada' });
+await store.merge('equipos_priv/tramontana', { coche: { motor: 3, aero: 1, chasis: 1, fiabilidad: 1 }, presupuesto: 30_000_000 });
+r = await accion('u_ana', 'tramontana', 'rama_elegir', { area: 'motor', tier: 3, opcion: 'potencia' });
+ok(r.estado === 'hecha' && r.resultado.coste === 0, `Elegir rama es gratis (${r.resultado?.error || r.resultado?.coste})`);
+r = await accion('u_ana', 'tramontana', 'rama_elegir', { area: 'aero', tier: 3, opcion: 'carga' });
+ok(r.estado === 'error', `Sin el nivel no se puede elegir rama: ${r.resultado?.error}`);
+r = await accion('u_ana', 'tramontana', 'rama_elegir', { area: 'motor', tier: 3, opcion: 'par' });
+ok(r.estado === 'hecha' && r.resultado.coste === 800_000, `Cambiar de rama cuesta un rediseño (${r.resultado?.coste})`);
+const { efectosRamas, perfilCoche } = await import('../js/engine/ramas.js');
+const { ritmoBase } = await import('../js/engine/sim.js');
+const { CIRCUITOS } = await import('../js/engine/circuitos.js');
+const { normalizarCircuito } = await import('../js/engine/circuitos.js');
+pA = await store.get('equipos_priv/tramontana');
+ok(efectosRamas(pA).ataque === 3 && perfilCoche(pA).find(x => x.id === 'ataque').valor > 0, 'Las ramas cambian el carácter del coche');
+const monza = normalizarCircuito(CIRCUITOS.find(c => c.id === 'monza'));
+const base = { attrs: { ritmo: 80, consistencia: 80, agresividad: 70 }, coche: { motor: 3, aero: 3, chasis: 3, fiabilidad: 3 } };
+const rRecta = ritmoBase({ ...base, mods: { rectas: 0.0012 } }, monza, false), rCurva = ritmoBase({ ...base, mods: { curvas: 0.0014, rectas: -0.0004 } }, monza, false);
+ok(rRecta < rCurva, `Mismo nivel, distinto coche: en Monza el de rectas es más rápido (${Math.round(rRecta)} vs ${Math.round(rCurva)} ms)`);
+
+// ---------- Bolsa de agentes libres ----------
+const { asegurarPool } = await import('../js/jobs/pilotos.js');
+const cP = crearContexto(store, { ahora: t }); cP.cfg = await store.get('config/juego'); cP.secreto = 'prueba';
+await asegurarPool(cP); await volcar(cP);
+let libresP = (await store.list('pilotos')).filter(p => !p.equipoId && p.estado === 'libre');
+ok(libresP.length >= 100 && libresP.every(p => p.valoracion >= 1 && p.precio > 0), `Bolsa de agentes libres: ${libresP.length} con valoración y precio`);
+ok(['es', 'it', 'gb', 'de', 'au'].every(n => libresP.filter(p => p.nac === n).length >= 16), 'Hay libres locales de cada liga');
+
+// ---------- Lesiones ----------
+await store.merge('config/juego', { fase: 'nacional' });
+await store.set('eventos/1_ESP_1', { temporada: 1, liga: 'ESP', ronda: 1, fase: 'nacional', circuito: monza, sesiones: { R1: { estado: 'publicada', lockAt: T0, publishAt: T0, revealAt: T0 } } });
+await store.set('eventos/1_ESP_2', { temporada: 1, liga: 'ESP', ronda: 2, fase: 'nacional', circuito: monza, sesiones: { R1: { estado: 'programada', lockAt: t + 90 * 864e5, publishAt: t + 90 * 864e5, revealAt: t + 90 * 864e5 } } });
+const { lesionTrasAccidente, lesionesAntesDeSesion } = await import('../js/jobs/pilotos.js');
+const cL = crearContexto(store, { ahora: t }); cL.cfg = await store.get('config/juego'); cL.secreto = 'prueba';
+await cargarEquipos(cL); await cargarPrivs(cL);
+const lesionado = (await store.list('pilotos')).find(p => p.equipoId === 'tramontana' && p.rol === 'P2') || (await store.list('pilotos')).find(p => p.equipoId === 'tramontana');
+let les = null;
+for (let i = 0; i < 40 && !les; i++) les = await lesionTrasAccidente(cL, { id: `x${i}`, liga: 'ESP' }, { pid: lesionado.id, eq: 'tramontana', tipo: 'R1' });
+await volcar(cL);
+ok(!!les && (await store.get(`pilotos/${lesionado.id}`)).estado === 'lesionado', `Un accidente grave puede lesionar (${les?.carreras} carreras)`);
+libresP = (await store.list('pilotos')).filter(p => !p.equipoId && p.estado === 'libre' && p.nac === 'es').sort((a, b) => b.valoracion - a.valoracion);
+r = await accion('u_ana', 'tramontana', 'lesion_sustituto', { pid: lesionado.id, sustituto: libresP[0].id });
+const sub = await store.get(`pilotos/${libresP[0].id}`);
+ok(r.estado === 'hecha' && sub.equipoId === 'tramontana' && sub.estado === 'sustituto', `Ana elige sustituto de la bolsa (${r.resultado?.error || sub.nombre + ' ' + sub.apellido})`);
+await store.merge('equipos_priv/tramontana', { lesiones: [{ ...(await store.get('equipos_priv/tramontana')).lesiones[0], restantes: 0 }] });
+const cR = crearContexto(store, { ahora: t }); cR.cfg = await store.get('config/juego'); cR.secreto = 'prueba';
+await lesionesAntesDeSesion(cR, { liga: 'ESP' }); await volcar(cR);
+ok((await store.get(`pilotos/${lesionado.id}`)).estado === 'activo' && !(await store.get(`pilotos/${sub.id}`)).equipoId, 'Al recuperarse vuelve a su asiento y el sustituto a la bolsa');
+
+// ---------- Junta de pilotos ----------
+const { abrirJuntaSiToca } = await import('../js/jobs/juntas.js');
+const cJ = crearContexto(store, { ahora: t }); cJ.cfg = await store.get('config/juego'); cJ.secreto = 'prueba';
+// (puede haberla abierto ya el ciclo diario)
+const junta = (await abrirJuntaSiToca(cJ)) || (await store.list('juntas', [['estado', '==', 'abierta']]))[0]; await volcar(cJ);
+ok(junta && junta.temas.length === 3, `Se abre una junta de pilotos (${junta?.temas.map(x => x.id).join(', ')})`);
+const tema = junta.temas.find(x => x.id !== 'sancion') || junta.temas[0];
+r = await accion('u_ana', 'tramontana', 'junta_votar', { juntaId: 'T1_1', votos: { [tema.id]: tema.opciones[tema.opciones.length - 1].id } });
+ok(r.estado === 'hecha', `Ana da su consigna ${r.resultado?.error || ''}`);
+t = junta.cierra + 60_000; await ejecutarTick(store, { ahora: t, log: () => { } });
+const jC = await store.get('juntas/T1_1');
+const cfgJ = await store.get('config/juego');
+ok(jC.estado === 'cerrada' && jC.resultados.length === 3 && jC.votantes >= 90, `La junta se cierra con ${jC.votantes} pilotos votando: ${jC.resultados.map(x => x.texto).join(' | ')}`);
+ok(cfgJ.normas && Object.keys(cfgJ.normas).length > 0, `Se aplican las normas: ${JSON.stringify(cfgJ.normas)}`);
+const { tablaPuntos } = await import('../js/engine/juntas.js');
+const { puntuar } = await import('../js/engine/sim.js');
+const resP = puntuar({ tipo: 'R3', filas: [{ pid: 'a', estado: 'FIN', laps: [1, 2, 3] }, { pid: 'b', estado: 'FIN', laps: [1, 3, 4] }] }, { puntos: 'top10', vr: 0 }, 2);
+ok(resP.filas[0].pts === tablaPuntos('R3', { puntos: 'top10' })[0] * 2 && resP.pf, `Puntos dobles en la última carrera (${resP.filas[0].pts})`);
+
 void cargarEquipos; void cargarPrivs;
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\n✅ Novedades sin fallos');
 process.exit(fallos.length ? 1 : 0);

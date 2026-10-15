@@ -14,6 +14,8 @@ import { atributosAleatorios, salarioPiloto } from '../engine/juego.js';
 import { MERCADO, planDespidos, elegirGalacticos, tacticoDe, cuotaTrasCambios, valorPiloto, generarRookies, estrellasRookie, asignarRoles } from '../engine/mercado.js';
 import { nombreAleatorio, EXTRANJEROS } from '../engine/nombres.js';
 import { cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, noticia, notificar, nombrePiloto, movimiento, duenoReal, volcar } from './comun.js';
+import { asegurarPool, elegirRetiros, esLibre } from './pilotos.js';
+import { estrellasPiloto, precioLibre } from '../engine/pool.js';
 
 const M = (v) => `${(v / 1e6).toFixed(1).replace('.', ',')} M€`;
 export const refMercado = (temporada) => `mercado/T${temporada}`;
@@ -25,11 +27,13 @@ const vacantesDe = (pil, eq) => Math.max(0, 2 - deEquipo(pil, eq).length);
 
 // Mientras se juega el Mundial los cambios se apuntan (ctx.diferir) y se aplican al terminar,
 // para no mover a nadie que esté corriendo. pil es entonces una copia con los cambios ya hechos.
-function mover(ctx, pil, pp, pid, eq) {
+function mover(ctx, pil, pp, pid, eq, { estado } = {}) {
     const p = pil[pid];
     p.equipoId = eq; p.liga = eq ? ctx.equipos[eq]?.liga : null;
-    p.estado = eq ? 'activo' : 'libre'; p.rol = null;
-    if (ctx.diferir) { ctx.diferir.push({ pid, eq }); return; }
+    p.estado = estado || (eq ? 'activo' : 'libre'); p.rol = null;
+    // al salir de una escudería se recalculan su valoración y su precio como agente libre
+    if (!eq) { p.valoracion = null; p.precio = null; } else { p.agente = false; }
+    if (ctx.diferir) { ctx.diferir.push({ pid, eq, ...(estado ? { estado } : {}) }); return; }
     ctx.sucios.pilotos.add(pid);
     if (pp[pid]) { pp[pid].equipoId = eq; ctx.sucios.pilotosPriv.add(pid); }
     ctx.catalogoSucio = true;
@@ -56,6 +60,7 @@ export async function abrirMercado(ctx, { tablas, deadline }) {
     const { store } = ctx;
     const temporada = ctx.cfg.temporada;
     const equipos = await cargarEquipos(ctx);
+    await asegurarPool(ctx);
     const pil = parrilla(ctx, await cargarPilotos(ctx), {});
     const pendientes = ctx.diferir || [];
     const privs = await cargarPrivs(ctx);
@@ -67,7 +72,9 @@ export async function abrirMercado(ctx, { tablas, deadline }) {
 
     // 1. Despidos (se aplican ya: la escudería tiene 3 días para buscar sustituto)
     const { despidos, salvados } = planDespidos({ tablas, pilotos: activos(pil), inmunes });
-    const despedidos = new Set(despidos.map(d => d.pid));
+    // 1b. Retiradas: los veteranos pueden colgar el casco (dejan vacante igual que un despido)
+    const retiros = elegirRetiros(ctx, activos(pil).filter(p => !despidos.some(d => d.pid === p.id)), pp, crearRng(`${ctx.secreto}|retiros|${temporada}`));
+    const despedidos = new Set([...despidos.map(d => d.pid), ...retiros.map(r => r.pid)]);
 
     // 2. Galácticos: uno por liga. Las ofertas hechas durante la temporada cuentan.
     const docOfertas = await store.get(`mercado_ofertas/T${temporada}`);
@@ -90,27 +97,28 @@ export async function abrirMercado(ctx, { tablas, deadline }) {
     for (const o of previas.filter(o => !pidsG.has(o.pid))) notificar(ctx, o.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: `${nombre(o.pid)} no sale al mercado`, texto: `No es el Galáctico de ${LIGAS[pil[o.pid]?.liga]?.nombre || 'su liga'}, así que tu oferta queda anulada. Puedes pujar por otro Galáctico en el mercado.` });
 
     for (const d of despidos) mover(ctx, pil, pp, d.pid, null);
+    for (const r of retiros) mover(ctx, pil, pp, r.pid, null, { estado: 'retirado' });
 
     // 3. La IA pide alguna ficha de fichaje para que haya con quién hacer trueques
-    const ocupados = new Set([...despidos.map(d => d.eq), ...galacticos.map(g => g.eq)]);
+    const ocupados = new Set([...despidos.map(d => d.eq), ...retiros.map(r => r.eq), ...galacticos.map(g => g.eq)]);
     const fichas = {};
     for (const [id] of Object.entries(equipos)) if (!duenoReal(ctx, id) && !ocupados.has(id) && deEquipo(pil, id).length === 2 && rng.chance(0.3)) fichas[id] = ctx.ahora;
 
     const vacantesLiga = {};
     despidos.forEach(d => { vacantesLiga[d.liga] = (vacantesLiga[d.liga] || 0) + 1; });
     const usados = new Set(Object.values(pil).map(p => `${p.nombre} ${p.apellido}`));
-    const rookies = generarRookies({ temporada, vacantes: despidos.map(d => ({ liga: d.liga })), rng, usados });
+    const rookies = generarRookies({ temporada, vacantes: [...despidos, ...retiros].map(d => ({ liga: d.liga })), rng, usados });
     deadline ||= ctx.ahora + MERCADO.diasVentana * 864e5;
     ctx.diferir = null;
     const conNombre = (x) => ({ ...x, nombre: nombre(x.pid) });
     const m = {
         temporada, estado: 'abierto', abierto: ctx.ahora, deadline, pendientes,
-        plan: { despidos: despidos.map(conNombre), salvados: salvados.map(conNombre) },
+        plan: { despidos: despidos.map(conNombre), salvados: salvados.map(conNombre), retiros: retiros.map(conNombre) },
         galacticos, ofertas, solicitudes: {}, fichajes: [], fichas, trueques: [], movimientos: [],
         rookies: rookies.map(r => ({ id: r.id, nombre: r.nombre, apellido: r.apellido, nac: r.nac, liga: r.liga, edad: r.edad, estrellas: estrellasRookie(r.attrs, rng) })),
         preferencias: {}, posiciones: { equipos: posEq, pilotos: posPil },
     };
-    registrar(m, ctx, `Se abre el mercado: ${despidos.length} despidos y ${galacticos.length} Galácticos en juego.`);
+    registrar(m, ctx, `Se abre el mercado: ${despidos.length} despidos, ${retiros.length} retiradas y ${galacticos.length} candidatos a Galáctico (solo se va uno por liga).`);
     await store.set(refMercado(temporada), m);
     await store.set(`mercado_priv/T${temporada}`, { rookies: Object.fromEntries(rookies.map(r => [r.id, r.attrs])) });
 
@@ -118,8 +126,17 @@ export async function abrirMercado(ctx, { tablas, deadline }) {
     const fin = new Date(deadline).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', weekday: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     for (const g of galacticos) {
         const deLiga = LIGAS[g.liga].nombre;
-        notificar(ctx, g.eq, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: `${g.nombre} es el Galáctico de ${deLiga}`, texto: `Se va a otra liga. Puedes aceptar una oferta de otra escudería (cobras la oferta y recibes a su segundo piloto) o dejar que decida la liga (recibes ${M(MERCADO.compensacionLiga)} y el piloto que te toque). Tienes hasta el ${fin}.` });
-        noticia(ctx, { titulo: `${g.nombre}, Galáctico de ${deLiga}`, texto: `El ${g.pos}º de ${deLiga} cambiará de liga. Las tres mejores escuderías de cada liga pueden pujar por él hasta el ${fin}.`, liga: g.liga, tipo: 'mercado' });
+        const otros = galacticos.filter(x => x.liga === g.liga && x !== g).map(x => x.nombre);
+        notificar(ctx, g.eq, { remitente: 'Dirección de la liga', tipo: 'mercado', titulo: `${g.nombre}, candidato a Galáctico de ${deLiga}`, texto: `De los candidatos de ${deLiga}${otros.length ? ` (con ${otros.join(' y ')})` : ''} solo se irá uno a otra liga. Si llega una oferta por él puedes aceptarla (cobras la oferta y recibes a su segundo piloto) o dejar que decida la liga al cerrar (cobras ${M(MERCADO.compensacionLiga)}). Si se va otro candidato antes, el tuyo se queda. Tienes hasta el ${fin}.` });
+    }
+    for (const liga of LIGAS_NACIONALES) {
+        const gs = galacticos.filter(g => g.liga === liga);
+        if (!gs.length) continue;
+        noticia(ctx, { titulo: `${LIGAS[liga].nombre}: ${gs.length > 1 ? `${gs.length} candidatos a Galáctico` : `${gs[0].nombre}, Galáctico`}`, texto: `${gs.map(g => `${g.nombre} (${g.pos}º)`).join(', ')}. Solo uno cambiará de liga: el primero por el que se cierre un acuerdo o el que decida la liga al cerrar, el ${fin}.`, liga, tipo: 'mercado' });
+    }
+    for (const r of retiros) {
+        noticia(ctx, { titulo: `${nombre(r.pid)} anuncia su retirada`, texto: `Con ${r.edad} años, cuelga el casco al final de la temporada. ${equipos[r.eq]?.nombre} tendrá que buscar sustituto.`, liga: r.liga, tipo: 'mercado' });
+        notificar(ctx, r.eq, { remitente: 'Dirección deportiva', tipo: 'mercado', titulo: `${nombre(r.pid)} se retira`, texto: `Tienes una vacante. Hasta el ${fin} puedes fichar a un agente libre o a un piloto de otra escudería desde Mercado. Si no, se te asignará un rookie.` });
     }
     for (const d of despidos) {
         noticia(ctx, { titulo: `${nombre(d.pid)} se queda sin asiento`, texto: d.motivo === 'directo' ? `Terminó ${d.pos}º con su compañero ${d.posComp}º: es de los que peor rindieron con el mismo coche.` : `Estaba en la zona de peligro y su compañero acabó ${d.posComp}º.`, liga: d.liga, tipo: 'mercado' });
@@ -133,7 +150,7 @@ export async function abrirMercado(ctx, { tablas, deadline }) {
         else if (!ocupados.has(id))
             notificar(ctx, id, { remitente: 'Mercado', tipo: 'mercado', titulo: 'Mercado abierto', texto: `Tu alineación no tiene movimientos previstos. Si quieres cambiar un piloto, pide una ficha de fichaje en Mercado y haz un trueque con otra escudería que también la tenga (hasta el ${fin}).` });
     }
-    noticia(ctx, { titulo: 'Se abre el mercado de fin de temporada', texto: `Se abre con el Mundial y los cambios se aplican cuando termine. En juego: ${galacticos.length} Galácticos, ${despidos.length} vacantes y trueques entre escuderías. Cierra el ${fin}.`, tipo: 'fase' });
+    noticia(ctx, { titulo: 'Se abre el mercado de fin de temporada', texto: `Se abre con el Mundial y los cambios se aplican cuando termine. En juego: un Galáctico por liga (entre ${galacticos.length} candidatos), ${despidos.length + retiros.length} vacantes, agentes libres y trueques entre escuderías. Cierra el ${fin}.`, tipo: 'fase' });
     ctx.nota(`Mercado abierto: ${galacticos.map(g => g.nombre).join(', ')}`);
     return m;
 }
@@ -169,7 +186,7 @@ export async function aplicarPendientes(ctx) {
     await cargarEquipos(ctx);
     const pp = await cargarPilotosPriv(ctx, Object.keys(pil));
     ctx.diferir = null;
-    for (const c of m.pendientes) if (pil[c.pid]) mover(ctx, pil, pp, c.pid, c.eq);
+    for (const c of m.pendientes) if (pil[c.pid]) mover(ctx, pil, pp, c.pid, c.eq, { estado: c.estado });
     const n = m.pendientes.length;
     await ctx.store.merge(refMercado(ctx.cfg.temporada), { pendientes: [] });
     ctx.nota(`Mercado: aplicados ${n} cambios acordados durante el Mundial`);
@@ -182,7 +199,16 @@ const recibeGalactico = (m, eq) => m.galacticos.some(g => g.destino?.eq === eq);
 
 // Un Galáctico pendiente no puede entrar en ninguna otra operación (ni como segundo piloto de nadie)
 const galacticoPendiente = (m, pid) => (m.galacticos || []).some(g => g.pid === pid && g.estado === 'pendiente');
-const tacticoSeguro = (m, pil, eq, liga) => tacticoDe(activos(pil).filter(p => !galacticoPendiente(m, p.id)), eq, liga);
+// Si el único piloto que puede entregar es a su vez candidato a Galáctico, se entrega igualmente (deja de ser candidato)
+const recienLlegado = (m, pid) => (m.galacticos || []).some(g => g.pid === pid && g.estado === 'vendido');
+const tacticoSeguro = (m, pil, eq, liga, excluir = null) => tacticoDe(activos(pil).filter(p => !galacticoPendiente(m, p.id) && !recienLlegado(m, p.id)), eq, liga)
+    || tacticoDe(activos(pil).filter(p => p.id !== excluir && !recienLlegado(m, p.id)), eq, liga);
+function retirarCandidato(ctx, m, pid, motivo) {
+    const c = (m.galacticos || []).find(x => x.pid === pid && x.estado === 'pendiente');
+    if (!c) return;
+    c.estado = 'se_queda'; c.motivo = motivo;
+    for (const o of m.ofertas || []) if (o.estado === 'pendiente' && o.pid === pid) { o.estado = 'anulada'; notificar(ctx, o.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: `${c.nombre} ya no es candidato`, texto: `${motivo}. Tu oferta queda anulada sin coste.` }); }
+}
 
 function comprobarCuota(ctx, pil, cambios) {
     const r = cuotaTrasCambios(activos(pil), ctx.equipos, cambios);
@@ -192,12 +218,15 @@ function comprobarCuota(ctx, pil, cambios) {
 // Intercambio Galáctico ↔ segundo piloto del comprador y dinero
 function ejecutarGalactico(ctx, m, pil, pp, g, { eq, importe, via, cobra }) {
     const liga = ctx.equipos[eq].liga;
-    const t = tacticoSeguro(m, pil, eq, liga);
+    const t = tacticoSeguro(m, pil, eq, liga, g.pid);
+    // El comprador siempre entrega a su segundo piloto (si no, se quedaría con tres)
+    if (!t && deEquipo(pil, eq).length >= 2) return { ok: false, motivo: 'No tiene un segundo piloto que entregar.' };
     const cambios = [{ pid: g.pid, eq }, ...(t ? [{ pid: t.id, eq: g.eq }] : [])];
     const r = cuotaTrasCambios(activos(pil), ctx.equipos, cambios);
     if (!r.ok) return r;
     if (ctx.privs[eq]) movimiento(priv(ctx, eq), `Fichaje del Galáctico ${g.nombre}`, -importe, ctx.ahora);
     if (ctx.privs[g.eq]) movimiento(priv(ctx, g.eq), via === 'aceptada' ? `Venta de ${g.nombre} (Galáctico)` : `Compensación de la liga por ${g.nombre}`, cobra, ctx.ahora);
+    if (t) retirarCandidato(ctx, m, t.id, `${nombrePiloto(t)} se va a ${ctx.equipos[g.eq].nombre} como parte del traspaso de ${g.nombre}`);
     mover(ctx, pil, pp, g.pid, eq);
     if (t) mover(ctx, pil, pp, t.id, g.eq);
     g.estado = 'vendido';
@@ -210,6 +239,13 @@ function ejecutarGalactico(ctx, m, pil, pp, g, { eq, importe, via, cobra }) {
     notificar(ctx, g.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: `${g.nombre} se va a ${eqN}`, texto: `Cobras ${M(cobra)}${t ? ` y llega ${nombrePiloto(t)}` : ''}.` });
     // Las demás ofertas por él o de ese comprador caducan
     for (const o of m.ofertas) if (o.estado === 'pendiente' && (o.pid === g.pid || o.eq === eq)) o.estado = o.pid === g.pid && o.eq === eq && via === 'aceptada' ? 'aceptada' : 'anulada';
+    // De cada liga solo se va uno: los demás candidatos se quedan y sus ofertas se anulan
+    for (const otro of m.galacticos) {
+        if (otro === g || otro.liga !== g.liga || otro.estado !== 'pendiente') continue;
+        otro.estado = 'se_queda'; otro.motivo = `ya se fue ${g.nombre}`;
+        for (const o of m.ofertas) if (o.estado === 'pendiente' && o.pid === otro.pid) { o.estado = 'anulada'; notificar(ctx, o.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: `${otro.nombre} ya no sale`, texto: `${g.nombre} es el Galáctico de ${LIGAS[g.liga].nombre} que cambia de liga, así que tu oferta queda anulada sin coste.` }); }
+        notificar(ctx, otro.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: `${otro.nombre} se queda`, texto: `${g.nombre} es el que se va de ${LIGAS[g.liga].nombre}. Tu piloto sigue en tu escudería.` });
+    }
     delete m.solicitudes[eq];
     return { ok: true };
 }
@@ -262,7 +298,8 @@ export const ACCIONES_MERCADO = {
         const importe = Math.round(+a.params?.importe || 0);
         if (importe < MERCADO.importeMinimo) throw new Error(`La oferta mínima es de ${M(MERCADO.importeMinimo)}.`);
         if ((priv(ctx, eq).presupuesto || 0) < importe) throw new Error('No tienes ese dinero.');
-        const t = tacticoSeguro(m, pil, eq, ctx.equipos[eq].liga);
+        const t = tacticoSeguro(m, pil, eq, ctx.equipos[eq].liga, g.pid);
+        if (!t) throw new Error('No tienes un segundo piloto que dar a cambio.');
         comprobarCuota(ctx, pil, [{ pid: g.pid, eq }, ...(t ? [{ pid: t.id, eq: g.eq }] : [])]);
         m.ofertas.forEach(o => { if (o.eq === eq && o.pid === g.pid && o.estado === 'pendiente') o.estado = 'anulada'; });
         m.ofertas.push({ id: `o${m.ofertas.length}_${ctx.ahora % 1e6}`, pid: g.pid, eq, importe, estado: 'pendiente', fecha: ctx.ahora });
@@ -401,6 +438,25 @@ export const ACCIONES_MERCADO = {
         return { ok: true };
     },
 
+    // Fichar a un agente libre para cubrir una vacante: {pid}
+    async mercado_libre(ctx, a) {
+        const { m, pil, pp } = await cargar(ctx);
+        const eq = a.equipoId;
+        if (!vacantesDe(pil, eq)) throw new Error('No tienes ninguna vacante.');
+        const p = pil[a.params?.pid];
+        if (!esLibre(p)) throw new Error('Ese piloto ya no está libre.');
+        const precio = p.precio ?? precioLibre(pp[p.id]?.attrs);
+        if ((priv(ctx, eq).presupuesto || 0) < precio) throw new Error(`Necesitas ${M(precio)}.`);
+        comprobarCuota(ctx, pil, [{ pid: p.id, eq }]);
+        movimiento(priv(ctx, eq), `Fichaje de ${nombrePiloto(p)} (agente libre)`, -precio, ctx.ahora);
+        mover(ctx, pil, pp, p.id, eq);
+        registrar(m, ctx, `${ctx.equipos[eq].nombre} ficha al agente libre ${nombrePiloto(p)} por ${M(precio)}.`, { tipo: 'libre', pid: p.id, eq });
+        noticia(ctx, { titulo: `${ctx.equipos[eq].nombre} ficha a ${nombrePiloto(p)}`, texto: `Llega como agente libre (${M(precio)}).`, liga: ctx.equipos[eq].liga, tipo: 'mercado' });
+        for (const o of m.fichajes) if (o.eq === eq && o.estado === 'pendiente' && !vacantesDe(pil, eq)) o.estado = 'anulada';
+        await guardar(ctx, m);
+        return { ok: true, precio };
+    },
+
     // Preferencias del draft (rookie que se asigna si no cubres la vacante)
     async draft(ctx, a) {
         if (ctx.cfg.fase !== 'mercado') throw new Error('El draft no está abierto.');
@@ -409,6 +465,51 @@ export const ACCIONES_MERCADO = {
         return { ok: true, lista };
     },
 };
+
+// ======================================================================
+// La IA durante la ventana: puja por candidatos de otras ligas y vende los suyos si le pagan bien
+// ======================================================================
+export async function iaMercadoDiario(ctx, dia) {
+    if (!['mundial', 'mercado'].includes(ctx.cfg.fase)) return;
+    let c;
+    try { c = await cargar(ctx); } catch { return; }
+    const { m, pil, pp } = c;
+    let cambios = false;
+    const pendientesG = (m.galacticos || []).filter(g => g.estado === 'pendiente');
+    // Pujas de las escuderías de la IA que pueden fichar un Galáctico
+    for (const eq of Object.keys(ctx.equipos)) {
+        if (duenoReal(ctx, eq) || !esTop(m, eq) || recibeGalactico(m, eq) || !ctx.privs[eq]) continue;
+        const rng = crearRng(`${ctx.secreto}|iaPuja|${dia}|${eq}`);
+        if (!rng.chance(0.4)) continue;
+        const cands = pendientesG.filter(g => g.liga !== ctx.equipos[eq].liga && g.estado === 'pendiente');
+        if (!cands.length) continue;
+        const g = rng.weighted(cands, x => 6 - Math.min(5, x.pos));
+        const suya = m.ofertas.find(o => o.eq === eq && o.pid === g.pid && o.estado === 'pendiente');
+        const mejor = Math.max(0, ...m.ofertas.filter(o => o.pid === g.pid && o.estado === 'pendiente').map(o => o.importe));
+        const tope = Math.min(5_000_000, (ctx.privs[eq].presupuesto || 0) * 0.25);
+        const importe = Math.round(Math.max(MERCADO.importeMinimo, mejor * 1.1, rng.range(1_200_000, 3_000_000)) / 50_000) * 50_000;
+        if (importe > tope || (suya && suya.importe >= importe)) continue;
+        const t = tacticoSeguro(m, pil, eq, ctx.equipos[eq].liga, g.pid);
+        if (!t) continue;
+        if (!cuotaTrasCambios(activos(pil), ctx.equipos, [{ pid: g.pid, eq }, ...(t ? [{ pid: t.id, eq: g.eq }] : [])]).ok) continue;
+        if (suya) suya.estado = 'anulada';
+        m.ofertas.push({ id: `o${m.ofertas.length}_${ctx.ahora % 1e6}_ia`, pid: g.pid, eq, importe, estado: 'pendiente', fecha: ctx.ahora, ia: true });
+        registrar(m, ctx, `${ctx.equipos[eq].nombre} (IA) puja ${M(importe)} por ${g.nombre}.`, { tipo: 'puja', pid: g.pid, eq });
+        notificar(ctx, g.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: `Oferta por ${g.nombre}`, texto: `${ctx.equipos[eq].nombre} ofrece ${M(importe)}${t ? ` y a ${nombrePiloto(t)}` : ''}. Acéptala en Mercado o deja que decida la liga.` });
+        if (rng.chance(0.5)) noticia(ctx, { titulo: `${ctx.equipos[eq].nombre} va a por ${g.nombre}`, texto: `Ofrece ${M(importe)} por el candidato a Galáctico de ${LIGAS[g.liga].nombre}.`, liga: g.liga, tipo: 'rumor' });
+        cambios = true;
+    }
+    // La IA vende a su candidato si la mejor oferta es buena
+    for (const g of pendientesG) {
+        if (g.estado !== 'pendiente' || duenoReal(ctx, g.eq)) continue;
+        const o = m.ofertas.filter(x => x.pid === g.pid && x.estado === 'pendiente' && !recibeGalactico(m, x.eq) && (ctx.privs[x.eq]?.presupuesto || 0) >= x.importe).sort((a, b) => b.importe - a.importe)[0];
+        const rng = crearRng(`${ctx.secreto}|iaVende|${dia}|${g.pid}`);
+        if (!o || o.importe < 2_500_000 || !rng.chance(0.5)) continue;
+        if (ejecutarGalactico(ctx, m, pil, pp, g, { eq: o.eq, importe: o.importe, cobra: o.importe, via: 'aceptada' }).ok) { o.estado = 'aceptada'; cambios = true; }
+    }
+    if (cambios) await guardar(ctx, m);
+    ctx.diferir = null;
+}
 
 // ======================================================================
 // Cerrar: la liga resuelve lo pendiente y cubre las vacantes
@@ -429,27 +530,35 @@ export async function cerrarMercado(ctx) {
 
     // 1. Galácticos pendientes
     const dinero = (eq) => ctx.privs[eq]?.presupuesto || 0;
-    for (const g of m.galacticos.filter(x => x.estado === 'pendiente')) {
-        if (pil[g.pid]?.equipoId !== g.eq) { g.estado = 'se_queda'; continue; }
-        const otraLiga = (eq) => ctx.equipos[eq] && ctx.equipos[eq].liga !== g.liga && !recibeGalactico(m, eq) && eq !== g.eq;
+    // De cada liga sale uno de sus candidatos (si no se cerró ya un acuerdo durante la ventana)
+    for (const liga of [...new Set(m.galacticos.filter(x => x.estado === 'pendiente').map(x => x.liga))]) {
+        const cands = m.galacticos.filter(x => x.liga === liga && x.estado === 'pendiente');
+        for (const g of cands) if (pil[g.pid]?.equipoId !== g.eq) g.estado = 'se_queda';
+        const vivos = cands.filter(g => g.estado === 'pendiente');
+        if (!vivos.length) continue;
+        if (m.galacticos.some(x => x.liga === liga && x.estado === 'vendido')) { vivos.forEach(g => { g.estado = 'se_queda'; }); continue; }
+        const otraLiga = (eq, g) => ctx.equipos[eq] && ctx.equipos[eq].liga !== liga && !recibeGalactico(m, eq) && eq !== g.eq;
+        const mejor = vivos.slice().sort((a, b) => a.pos - b.pos)[0];
         const intentos = [];
         if (rng.chance(MERCADO.probSuerte)) {
             // Suerte: cualquier escudería de otra liga. Si lo había pedido paga lo que ofreció; si no, un precio simbólico.
-            const eq = rng.pick(Object.keys(ctx.equipos).filter(otraLiga));
+            const g = rng.pick(vivos);
+            const eq = rng.pick(Object.keys(ctx.equipos).filter(e => otraLiga(e, g)));
             if (eq) {
                 const suya = m.ofertas.find(o => o.eq === eq && o.pid === g.pid && o.estado === 'pendiente')?.importe || m.solicitudes[eq]?.importe;
-                intentos.push({ eq, importe: Math.min(dinero(eq), suya || MERCADO.precioSimbolico), via: 'suerte' });
+                intentos.push({ g, eq, importe: Math.min(dinero(eq), suya || MERCADO.precioSimbolico), via: 'suerte' });
             }
         }
-        m.ofertas.filter(o => o.pid === g.pid && o.estado === 'pendiente').sort((a, b) => b.importe - a.importe).forEach(o => intentos.push({ eq: o.eq, importe: o.importe, via: 'oferta' }));
-        Object.entries(m.solicitudes).filter(([eq]) => esTop(m, eq)).sort((a, b) => b[1].importe - a[1].importe).forEach(([eq, s]) => intentos.push({ eq, importe: s.importe, via: 'solicitud' }));
-        Object.keys(ctx.equipos).filter(eq => esTop(m, eq) && !duenoReal(ctx, eq)).sort(() => rng.next() - 0.5).forEach(eq => intentos.push({ eq, importe: MERCADO.importeIA, via: 'ia' }));
+        m.ofertas.filter(o => o.estado === 'pendiente' && vivos.some(g => g.pid === o.pid)).sort((a, b) => b.importe - a.importe)
+            .forEach(o => intentos.push({ g: vivos.find(g => g.pid === o.pid), eq: o.eq, importe: o.importe, via: 'oferta' }));
+        Object.entries(m.solicitudes).filter(([eq]) => esTop(m, eq)).sort((a, b) => b[1].importe - a[1].importe).forEach(([eq, s]) => intentos.push({ g: mejor, eq, importe: s.importe, via: 'solicitud' }));
+        Object.keys(ctx.equipos).filter(eq => esTop(m, eq) && !duenoReal(ctx, eq)).sort(() => rng.next() - 0.5).forEach(eq => intentos.push({ g: mejor, eq, importe: MERCADO.importeIA, via: 'ia' }));
         let hecho = false;
         for (const x of intentos) {
-            if (!otraLiga(x.eq) || (ctx.privs[x.eq] && dinero(x.eq) < x.importe)) continue;
-            if (ejecutarGalactico(ctx, m, pil, pp, g, { ...x, cobra: MERCADO.compensacionLiga }).ok) { hecho = true; break; }
+            if (x.g.estado !== 'pendiente' || !otraLiga(x.eq, x.g) || (ctx.privs[x.eq] && dinero(x.eq) < x.importe)) continue;
+            if (ejecutarGalactico(ctx, m, pil, pp, x.g, { eq: x.eq, importe: x.importe, via: x.via, cobra: MERCADO.compensacionLiga }).ok) { hecho = true; break; }
         }
-        if (!hecho) { g.estado = 'se_queda'; registrar(m, ctx, `${g.nombre} se queda: ninguna escudería pudo ficharle cumpliendo la regla del 55%.`); }
+        if (!hecho) { vivos.forEach(g => { if (g.estado === 'pendiente') g.estado = 'se_queda'; }); registrar(m, ctx, `${LIGAS[liga].nombre}: ningún candidato a Galáctico cambia de liga (nadie pudo ficharlos cumpliendo la regla del 55%).`); }
     }
     m.ofertas.forEach(o => { if (o.estado === 'pendiente') o.estado = 'anulada'; });
     m.fichajes.forEach(o => { if (o.estado === 'pendiente') o.estado = 'caducada'; });
@@ -473,6 +582,20 @@ export async function cerrarMercado(ctx) {
         const valido = (r) => r && r.liga === liga && (!debeSerLocal || r.nac === NAC_LOCAL[liga]);
         let r = (m.preferencias?.[v.eq] || []).map(id => disponibles.get(id)).find(valido);
         if (!r) r = [...disponibles.values()].filter(valido).sort((a, b) => (b.estrellas - a.estrellas) || (rng.next() - 0.5))[0];
+        // La IA prefiere un agente libre con más nivel que el rookie, si se lo puede permitir
+        if (!duenoReal(ctx, v.eq) && !(m.preferencias?.[v.eq] || []).length) {
+            const libre = Object.values(pil).filter(p => esLibre(p) && p.precio != null && (!debeSerLocal || p.nac === NAC_LOCAL[liga]))
+                .filter(p => (p.valoracion || 0) > (r?.estrellas || 0) && (ctx.privs[v.eq]?.presupuesto || 0) > p.precio * 2)
+                .sort((a, b) => (b.valoracion || 0) - (a.valoracion || 0))[0];
+            if (libre) {
+                movimiento(priv(ctx, v.eq), `Fichaje de ${nombrePiloto(libre)} (agente libre)`, -libre.precio, ctx.ahora);
+                mover(ctx, pil, pp, libre.id, v.eq);
+                elegidos.push({ eq: v.eq, libre: libre.id, nombre: nombrePiloto(libre) });
+                registrar(m, ctx, `${ctx.equipos[v.eq].nombre} ficha al agente libre ${nombrePiloto(libre)} por ${M(libre.precio)}.`, { tipo: 'libre', pid: libre.id, eq: v.eq });
+                noticia(ctx, { titulo: `${ctx.equipos[v.eq].nombre} ficha a ${nombrePiloto(libre)}`, texto: 'Llega libre para cubrir la vacante.', liga, tipo: 'mercado' });
+                continue;
+            }
+        }
         let attrs = r ? mp?.rookies?.[r.id] : null;
         if (!r) {
             // Bolsa agotada: la liga trae un rookie nuevo
@@ -500,11 +623,11 @@ export async function cerrarMercado(ctx) {
             if (!r.cumpleCuota) ctx.nota(`${ctx.equipos[eq]?.nombre} no tiene piloto local para el asiento de Piloto 1`);
         }
     }
-    registrar(m, ctx, `Mercado cerrado: ${elegidos.length} rookies se estrenan.`);
+    registrar(m, ctx, `Mercado cerrado: ${elegidos.filter(x => x.rookie).length} rookies se estrenan.`);
     await store.set(refMercado(temporada), { ...m, estado: 'cerrado', vacantes, elegidos, cerrado: ctx.ahora });
     await store.merge('config/juego', { fase: 'cerrada' });
     ctx.cfg.fase = 'cerrada';
-    noticia(ctx, { titulo: 'Mercado cerrado: así quedan las parrillas', texto: `${m.galacticos.filter(g => g.estado === 'vendido').length} Galácticos cambian de liga y ${elegidos.length} rookies se estrenan la próxima temporada.`, tipo: 'fase' });
+    noticia(ctx, { titulo: 'Mercado cerrado: así quedan las parrillas', texto: `${m.galacticos.filter(g => g.estado === 'vendido').length} Galácticos cambian de liga y ${elegidos.filter(x => x.rookie).length} rookies se estrenan la próxima temporada.`, tipo: 'fase' });
     await volcar(ctx);
     ctx.catalogoSucio = true;
 }

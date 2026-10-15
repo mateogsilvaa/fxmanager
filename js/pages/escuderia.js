@@ -9,10 +9,15 @@ import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal,
 import {
     LIGAS, LIGAS_NACIONALES, SESIONES, SESION_INFO, esCarrera, esQualy, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST,
     SLOTS_ID, costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion, ECO,
-    SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, tandasSimulador, identidadAbierta, costeMejoraFinal, descuentoTunel, ENTRENO, probEntreno,
+    SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, NAC_LOCAL, tandasSimulador, identidadAbierta, costeMejoraFinal, descuentoTunel, ENTRENO, probEntreno,
 } from '../engine/constants.js';
 import { validarNombreEscuderia } from '../engine/badwords.js';
-import { avatarPiloto, avatarPatrocinador } from '../core/avatar.js';
+import { avatar, avatarPiloto, avatarPatrocinador } from '../core/avatar.js';
+import { onLlamadas, abrirLlamada } from '../core/llamada-ui.js';
+import { costeSustituto } from '../jobs/pilotos.js';
+import { juntaHtml, activarJunta } from '../core/juntas-ui.js';
+import { RAMAS, TIERS, COSTE_CAMBIO_RAMA, perfilCoche, ramasPendientes, opcionRama } from '../engine/ramas.js';
+import { QUIEN } from '../engine/llamadas.js';
 import { htmlNovedades, activarNovedadesUI } from './escuderia-novedades.js';
 import { novedadesActivas } from '../jobs/novedades.js';
 import { REF_PLANTILLA } from '../engine/ingenieros.js';
@@ -53,7 +58,7 @@ const misEventos = [...d.eventosLiga(liga), ...(misPilotosInt.length ? d.eventos
 const ev = misEventos
     .map(e => ({ e, cierre: Math.max(...SESIONES.filter(t => e.sesiones[t]).map(t => e.sesiones[t].lockAt)) }))
     .filter(x => x.cierre > ahora()).sort((a, b) => a.cierre - b.cierre)[0]?.e || null;
-const pilotosEv = ev?.liga === 'INT' ? misPilotosInt : misPilotos;
+const pilotosEv = ev?.liga === 'INT' ? misPilotosInt : misPilotos.filter(p => p.estado !== 'lesionado');
 
 const SOMBRA = enSombra();
 main.innerHTML = `
@@ -139,13 +144,29 @@ if (NOV) {
     });
     escuchar(`managers/${u.uid}`, (m) => { if (m?.reputacion === E.repManager) return; E.repManager = m?.reputacion ?? null; if (E.priv) repintar('equipo'); });
 }
+// Juntas de pilotos de la temporada
+E.juntas = [];
+if (NOV) escucharConsulta('juntas', [['temporada', '==', d.temporada]], (lista) => {
+    const orden = lista.sort((a, b) => b.n - a.n);
+    if (iguales(orden, E.juntas)) return;
+    E.juntas = orden;
+    if (E.priv) repintar('hoy');
+});
+// Llamadas y cartas (las escucha llamada-ui; aquí solo se listan)
+E.llamadas = [];
+onLlamadas((lista) => {
+    const orden = lista.filter(l => l.equipoId === eqId).sort((a, b) => (b.disponible || 0) - (a.disponible || 0)).slice(0, 8);
+    if (iguales(orden, E.llamadas)) return;
+    E.llamadas = orden;
+    if (E.priv) repintar('hoy');
+});
 escuchar(`decisiones/${hoy()}_${eqId}`, (dec) => {
     if (iguales(dec, E.decision)) return;
     E.decision = dec;
     if (E.priv) repintar('hoy');
 });
 
-const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', inst_limpiar: 'Limpieza', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico', reparar: 'Reparación', identidad: 'Cambio de imagen', comprar_filial: 'Compra de filial', plaza_responder: 'Oferta de plaza', entrenar: 'Entrenamiento', ing_fichar: 'Fichaje de ingeniero', ing_despedir: 'Despido de ingeniero', neg_proponer: 'Negociación', neg_responder: 'Negociación', neg_cancelar: 'Negociación', galactico_blindar: 'Blindaje' };
+const NOMBRES_ACCION = { checkin: 'Recompensa diaria', id_iniciar: 'Mejora', inst_mejorar: 'Obras', inst_limpiar: 'Limpieza', simulador: 'Simulador', espiar: 'Espionaje', sponsor_firmar: 'Patrocinio', draft: 'Draft', galactico_oferta: 'Oferta por un Galáctico', reparar: 'Reparación', identidad: 'Cambio de imagen', comprar_filial: 'Compra de filial', plaza_responder: 'Oferta de plaza', entrenar: 'Entrenamiento', ing_fichar: 'Fichaje de ingeniero', ing_despedir: 'Despido de ingeniero', neg_proponer: 'Negociación', neg_responder: 'Negociación', neg_cancelar: 'Negociación', galactico_blindar: 'Blindaje', lesion_sustituto: 'Sustituto', rama_elegir: 'Rama de desarrollo', junta_votar: 'Voto en la junta', mercado_libre: 'Fichaje de agente libre' };
 function avisarAccion(a) {
     if (a.estado === 'error') toast(`${NOMBRES_ACCION[a.tipo] || a.tipo}: ${a.resultado?.error}`, 'error');
     else if (a.tipo === 'entrenar') toast(a.resultado?.sube ? `${a.resultado.piloto}: ${ENTRENO.attrs[a.resultado.attr]} +${a.resultado.sube} (ahora ${a.resultado.valor})` : `${a.resultado?.piloto}: el entrenamiento no ha dado fruto esta vez`, a.resultado?.sube ? undefined : 'error');
@@ -209,6 +230,7 @@ function pintarHoy() {
           <ul class="lista tareas" style="margin-top:6px">${tareas.map(x => `<li><span><i class="check ${x.ok ? 'on' : ''}"></i>${esc(x.txt)}</span>${!x.ok && x.ir ? `<button class="btn btn-sec btn-peq" data-ir="${x.ir}">Ir</button>` : ''}</li>`).join('')}</ul>
         </div>
         ${prensaHtml()}
+        ${juntaEscuderiaHtml()}
         ${resumenHtml()}
         <div class="tarjeta">
           <div class="tarjeta-titulo"><h2>Decisión del día</h2>${dec && !dec.aplicada ? `<span class="muted peq">Caduca en <span data-cuenta="${dec.expira}" data-corta>${cuentaAtras(dec.expira, true)}</span></span>` : ''}</div>
@@ -217,6 +239,8 @@ function pintarHoy() {
       </div>
       <aside class="pila">
         ${danosHtml()}
+        ${lesionesHtml()}
+        ${llamadasHtml()}
         ${plazaHtml()}
         ${avisosHtml()}
         <div class="tarjeta">
@@ -235,12 +259,16 @@ function pintarHoy() {
     $('#btn-checkin', el)?.addEventListener('click', () => lanzar('checkin', {}, 'Recompensa en cola'));
     activarPlaza(el);
     activarDanos(el);
+    activarLesiones(el);
+    const jA = (E.juntas || []).find(j => j.estado === 'abierta');
+    if (jA) activarJunta(el, jA, (votos) => { if (!Object.keys(votos).length) return toast('Elige al menos una opción', 'error'); lanzar('junta_votar', { juntaId: jA.id, votos }, 'Consigna enviada a tus pilotos'); });
     $('#activar-avisos', el)?.addEventListener('click', async (e) => {
         e.target.disabled = true;
         try { await activarAvisos(); E.avisos = 'activo'; toast('Avisos activados'); pintarHoy(); }
         catch (err) { toast(err.message, 'error'); e.target.disabled = false; }
     });
     activarPrensa(el);
+    $$('[data-llamada]', el).forEach(b => b.addEventListener('click', () => abrirLlamada(b.dataset.llamada)));
     $('#ver-resumen', el)?.addEventListener('click', () => verResumen(E.priv.resumenes.at(-1)));
     $('#ver-avisos', el)?.addEventListener('click', () => { modal(`<h2>Avisos</h2>${E.notifs.slice(0, 80).map(notifHtml).join('')}`, { ancho: 620 }); marcarLeidas(); });
     if (avisos.some(n => !n.leida)) setTimeout(marcarLeidas, 4000);
@@ -252,6 +280,22 @@ function pintarHoy() {
             pintarHoy();
         } catch { toast('No se pudo guardar (¿ha caducado?)', 'error'); }
     }));
+}
+
+// Llamadas y cartas recientes: las pendientes se pueden atender desde aquí
+function llamadasHtml() {
+    const t = ahora();
+    const lista = (E.llamadas || []).filter(l => l.disponible <= t);
+    if (!lista.length) return '';
+    const estado = (l) => !l.aplicada && !l.eleccion && l.expira > t ? 'viva' : l.eleccion === 'colgar' ? 'colgada' : l.aplicada && !l.eleccion ? 'perdida' : 'respondida';
+    const etiqueta = { viva: '<span class="insignia peligro">Sin contestar</span>', colgada: '<span class="insignia">Rechazada</span>', perdida: '<span class="insignia">Perdida</span>', respondida: '<span class="insignia">Respondida</span>' };
+    return `<div class="tarjeta"><div class="tarjeta-titulo"><h2>Llamadas y cartas</h2></div><div class="ll-lista">${lista.map(l => {
+        const p = l.personaje || {}, e = estado(l);
+        return `<div class="ll-item"><span class="ll-av">${avatar({ tipo: p.tipo || 'patrocinador', semilla: p.semilla || l.id, color: p.color || null, tam: 34 })}</span>
+          <div style="min-width:0"><b>${esc(l.titulo)}</b><div class="muted peq">${l.formato === 'carta' ? 'Carta' : 'Llamada'} · ${esc(QUIEN[l.quien] || '')} · ${hace(l.disponible)} ${etiqueta[e]}</div>
+          ${l.resultado && e === 'respondida' ? `<div class="ll-res">${esc(l.resultado)}</div>${l.chips?.length ? `<div class="ll-chips">${l.chips.map(c => `<span class="ll-chip ${c.v > 0 ? 'pos' : c.v < 0 ? 'neg' : ''}">${esc(c.t)}</span>`).join('')}</div>` : ''}` : ''}</div>
+          ${e === 'viva' ? `<button class="btn btn-peq" data-llamada="${esc(l.id)}">${l.formato === 'carta' ? 'Leer' : 'Llamar'}</button>` : ''}</div>`;
+    }).join('')}</div></div>`;
 }
 
 function decisionHtml(dec) {
@@ -392,7 +436,8 @@ function pintarCoche() {
           const coste = costeMejoraFinal(k, n, priv);
           return `<div style="padding:12px 0;border-top:1px solid var(--hair2)">
             <div class="fila-entre"><b>${esc(a.nombre)}</b><span class="muted peq">nivel ${n}/10</span></div>
-            <div class="area-nivel" style="margin:8px 0">${Array.from({ length: 10 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>
+            <div class="area-nivel" style="margin:8px 0">${Array.from({ length: 10 }, (_, i) => `<i class="${i < n ? 'on' : ''} ${TIERS.includes(i + 1) && NOV ? 'hito' : ''}"></i>`).join('')}</div>
+            ${ramasHtml(k, n)}
             ${activo ? proyectoHtml(activo) : n >= NIVEL_MAX_AREA ? '<span class="ok peq">Al máximo</span>' : `
             <div class="fila-entre"><span class="muted peq">${desc ? '<span class="ok">−25% por tu grupo</span> · ' : ''}${tunel ? `<span class="ok">−${Math.round(tunel * 100)}% túnel</span> · ` : ''}${dinero(coste)} · ${horasMejora(n, fab, false)} h · ${Math.round(probExitoMejora(n, fab) * 100)}% de éxito</span>
             <span class="fila"><button class="btn btn-sec btn-peq" data-id="${k}" data-urgente="1" ${pc || slots >= SLOTS_ID || priv.presupuesto < costeMejoraFinal(k, n, priv, true) ? 'disabled' : ''} title="${dinero(costeMejoraFinal(k, n, priv, true))} · ${horasMejora(n, fab, true)} h">Urgente</button><button class="btn btn-peq" data-id="${k}" ${pc || slots >= SLOTS_ID || priv.presupuesto < coste ? 'disabled' : ''}>Mejorar</button></span></div>`}
@@ -400,7 +445,7 @@ function pintarCoche() {
       }).join('')}
       <p class="muted peq" style="margin:8px 0 0">Cada circuito premia más el motor, la aero o el chasis. La fiabilidad evita averías. Si una mejora falla, recuperas la mitad.</p>
     </div>
-    <div class="tarjeta">
+    <div class="pila">${perfilHtml()}<div class="tarjeta">
       <div class="tarjeta-titulo"><h2>Instalaciones</h2></div>
       ${Object.entries(INSTALACIONES).map(([k, a]) => {
           const n = priv.inst?.[k] || 0;
@@ -415,7 +460,14 @@ function pintarCoche() {
             ${activo ? `<div style="margin-top:8px">${proyectoHtml(activo)}</div>` : ''}
           </div>`;
       }).join('')}
-    </div></div>`;
+    </div></div></div>`;
+    $$('[data-rama]', el).forEach(b => b.addEventListener('click', async () => {
+        const [area, tier, opcion] = b.dataset.rama.split('|');
+        const o = opcionRama(area, +tier, opcion);
+        const cambio = !!priv.ramas?.[area]?.[tier];
+        if (!await confirmar(cambio ? `¿Rediseñar ${esc(AREAS[area].nombre.toLowerCase())} hacia <b>${esc(o.nombre)}</b>? Cuesta <b>${dinero(COSTE_CAMBIO_RAMA)}</b>.` : `¿Llevar ${esc(AREAS[area].nombre.toLowerCase())} hacia <b>${esc(o.nombre)}</b>?<br><span class="muted">${esc(o.desc)}</span><br><span class="muted peq">Cambiarlo después costará ${dinero(COSTE_CAMBIO_RAMA)}.</span>`)) return;
+        lanzar('rama_elegir', { area, tier: +tier, opcion }, 'Rama elegida');
+    }));
     $$('[data-id]', el).forEach(b => b.addEventListener('click', async () => {
         const area = b.dataset.id, urgente = !!b.dataset.urgente;
         const n = priv.coche?.[area] || 0;
@@ -430,6 +482,29 @@ function pintarCoche() {
         await lanzar('inst_mejorar', { inst: k }, 'Obra encargada');
     }));
 }
+// Árbol de desarrollo de un área: en los niveles 3, 6 y 9 se elige uno de dos caminos
+function ramasHtml(k, n) {
+    if (!NOV) return '';
+    const elegidas = E.priv.ramas?.[k] || {};
+    const enCola = pendientes('rama_elegir').some(a => a.params?.area === k);
+    return `<div class="ramas">${TIERS.map(t => {
+        const abierta = n >= t, pend = abierta && !elegidas[t];
+        return `<div class="rama-tier ${abierta ? '' : 'bloq'} ${pend ? 'pend' : ''}"><span class="rama-n">${abierta ? (pend ? 'Elige' : `Nivel ${t}`) : `Nivel ${t}`}</span>
+          ${RAMAS[k][t].map(o => { const sel = elegidas[t] === o.id; return `<button class="rama ${sel ? 'sel' : ''} ${elegidas[t] && !sel ? 'otra' : ''}" data-rama="${k}|${t}|${o.id}" ${!abierta || sel || enCola ? 'disabled' : ''} title="${esc(o.desc)}"><b>${esc(o.nombre)}</b><small>${esc(o.desc)}</small></button>`; }).join('')}</div>`;
+    }).join('')}</div>`;
+}
+// Carácter del coche según las ramas elegidas
+function perfilHtml() {
+    if (!NOV) return '';
+    const perfil = perfilCoche(E.priv);
+    const pend = ramasPendientes(E.priv).length;
+    const algo = perfil.some(r => r.valor);
+    return `<div class="tarjeta"><div class="tarjeta-titulo"><h2>Carácter del coche</h2>${pend ? `<span class="insignia peligro">${pend} rama${pend > 1 ? 's' : ''} por elegir</span>` : ''}</div>
+      <p class="muted peq">Las ramas que eliges al llegar a los niveles 3, 6 y 9 de cada área cambian cómo se comporta el coche. Dos coches con el mismo nivel pueden ser muy distintos.</p>
+      ${algo ? `<div class="perfil-coche">${perfil.map(r => `<div class="rasgo"><span>${esc(r.nombre)}</span><div class="rasgo-barra"><i style="${r.valor >= 0 ? `left:50%;width:${r.valor * 25}%` : `right:50%;width:${-r.valor * 25}%`}" class="${r.valor < 0 ? 'neg' : ''}"></i></div></div>`).join('')}</div>`
+        : '<p class="muted">Todavía es un coche neutro: llega al nivel 3 de cualquier área para elegir su primer camino.</p>'}</div>`;
+}
+
 function proyectoHtml(p) {
     if (p.estado === 'pendiente') return `<span class="muted peq">En cola, arranca ${proximoCiclo()}</span>`;
     if (p.tipo === 'area' && p.fin <= ahora()) return `<div class="fila-entre peq"><span class="ok">Pieza lista en fábrica</span><span class="muted">se monta al acabar la jornada</span></div>`;
@@ -452,7 +527,7 @@ function pintarEquipo() {
         const a = pp.attrs || {};
         const moral = pp.moral ?? 60;
         return `<div class="tarjeta">
-          <div class="fila-entre"><a class="fila" href="piloto.html?id=${esc(p.id)}" style="flex-wrap:nowrap">${avatarPiloto(p.id, eq.color, 44)}<span><span class="con-bandera">${bandera(p.nac, { ancho: 18 })}<b>${esc(p.nombre)} ${esc(p.apellido)}</b></span></span></a><span class="muted peq">#${p.numero ?? ''}</span></div>
+          <div class="fila-entre"><a class="fila" href="piloto.html?id=${esc(p.id)}" style="flex-wrap:nowrap">${avatarPiloto(p.id, eq.color, 44)}<span><span class="con-bandera">${bandera(p.nac, { ancho: 18 })}<b>${esc(p.nombre)} ${esc(p.apellido)}</b></span></span></a><span class="muted peq">${p.estado === 'lesionado' ? '<span class="insignia peligro">Lesionado</span> ' : p.estado === 'sustituto' ? '<span class="insignia">Sustituto</span> ' : ''}#${p.numero ?? ''}</span></div>
           <div class="datos" style="margin:12px 0"><div class="dato"><b>${st[p.id]?.pts ?? 0}</b><span>Puntos</span></div><div class="dato"><b>${moral >= 70 ? 'Alta' : moral >= 45 ? 'Normal' : 'Baja'}</b><span>Moral</span></div><div class="dato"><b>${pp.forma > 0.2 ? 'En racha' : pp.forma < -0.2 ? 'Bajón' : 'Normal'}</b><span>Forma</span></div></div>
           ${attr('Ritmo', a.ritmo)}${attr('Consistencia', a.consistencia)}${attr('Agresividad', a.agresividad)}${attr('Lluvia', a.lluvia)}
           ${entrenoHtml(p)}
@@ -706,6 +781,38 @@ function danosHtml() {
         </div></div>`).join('')}
       <p class="muted peq" style="margin:6px 0 0">Si no decides, se hace la reparación normal.</p>
     </div>`;
+}
+// Junta abierta (para votar) o la última cerrada hace menos de 4 días
+function juntaEscuderiaHtml() {
+    const j = (E.juntas || []).find(x => x.estado === 'abierta') || (E.juntas || []).find(x => x.estado === 'cerrada' && ahora() - (x.cerrada || 0) < 4 * 864e5);
+    if (!j) return '';
+    const voto = E.priv.votoJunta?.id === j.id ? E.priv.votoJunta.votos : {};
+    return juntaHtml(j, { voto, editable: j.estado === 'abierta', enCola: pendientes('junta_votar').length > 0 });
+}
+// Lesiones: elegir sustituto entre los agentes libres
+function lesionesHtml() {
+    const lista = (E.priv.lesiones || []).filter(l => l.restantes > 0 || l.sustituto);
+    if (!lista.length) return '';
+    const enCola = pendientes('lesion_sustituto').length;
+    return `<div class="tarjeta" style="border-left:3px solid var(--red);padding-left:14px"><div class="tarjeta-titulo"><h2>Lesiones</h2></div>
+      ${lista.map(l => {
+        const p = d.piloto(l.pid) || {};
+        if (l.sustituto) return `<div style="padding:8px 0;border-top:1px solid var(--hair2)"><p style="margin:0"><b>${esc(d.nombre(l.pid))}</b> se recupera: ${l.restantes > 0 ? `le quedan <b>${l.restantes}</b> carrera${l.restantes > 1 ? 's' : ''}` : 'recibe el alta en la próxima sesión'}. Corre en su lugar <b>${esc(d.nombre(l.sustituto))}</b>.</p></div>`;
+        const comp = misPilotos.find(x => x.id !== l.pid && x.estado !== 'sustituto');
+        const debeLocal = p.nac === NAC_LOCAL[liga] && comp?.nac !== NAC_LOCAL[liga];
+        const cands = Object.entries(d.cat.pilotos).filter(([, x]) => !x.equipoId && x.estado === 'libre' && x.valoracion != null && (!debeLocal || x.nac === NAC_LOCAL[liga]))
+            .map(([id, x]) => ({ id, ...x })).sort((a, b) => b.valoracion - a.valoracion || a.precio - b.precio).slice(0, 8);
+        return `<div style="padding:8px 0;border-top:1px solid var(--hair2)">
+          <p style="margin:0 0 8px"><b>${esc(d.nombre(l.pid))}</b> se pierde <b>${l.restantes} carreras</b>. Elige quién corre en su lugar antes de la próxima sesión; si no, el equipo técnico elegirá al mejor que se pueda pagar.${debeLocal ? ` Tiene que ser ${esc(LIGAS[liga].gentilicio)} (asiento de Piloto 1).` : ''}</p>
+          <div class="libres-grid">${cands.map(x => `<div class="libre"><span class="libre-av">${avatarPiloto(x.id, eq.color, 46)}</span><div class="libre-info"><b>${bandera(x.nac, { ancho: 14 })} ${esc(x.nombre)} ${esc(x.apellido)}</b><div class="peq muted">${x.edad ?? '?'} años · <span class="estrellas">${'★'.repeat(x.valoracion)}${'☆'.repeat(5 - x.valoracion)}</span></div><div class="peq">${dinero(costeSustituto(x))} por ${l.restantes} carreras</div></div>
+            <button class="btn btn-peq" data-sustituto="${esc(x.id)}" data-lesionado="${esc(l.pid)}" ${enCola || E.priv.presupuesto < costeSustituto(x) ? 'disabled' : ''}>Fichar</button></div>`).join('') || vacio('No hay pilotos libres disponibles.')}</div></div>`;
+      }).join('')}</div>`;
+}
+function activarLesiones(el) {
+    $$('[data-sustituto]', el).forEach(b => b.addEventListener('click', async () => {
+        if (!await confirmar(`¿Fichar a <b>${esc(d.nombre(b.dataset.sustituto))}</b> como sustituto?`)) return;
+        lanzar('lesion_sustituto', { pid: b.dataset.lesionado, sustituto: b.dataset.sustituto }, 'Sustituto fichado');
+    }));
 }
 function activarDanos(el) {
     $$('[data-reparar]', el).forEach(b => b.addEventListener('click', async () => {

@@ -135,11 +135,49 @@ export const GUIONES = [
             { id: 'no', texto: 'No necesito a nadie', efectos: {}, resultado: 'Sin cambios.' },
         ],
     },
+    // Solo cuando se cumple su condición (veterano en el equipo, piloto lesionado o junta de pilotos abierta)
+    {
+        id: 'veterano_retiro', quien: 'piloto', formato: 'llamada', peso: 2, condicion: 'veterano', personaje: 'vet',
+        titulo: '{vet} quiere hablar de su futuro',
+        texto: 'Jefe, tengo {vetEdad} años y empiezo a pensar en dejarlo cuando acabe la temporada. ¿Qué opinas?',
+        opciones: [
+            { id: 'convencer', texto: 'Te necesito. Te subo el sueldo una temporada más', efectos: { dinero: -300_000, noRetiro: true, moral: { a: 'vet', v: 6 } }, resultado: '{vet} se queda al menos una temporada más. El vestuario lo celebra.' },
+            { id: 'respetar', texto: 'Es tu decisión y la respetaré', efectos: { rep: 1, repM: 1 }, resultado: '{vet} agradece tu sinceridad. Decidirá al final de la temporada.' },
+        ],
+    },
+    {
+        id: 'medico_lesion', quien: 'medico', formato: 'llamada', peso: 3, condicion: 'lesion',
+        titulo: 'Los médicos, sobre {lesion}',
+        texto: 'Le llamo del servicio médico. {lesion} evoluciona bien. Con un tratamiento intensivo podría volver antes, pero es caro y no siempre funciona.',
+        opciones: [
+            { id: 'tratar', texto: 'Adelante con el tratamiento', efectos: { exito: 0.7, si: { dinero: -400_000, lesion: 1, texto: 'El tratamiento funciona: vuelve una carrera antes.' }, no: { dinero: -400_000, texto: 'El cuerpo no responde como esperábamos. Toca esperar.' } }, resultado: '' },
+            { id: 'esperar', texto: 'Sin prisas, que se recupere bien', efectos: { fans: 20, rep: 1 }, resultado: 'Se respetan los plazos. Los aficionados valoran que cuidéis a vuestros pilotos.' },
+        ],
+    },
+    {
+        id: 'junta_lobby', quien: 'rival', formato: 'llamada', peso: 2, condicion: 'junta',
+        titulo: '{rival} busca votos para la junta',
+        texto: 'Hola. Ya sabes que hay junta de pilotos. Si tus pilotos votan con nosotros, te lo agradeceremos… a nuestra manera.',
+        opciones: [
+            { id: 'pacto', texto: 'Cuenta con ello', efectos: { dinero: 150_000, repM: -1 }, resultado: 'Te llega una «ayuda» de {rival}. Algunos lo verán feo si se sabe.' },
+            { id: 'libre', texto: 'Mis pilotos votan lo que crean', efectos: { repM: 2, rep: 1 }, resultado: '{rival} cuelga molesto, pero en el paddock se valora tu independencia.' },
+        ],
+    },
+    {
+        id: 'agente_libre', quien: 'periodista', formato: 'carta', peso: 1,
+        titulo: 'Carta de un agente de pilotos',
+        texto: '«Represento a varios pilotos libres con hambre de volante. Si alguna vez necesitáis un sustituto o un fichaje, pensad en ellos. Os dejo mi tarjeta.»',
+        opciones: [
+            { id: 'guardar', texto: 'Guardamos la tarjeta', efectos: { fans: 5 }, resultado: 'Los agentes libres están en Mercado → Agentes libres.' },
+            { id: 'no', texto: 'No nos interesa', efectos: {}, resultado: 'Sin cambios.' },
+        ],
+    },
 ];
 
 export const QUIEN = {
-    patrocinador: 'Patrocinador', piloto: 'Piloto', ingeniero: 'Ingeniero', fia: 'FIA', periodista: 'Prensa', rival: 'Mánager rival', aficionado: 'Aficionado',
+    patrocinador: 'Patrocinador', piloto: 'Piloto', ingeniero: 'Ingeniero', fia: 'FIA', periodista: 'Prensa', rival: 'Mánager rival', aficionado: 'Aficionado', medico: 'Servicio médico',
 };
+
 
 export function rellenar(t, v) { return String(t || '').replace(/\{(\w+)\}/g, (_, k) => v[k] ?? `{${k}}`); }
 

@@ -17,14 +17,14 @@ export function compactar(res) {
     });
     return {
         sid: res.id, ev: res.eventoId, liga: res.liga, ronda: res.ronda, tipo: res.tipo,
-        t: res.publishAt, rv: res.revealAt, ll: res.lluvia ? 1 : 0, vr: res.vr?.pid || null, r: filas,
+        t: res.publishAt, rv: res.revealAt, ll: res.lluvia ? 1 : 0, vr: res.vr?.pid || null, r: filas, ...(res.pf ? { pf: 1 } : {}),
     };
 }
 
 // La Carrera 3 reparte más puntos (PUNTOS_CARRERA_LARGA). Se recalcula aquí para que las disputadas antes del
 // cambio cuenten igual que las nuevas (los finalizados van primero, así que pos = puesto entre los que acaban).
 function ptsFila(c, a) {
-    if (c.tipo !== 'R3' || (ESTADO_INV[a[7]] || 'FIN') !== 'FIN') return a[4];
+    if (c.pf || c.tipo !== 'R3' || (ESTADO_INV[a[7]] || 'FIN') !== 'FIN') return a[4];
     return (PUNTOS_CARRERA_LARGA[a[2] - 1] || 0) + (c.vr === a[0] ? PUNTOS_VR : 0);
 }
 export function descompactar(c) {

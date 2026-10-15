@@ -17,6 +17,7 @@ export async function reconstruirCatalogo(store, cfg) {
         pilotos: Object.fromEntries(pilotos.map(p => [p.id, {
             nombre: p.nombre, apellido: p.apellido, nac: p.nac, numero: p.numero ?? null, equipoId: p.equipoId || null,
             liga: p.liga || null, rol: p.rol || 'P2', edad: p.edad ?? null, rookie: !!p.rookie, estado: p.estado || 'activo',
+            ...(p.equipoId ? {} : { valoracion: p.valoracion ?? null, precio: p.precio ?? null }), ...(p.sustitutoDe ? { sustitutoDe: p.sustitutoDe } : {}),
         }])),
         eventos: Object.fromEntries(eventos.map(ev => [ev.id, {
             liga: ev.liga, temporada: ev.temporada, ronda: ev.ronda, fase: ev.fase || 'nacional',

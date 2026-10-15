@@ -5,7 +5,8 @@ import { nombreAleatorio, EXTRANJEROS } from './nombres.js';
 import { atributosAleatorios } from './juego.js';
 
 export const MERCADO = {
-    topGalactico: 5,            // el Galáctico sale del top 5 de su liga (uno por liga)
+    topGalactico: 5,            // los candidatos a Galáctico salen del top 5 de su liga
+    candidatos: 3,              // hasta 3 candidatos por liga… pero de cada liga solo se va uno
     topComprador: 3,            // solo las 3 mejores escuderías de cada liga pueden pedir un Galáctico
     importeMinimo: 1_000_000,   // oferta mínima por un Galáctico
     importeIA: 2_000_000,       // lo que paga una escudería de la IA que se lleva un Galáctico
@@ -75,8 +76,9 @@ export function planDespidos({ tablas, pilotos, inmunes }) {
     return { despidos, salvados };
 }
 
-// Un Galáctico por liga, del top 5. Tiene prioridad el que más dinero ha atraído en ofertas;
-// si nadie ha pujado por ninguno, la liga elige (más probable cuanto mejor clasificado).
+// Hasta 3 candidatos a Galáctico por liga (uno por escudería), del top 5. Primero los que más dinero han
+// atraído en ofertas; el resto los elige la liga (más probable cuanto mejor clasificado). De cada liga solo se
+// va uno: en cuanto uno cambia de liga, los demás candidatos de esa liga se quedan.
 // Solo puede salir un piloto cuyo compañero sea local y siga en el equipo.
 export function elegirGalacticos({ tablas, pilotos, ofertas = [], rng, despedidos = new Set() }) {
     const porId = Object.fromEntries(pilotos.map(p => [p.id, p]));
@@ -88,17 +90,24 @@ export function elegirGalacticos({ tablas, pilotos, ofertas = [], rng, despedido
             const comp = pilotos.find(o => o.equipoId === p.equipoId && o.id !== p.id);
             return !!comp && !despedidos.has(comp.id) && comp.nac === NAC_LOCAL[liga];
         };
-        // Top 5; si ninguno puede salir (su compañero no es local), se amplía al top 8 y luego al top 10
+        // Top 5; si salen menos de 2 posibles (su compañero no es local), se amplía al top 8 y luego al top 10
         let cands = [];
         for (const corte of [MERCADO.topGalactico, 8, 10]) {
             cands = clas.slice(0, corte).map((s, i) => ({ p: porId[s.pid], pos: i + 1 })).filter(elegible);
-            if (cands.length) break;
+            if (cands.length >= 2) break;
         }
         if (!cands.length) continue;
         const puja = (pid) => ofertas.filter(o => o.pid === pid).reduce((s, o) => s + o.importe, 0);
-        const conPuja = cands.filter(c => puja(c.p.id) > 0).sort((a, b) => puja(b.p.id) - puja(a.p.id));
-        const g = conPuja[0] || rng.weighted(cands, c => 11 - Math.min(10, c.pos));
-        out.push({ liga, pid: g.p.id, eq: g.p.equipoId, pos: g.pos });
+        const elegidos = [], equipos = new Set();
+        const meter = (c) => { if (elegidos.length < MERCADO.candidatos && !equipos.has(c.p.equipoId)) { elegidos.push(c); equipos.add(c.p.equipoId); } };
+        cands.filter(c => puja(c.p.id) > 0).sort((a, b) => puja(b.p.id) - puja(a.p.id)).forEach(meter);
+        let resto = cands.filter(c => !elegidos.includes(c));
+        while (elegidos.length < MERCADO.candidatos && resto.length) {
+            const g = rng.weighted(resto, c => 11 - Math.min(10, c.pos));
+            resto = resto.filter(x => x !== g);
+            meter(g);
+        }
+        elegidos.sort((a, b) => a.pos - b.pos).forEach(g => out.push({ liga, pid: g.p.id, eq: g.p.equipoId, pos: g.pos }));
     }
     return out;
 }

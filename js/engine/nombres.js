@@ -2,24 +2,24 @@
 
 export const NOMBRES = {
     es: {
-        n: ['Álvaro', 'Hugo', 'Pablo', 'Marcos', 'Iker', 'Adrián', 'Javier', 'Sergio', 'Diego', 'Rubén', 'Nicolás', 'Daniel', 'Gonzalo', 'Mario', 'Óscar', 'Aitor', 'Unai', 'Martín', 'Lucas', 'Raúl', 'Íñigo', 'Bruno', 'Carlos', 'Jaime'],
-        a: ['Vidal', 'Serrano', 'Ortega', 'Navarro', 'Castell', 'Ruiz', 'Montero', 'Llorente', 'Arrieta', 'Salcedo', 'Beltrán', 'Ferrer', 'Galán', 'Iturbe', 'Molina', 'Prieto', 'Roldán', 'Soler', 'Valls', 'Echeverría', 'Pons', 'Garrido', 'Quintana', 'Sanz', 'Aranda', 'Bravo'],
+        n: ['Álvaro', 'Hugo', 'Pablo', 'Marcos', 'Iker', 'Adrián', 'Javier', 'Sergio', 'Diego', 'Rubén', 'Nicolás', 'Daniel', 'Gonzalo', 'Mario', 'Óscar', 'Aitor', 'Unai', 'Martín', 'Lucas', 'Raúl', 'Íñigo', 'Bruno', 'Carlos', 'Jaime', 'Alejandro', 'Manuel', 'Víctor', 'Ignacio', 'Rodrigo', 'Andrés', 'Samuel', 'Tomás', 'Enrique', 'Guillermo', 'Asier', 'Joel', 'Eric', 'Marc', 'Pol'],
+        a: ['Vidal', 'Serrano', 'Ortega', 'Navarro', 'Castell', 'Ruiz', 'Montero', 'Llorente', 'Arrieta', 'Salcedo', 'Beltrán', 'Ferrer', 'Galán', 'Iturbe', 'Molina', 'Prieto', 'Roldán', 'Soler', 'Valls', 'Echeverría', 'Pons', 'Garrido', 'Quintana', 'Sanz', 'Aranda', 'Bravo', 'Cabrera', 'Lozano', 'Herrero', 'Méndez', 'Calvo', 'Domínguez', 'Gil', 'Rubio', 'Marín', 'Vega', 'Pascual', 'Esteban', 'Campos', 'Benítez', 'Crespo', 'Ibarra', 'Zubiri', 'Olmedo', 'Peña', 'Carrasco', 'Fuentes', 'Rius', 'Bosch', 'Mora', 'Cortés'],
     },
     it: {
-        n: ['Matteo', 'Lorenzo', 'Tommaso', 'Riccardo', 'Davide', 'Andrea', 'Federico', 'Gabriele', 'Leonardo', 'Alessio', 'Nicolò', 'Pietro', 'Filippo', 'Edoardo', 'Luca', 'Marco', 'Simone', 'Giacomo'],
-        a: ['Ferraresi', 'Galli', 'Conti', 'Bellandi', 'Moretti', 'Rinaldi', 'Colombo', 'Marchetti', 'Pellegrini', 'Santoro', 'Fontana', 'Barbieri', 'Vitale', 'De Luca', 'Caruso', 'Mancini', 'Longo', 'Serra', 'Guidi', 'Lombardi'],
+        n: ['Matteo', 'Lorenzo', 'Tommaso', 'Riccardo', 'Davide', 'Andrea', 'Federico', 'Gabriele', 'Leonardo', 'Alessio', 'Nicolò', 'Pietro', 'Filippo', 'Edoardo', 'Luca', 'Marco', 'Simone', 'Giacomo', 'Alessandro', 'Francesco', 'Giovanni', 'Mattia', 'Emanuele', 'Stefano', 'Daniele', 'Christian', 'Samuele', 'Diego'],
+        a: ['Ferraresi', 'Galli', 'Conti', 'Bellandi', 'Moretti', 'Rinaldi', 'Colombo', 'Marchetti', 'Pellegrini', 'Santoro', 'Fontana', 'Barbieri', 'Vitale', 'De Luca', 'Caruso', 'Mancini', 'Longo', 'Serra', 'Guidi', 'Lombardi', 'Ricci', 'Greco', 'Bruno', 'Gallo', 'Costa', 'Rizzo', 'Esposito', 'Russo', 'Romano', 'Ferri', 'Testa', 'Martini', 'Parisi', 'Sala', 'Cattaneo', 'Orlando', 'Neri', 'Villa', 'Monti', 'Gentile'],
     },
     gb: {
-        n: ['Oliver', 'Harry', 'Jack', 'George', 'Charlie', 'Thomas', 'James', 'William', 'Alfie', 'Callum', 'Ethan', 'Lewis', 'Rory', 'Finn', 'Owen', 'Joseph', 'Samuel', 'Daniel'],
-        a: ['Whitmore', 'Ashford', 'Hale', 'Bennett', 'Crawley', 'Fairbairn', 'Holloway', 'Kendrick', 'Lister', 'Marsh', 'Pembroke', 'Rowe', 'Sinclair', 'Thornton', 'Walsh', 'Harker', 'Coleman', 'Doyle', 'Everett', 'Blackwood'],
+        n: ['Oliver', 'Harry', 'Jack', 'George', 'Charlie', 'Thomas', 'James', 'William', 'Alfie', 'Callum', 'Ethan', 'Lewis', 'Rory', 'Finn', 'Owen', 'Joseph', 'Samuel', 'Daniel', 'Henry', 'Freddie', 'Archie', 'Max', 'Toby', 'Isaac', 'Leo', 'Arthur', 'Edward', 'Benjamin'],
+        a: ['Whitmore', 'Ashford', 'Hale', 'Bennett', 'Crawley', 'Fairbairn', 'Holloway', 'Kendrick', 'Lister', 'Marsh', 'Pembroke', 'Rowe', 'Sinclair', 'Thornton', 'Walsh', 'Harker', 'Coleman', 'Doyle', 'Everett', 'Blackwood', 'Fletcher', 'Gardner', 'Hargreaves', 'Ingram', 'Jarvis', 'Kirby', 'Lowe', 'Mercer', 'Norris', 'Oakley', 'Prentice', 'Radcliffe', 'Shaw', 'Turner', 'Vaughan', 'Wainwright', 'Yates', 'Bradshaw', 'Carver', 'Dunmore'],
     },
     de: {
-        n: ['Lukas', 'Jonas', 'Leon', 'Felix', 'Maximilian', 'Paul', 'Niklas', 'Tim', 'Moritz', 'Julian', 'Jannik', 'Florian', 'Tobias', 'Fabian', 'Philipp', 'Erik', 'Kilian', 'Anton'],
-        a: ['Brandt', 'Hartmann', 'Keller', 'Vogt', 'Lindner', 'Richter', 'Seidel', 'Krüger', 'Albrecht', 'Neumann', 'Engel', 'Baumann', 'Franke', 'Sommer', 'Winkler', 'Kaiser', 'Lorenz', 'Haas', 'Busch', 'Graf'],
+        n: ['Lukas', 'Jonas', 'Leon', 'Felix', 'Maximilian', 'Paul', 'Niklas', 'Tim', 'Moritz', 'Julian', 'Jannik', 'Florian', 'Tobias', 'Fabian', 'Philipp', 'Erik', 'Kilian', 'Anton', 'David', 'Simon', 'Benedikt', 'Johannes', 'Konstantin', 'Matthias', 'Dominik', 'Sebastian', 'Valentin', 'Oskar'],
+        a: ['Brandt', 'Hartmann', 'Keller', 'Vogt', 'Lindner', 'Richter', 'Seidel', 'Krüger', 'Albrecht', 'Neumann', 'Engel', 'Baumann', 'Franke', 'Sommer', 'Winkler', 'Kaiser', 'Lorenz', 'Haas', 'Busch', 'Graf', 'Schreiber', 'Wolff', 'Fuchs', 'Berger', 'Möller', 'Jung', 'Hahn', 'Schulz', 'Ziegler', 'Brenner', 'Pohl', 'Kuhn', 'Arnold', 'Roth', 'Thiel', 'Brandl', 'Weiß', 'Stein', 'Vogel', 'Kessler'],
     },
     au: {
-        n: ['Jack', 'Cooper', 'Mitchell', 'Lachlan', 'Riley', 'Hayden', 'Brodie', 'Jordan', 'Nathan', 'Blake', 'Kai', 'Liam', 'Tyler', 'Declan', 'Zac', 'Harrison', 'Angus', 'Toby'],
-        a: ['McAllister', 'Reid', 'Dawson', 'Fraser', 'Gallagher', 'Hughes', 'Kemp', 'Lawson', 'Moffat', 'Prescott', 'Quinlan', 'Rawlings', 'Stokes', 'Turnbull', 'Walker', 'Brennan', 'Carmody', 'Doherty', 'Ellis', 'Finch'],
+        n: ['Jack', 'Cooper', 'Mitchell', 'Lachlan', 'Riley', 'Hayden', 'Brodie', 'Jordan', 'Nathan', 'Blake', 'Kai', 'Liam', 'Tyler', 'Declan', 'Zac', 'Harrison', 'Angus', 'Toby', 'Ethan', 'Oscar', 'Max', 'Noah', 'Jacob', 'Will', 'Ashton', 'Callum', 'Darcy', 'Flynn'],
+        a: ['McAllister', 'Reid', 'Dawson', 'Fraser', 'Gallagher', 'Hughes', 'Kemp', 'Lawson', 'Moffat', 'Prescott', 'Quinlan', 'Rawlings', 'Stokes', 'Turnbull', 'Walker', 'Brennan', 'Carmody', 'Doherty', 'Ellis', 'Finch', 'Ashby', 'Bligh', 'Cartwright', 'Dempsey', 'Eastwood', 'Farrow', 'Granger', 'Hollis', 'Irwin', 'Jameson', 'Kenny', 'Lyall', 'Merritt', 'Nash', 'Osborne', 'Pryor', 'Rhodes', 'Sutton', 'Tobin', 'Vance'],
     },
     fr: { n: ['Théo', 'Hugo', 'Louis', 'Arthur', 'Mathis', 'Enzo', 'Victor', 'Clément'], a: ['Laurent', 'Mercier', 'Dubois', 'Garnier', 'Rousseau', 'Faure', 'Chevalier', 'Lefèvre'] },
     pt: { n: ['Tiago', 'Rodrigo', 'Duarte', 'Afonso', 'Gonçalo'], a: ['Almeida', 'Carvalho', 'Figueiredo', 'Pereira', 'Teixeira'] },
