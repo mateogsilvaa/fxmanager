@@ -97,6 +97,7 @@ export async function autoTemporada(ctx) {
 export async function procesarGestion(ctx) {
     const pid = ctx.cfg?.partida;
     if (!pid) return;
+    if (ctx.pre && !ctx.pre.gestion?.length) return;
     const lista = await ctx.store.list('gestion', [['estado', '==', 'pendiente']]);
     if (!lista.length) return;
     const doc = await ctx.store.get(`partidas/${pid}`);

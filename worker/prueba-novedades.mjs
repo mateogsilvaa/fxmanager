@@ -179,6 +179,22 @@ const { puntuar } = await import('../js/engine/sim.js');
 const resP = puntuar({ tipo: 'R3', filas: [{ pid: 'a', estado: 'FIN', laps: [1, 2, 3] }, { pid: 'b', estado: 'FIN', laps: [1, 3, 4] }] }, { puntos: 'top10', vr: 0 }, 2);
 ok(resP.filas[0].pts === tablaPuntos('R3', { puntos: 'top10' })[0] * 2 && resP.pf, `Puntos dobles en la última carrera (${resP.filas[0].pts})`);
 
+// ---------- Vía rápida del worker: solo el paso necesario, sin bloquear el ciclo ----------
+{
+    const base = (await store.list('llamadas'))[0];
+    const { id, ...resto } = base;
+    await store.set('llamadas/rapida', { ...resto, eleccion: base.opciones[0].id, aplicada: false, resultado: null, disponible: t - 1000, expira: t + 864e5 });
+    const cfgR = await store.get('config/juego');
+    const antes = JSON.stringify(cfgR.tick || null);
+    const lecturas0 = store.lecturas;
+    const rap = await ejecutarTick(store, { ahora: t, log: () => { }, solo: ['procesarLlamadas'], precarga: { cfg: cfgR, secreto: 'prueba', sombra: null, llamadas: [{ id: 'rapida', eleccion: 1 }] } });
+    const lr = await store.get('llamadas/rapida');
+    ok(rap.rapido && lr.aplicada === true && Array.isArray(lr.chips), `Vía rápida: la llamada se aplica con solo su paso (${store.lecturas - lecturas0} lecturas, ${lr.chips?.length} efectos)`);
+    ok(JSON.stringify((await store.get('config/juego')).tick || null) === antes, 'La vía rápida no bloquea ni toca el estado del ciclo');
+    const lecturas1 = store.lecturas;
+    await ejecutarTick(store, { ahora: t, log: () => { }, solo: ['procesarLlamadas', 'procesarAcciones'], precarga: { cfg: cfgR, secreto: 'prueba', llamadas: [], acciones: [] } });
+    ok(store.lecturas - lecturas1 === 0, `Sin nada pendiente no se consulta nada (${store.lecturas - lecturas1} lecturas)`);
+}
 void cargarEquipos; void cargarPrivs;
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\n✅ Novedades sin fallos');
 process.exit(fallos.length ? 1 : 0);

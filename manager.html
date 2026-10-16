@@ -11,30 +11,62 @@
     <link rel="apple-touch-icon" href="img/icono-180.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Hyper Race">
-    <link rel="stylesheet" href="css/app.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&family=Space+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&family=Space+Mono:wght@400;700&display=swap"></noscript>
+    <link rel="stylesheet" href="css/app.css?v=4fe33688">
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js">
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js">
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js">
-    <link rel="modulepreload" href="js/pages/manager.js">
-    <link rel="modulepreload" href="js/engine/reputacion.js">
-    <link rel="modulepreload" href="js/engine/rating.js">
-    <link rel="modulepreload" href="js/engine/constants.js">
-    <link rel="modulepreload" href="js/core/componentes.js">
-    <link rel="modulepreload" href="js/core/app.js">
-    <link rel="modulepreload" href="js/core/partida-store.js">
-    <link rel="modulepreload" href="js/core/memstore.js">
-    <link rel="modulepreload" href="js/engine/stats.js">
-    <link rel="modulepreload" href="js/engine/sim.js">
-    <link rel="modulepreload" href="js/engine/neumaticos.js">
-    <link rel="modulepreload" href="js/engine/rng.js">
-    <link rel="modulepreload" href="js/engine/juntas.js">
-    <link rel="modulepreload" href="js/core/ui.js">
-    <link rel="modulepreload" href="js/core/datos.js">
-    <link rel="modulepreload" href="js/core/layout.js">
+    <link rel="modulepreload" href="js/pages/manager.js?v=ecf8e37d">
+    <link rel="modulepreload" href="js/engine/reputacion.js?v=de5bd8a0">
+    <link rel="modulepreload" href="js/engine/rating.js?v=9f90f144">
+    <link rel="modulepreload" href="js/engine/constants.js?v=c9a65bed">
+    <link rel="modulepreload" href="js/core/componentes.js?v=0986ed83">
+    <link rel="modulepreload" href="js/core/app.js?v=ea3c25ae">
+    <link rel="modulepreload" href="js/config.js?v=b3e3cc46">
+    <link rel="modulepreload" href="js/core/store.js?v=ded4e8d7">
+    <link rel="modulepreload" href="js/core/partida-store.js?v=73f3debe">
+    <link rel="modulepreload" href="js/core/memstore.js?v=2f2c7cf2">
+    <link rel="modulepreload" href="js/engine/stats.js?v=e44a357d">
+    <link rel="modulepreload" href="js/engine/sim.js?v=a134b8e8">
+    <link rel="modulepreload" href="js/engine/neumaticos.js?v=f86fb7e1">
+    <link rel="modulepreload" href="js/engine/rng.js?v=4fcfc9e4">
+    <link rel="modulepreload" href="js/engine/juntas.js?v=cdd9da56">
+    <link rel="modulepreload" href="js/core/ui.js?v=1c591241">
+    <link rel="modulepreload" href="js/core/datos.js?v=8f907566">
+    <link rel="modulepreload" href="js/core/layout.js?v=c01953f0">
+    <link rel="modulepreload" href="js/core/avisos.js?v=0f90f3d0">
+    <link rel="modulepreload" href="js/core/llamada-ui.js?v=cd83ced3">
+    <link rel="modulepreload" href="js/engine/llamadas.js?v=b466df18">
+    <link rel="modulepreload" href="js/core/avatar.js?v=e3b987d6">
     <script type="importmap">
     {
         "imports": {
+            "./js/pages/manager.js": "./js/pages/manager.js?v=ecf8e37d",
+            "./js/engine/reputacion.js": "./js/engine/reputacion.js?v=de5bd8a0",
+            "./js/engine/rating.js": "./js/engine/rating.js?v=9f90f144",
+            "./js/engine/constants.js": "./js/engine/constants.js?v=c9a65bed",
+            "./js/core/componentes.js": "./js/core/componentes.js?v=0986ed83",
+            "./js/core/app.js": "./js/core/app.js?v=ea3c25ae",
+            "./js/config.js": "./js/config.js?v=b3e3cc46",
+            "./js/core/store.js": "./js/core/store.js?v=ded4e8d7",
+            "./js/core/partida-store.js": "./js/core/partida-store.js?v=73f3debe",
+            "./js/core/memstore.js": "./js/core/memstore.js?v=2f2c7cf2",
+            "./js/engine/stats.js": "./js/engine/stats.js?v=e44a357d",
+            "./js/engine/sim.js": "./js/engine/sim.js?v=a134b8e8",
+            "./js/engine/neumaticos.js": "./js/engine/neumaticos.js?v=f86fb7e1",
+            "./js/engine/rng.js": "./js/engine/rng.js?v=4fcfc9e4",
+            "./js/engine/juntas.js": "./js/engine/juntas.js?v=cdd9da56",
+            "./js/core/ui.js": "./js/core/ui.js?v=1c591241",
+            "./js/core/datos.js": "./js/core/datos.js?v=8f907566",
+            "./js/core/layout.js": "./js/core/layout.js?v=c01953f0",
+            "./js/core/avisos.js": "./js/core/avisos.js?v=0f90f3d0",
+            "./js/core/llamada-ui.js": "./js/core/llamada-ui.js?v=cd83ced3",
+            "./js/engine/llamadas.js": "./js/engine/llamadas.js?v=b466df18",
+            "./js/core/avatar.js": "./js/core/avatar.js?v=e3b987d6",
             "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
             "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
             "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
@@ -45,6 +77,25 @@
 <body>
     <header id="cabecera"></header>
     <main id="main"><div class="cargando"><span class="spinner"></span>Cargando…</div></main>
-    <script type="module" src="js/pages/manager.js"></script>
+    <script>
+(function () {
+    function aviso(motivo) {
+        var m = document.getElementById('main');
+        if (!m || !m.querySelector('.cargando') || m.children.length !== 1) return;
+        m.innerHTML = '<div class="caja-auth tarjeta"><h1>Esto está tardando más de lo normal</h1><p class="muted">' + motivo + '</p>' +
+            '<div class="fila"><button class="btn" id="vig-recargar">Recargar</button><button class="btn btn-sec" id="vig-limpiar">Limpiar la caché y recargar</button></div></div>';
+        document.getElementById('vig-recargar').onclick = function () { location.reload(); };
+        document.getElementById('vig-limpiar').onclick = function () {
+            try { Object.keys(localStorage).filter(function (k) { return /^fx(res)?:/.test(k); }).forEach(function (k) { localStorage.removeItem(k); }); sessionStorage.removeItem('fx-demo-estado'); } catch (e) { }
+            if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+            location.reload();
+        };
+    }
+    setTimeout(function () { aviso('Puede ser tu conexión o una versión antigua guardada en el navegador.'); }, 12000);
+    // Un módulo de la web que no se descarga: se avisa al momento
+    addEventListener('error', function (e) { if (e.target && e.target.tagName === 'SCRIPT') setTimeout(function () { aviso('No se ha podido descargar parte de la web. Recarga para intentarlo de nuevo.'); }, 800); }, true);
+})();
+</script>
+    <script type="module" src="js/pages/manager.js?v=ecf8e37d"></script>
 </body>
 </html>

@@ -66,6 +66,8 @@ La página **Cómo funciona** (`reglamento.html`) explica el formato, el mercado
 
 Para cambiar el HTML común de todas las páginas edita `worker/generar-html.mjs` y ejecuta `node worker/generar-html.mjs`.
 
+**Importante:** el HTML lleva la versión (`?v=hash`) de cada archivo JS y del CSS para que el navegador no mezcle archivos viejos y nuevos tras una subida. Por eso hay que ejecutar `node worker/generar-html.mjs` **después de cualquier cambio en `js/` o `css/`** y antes de hacer commit; si no, los navegadores seguirán usando la versión anterior guardada en caché.
+
 ## Avisos en el móvil
 
 Una sola vez, en tu ordenador (con `gh` con sesión iniciada):

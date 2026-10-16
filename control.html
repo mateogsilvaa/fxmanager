@@ -11,58 +11,114 @@
     <link rel="apple-touch-icon" href="img/icono-180.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Hyper Race">
-    <link rel="stylesheet" href="css/app.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&family=Space+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&family=Space+Mono:wght@400;700&display=swap"></noscript>
+    <link rel="stylesheet" href="css/app.css?v=4fe33688">
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js">
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js">
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js">
-    <link rel="modulepreload" href="js/pages/control.js">
-    <link rel="modulepreload" href="js/jobs/temporada.js">
-    <link rel="modulepreload" href="js/jobs/novedades.js">
-    <link rel="modulepreload" href="js/jobs/comun.js">
-    <link rel="modulepreload" href="js/engine/constants.js">
-    <link rel="modulepreload" href="js/engine/mercado.js">
-    <link rel="modulepreload" href="js/engine/juego.js">
-    <link rel="modulepreload" href="js/engine/cartas.js">
-    <link rel="modulepreload" href="js/engine/rng.js">
-    <link rel="modulepreload" href="js/engine/nombres.js">
-    <link rel="modulepreload" href="js/engine/stats.js">
-    <link rel="modulepreload" href="js/engine/sim.js">
-    <link rel="modulepreload" href="js/engine/neumaticos.js">
-    <link rel="modulepreload" href="js/engine/juntas.js">
-    <link rel="modulepreload" href="js/engine/reputacion.js">
-    <link rel="modulepreload" href="js/engine/llamadas.js">
-    <link rel="modulepreload" href="js/engine/ingenieros.js">
-    <link rel="modulepreload" href="js/engine/rating.js">
-    <link rel="modulepreload" href="js/jobs/catalogo.js">
-    <link rel="modulepreload" href="js/engine/circuitos.js">
-    <link rel="modulepreload" href="js/engine/prensa-ia.js">
-    <link rel="modulepreload" href="js/jobs/mercado.js">
-    <link rel="modulepreload" href="js/engine/pool.js">
-    <link rel="modulepreload" href="js/jobs/pilotos.js">
-    <link rel="modulepreload" href="js/pages/control-partidas.js">
-    <link rel="modulepreload" href="js/core/ui.js">
-    <link rel="modulepreload" href="js/core/app.js">
-    <link rel="modulepreload" href="js/core/partida-store.js">
-    <link rel="modulepreload" href="js/core/memstore.js">
-    <link rel="modulepreload" href="js/pages/control-simulador.js">
-    <link rel="modulepreload" href="js/pages/control-uso.js">
-    <link rel="modulepreload" href="js/jobs/tick.js">
-    <link rel="modulepreload" href="js/jobs/partidas.js">
-    <link rel="modulepreload" href="js/engine/generador.js">
-    <link rel="modulepreload" href="js/jobs/juntas.js">
-    <link rel="modulepreload" href="js/jobs/ramas.js">
-    <link rel="modulepreload" href="js/engine/ramas.js">
-    <link rel="modulepreload" href="js/engine/cronica.js">
-    <link rel="modulepreload" href="js/engine/ambiente.js">
-    <link rel="modulepreload" href="js/engine/badwords.js">
-    <link rel="modulepreload" href="js/engine/rueda-prensa.js">
-    <link rel="modulepreload" href="js/config.js">
-    <link rel="modulepreload" href="js/core/datos.js">
-    <link rel="modulepreload" href="js/core/layout.js">
+    <link rel="modulepreload" href="js/pages/control.js?v=d3a96707">
+    <link rel="modulepreload" href="js/jobs/novedades.js?v=4befa9cb">
+    <link rel="modulepreload" href="js/jobs/comun.js?v=03a5f837">
+    <link rel="modulepreload" href="js/engine/constants.js?v=c9a65bed">
+    <link rel="modulepreload" href="js/engine/mercado.js?v=3a5a4a55">
+    <link rel="modulepreload" href="js/engine/juego.js?v=3511cb90">
+    <link rel="modulepreload" href="js/engine/cartas.js?v=0e98584a">
+    <link rel="modulepreload" href="js/engine/rng.js?v=4fcfc9e4">
+    <link rel="modulepreload" href="js/engine/nombres.js?v=a3e49d6f">
+    <link rel="modulepreload" href="js/engine/stats.js?v=e44a357d">
+    <link rel="modulepreload" href="js/engine/sim.js?v=a134b8e8">
+    <link rel="modulepreload" href="js/engine/neumaticos.js?v=f86fb7e1">
+    <link rel="modulepreload" href="js/engine/juntas.js?v=cdd9da56">
+    <link rel="modulepreload" href="js/engine/reputacion.js?v=de5bd8a0">
+    <link rel="modulepreload" href="js/engine/llamadas.js?v=b466df18">
+    <link rel="modulepreload" href="js/engine/ingenieros.js?v=be95d6f0">
+    <link rel="modulepreload" href="js/jobs/temporada.js?v=3a9a8283">
+    <link rel="modulepreload" href="js/engine/rating.js?v=9f90f144">
+    <link rel="modulepreload" href="js/jobs/catalogo.js?v=278c0ced">
+    <link rel="modulepreload" href="js/engine/circuitos.js?v=51828bc2">
+    <link rel="modulepreload" href="js/engine/prensa-ia.js?v=b37b5796">
+    <link rel="modulepreload" href="js/jobs/mercado.js?v=cb03ef9e">
+    <link rel="modulepreload" href="js/engine/pool.js?v=3044b215">
+    <link rel="modulepreload" href="js/jobs/pilotos.js?v=eb3d4cc2">
+    <link rel="modulepreload" href="js/pages/control-partidas.js?v=ef8ac286">
+    <link rel="modulepreload" href="js/core/ui.js?v=1c591241">
+    <link rel="modulepreload" href="js/core/app.js?v=ea3c25ae">
+    <link rel="modulepreload" href="js/config.js?v=b3e3cc46">
+    <link rel="modulepreload" href="js/core/store.js?v=ded4e8d7">
+    <link rel="modulepreload" href="js/core/partida-store.js?v=73f3debe">
+    <link rel="modulepreload" href="js/core/memstore.js?v=2f2c7cf2">
+    <link rel="modulepreload" href="js/pages/control-simulador.js?v=c138e65a">
+    <link rel="modulepreload" href="js/pages/control-uso.js?v=5e734c97">
+    <link rel="modulepreload" href="js/jobs/tick.js?v=22142a2b">
+    <link rel="modulepreload" href="js/jobs/partidas.js?v=0db26675">
+    <link rel="modulepreload" href="js/engine/generador.js?v=f4b66b87">
+    <link rel="modulepreload" href="js/jobs/juntas.js?v=692c9ce4">
+    <link rel="modulepreload" href="js/jobs/ramas.js?v=5a8f1ef8">
+    <link rel="modulepreload" href="js/engine/ramas.js?v=0ce44df4">
+    <link rel="modulepreload" href="js/engine/cronica.js?v=530f1e39">
+    <link rel="modulepreload" href="js/engine/ambiente.js?v=7c127b28">
+    <link rel="modulepreload" href="js/engine/badwords.js?v=d3a69fe6">
+    <link rel="modulepreload" href="js/engine/rueda-prensa.js?v=4f58e57b">
+    <link rel="modulepreload" href="js/core/datos.js?v=8f907566">
+    <link rel="modulepreload" href="js/core/layout.js?v=c01953f0">
+    <link rel="modulepreload" href="js/core/avisos.js?v=0f90f3d0">
+    <link rel="modulepreload" href="js/core/llamada-ui.js?v=cd83ced3">
+    <link rel="modulepreload" href="js/core/avatar.js?v=e3b987d6">
     <script type="importmap">
     {
         "imports": {
+            "./js/pages/control.js": "./js/pages/control.js?v=d3a96707",
+            "./js/jobs/novedades.js": "./js/jobs/novedades.js?v=4befa9cb",
+            "./js/jobs/comun.js": "./js/jobs/comun.js?v=03a5f837",
+            "./js/engine/constants.js": "./js/engine/constants.js?v=c9a65bed",
+            "./js/engine/mercado.js": "./js/engine/mercado.js?v=3a5a4a55",
+            "./js/engine/juego.js": "./js/engine/juego.js?v=3511cb90",
+            "./js/engine/cartas.js": "./js/engine/cartas.js?v=0e98584a",
+            "./js/engine/rng.js": "./js/engine/rng.js?v=4fcfc9e4",
+            "./js/engine/nombres.js": "./js/engine/nombres.js?v=a3e49d6f",
+            "./js/engine/stats.js": "./js/engine/stats.js?v=e44a357d",
+            "./js/engine/sim.js": "./js/engine/sim.js?v=a134b8e8",
+            "./js/engine/neumaticos.js": "./js/engine/neumaticos.js?v=f86fb7e1",
+            "./js/engine/juntas.js": "./js/engine/juntas.js?v=cdd9da56",
+            "./js/engine/reputacion.js": "./js/engine/reputacion.js?v=de5bd8a0",
+            "./js/engine/llamadas.js": "./js/engine/llamadas.js?v=b466df18",
+            "./js/engine/ingenieros.js": "./js/engine/ingenieros.js?v=be95d6f0",
+            "./js/jobs/temporada.js": "./js/jobs/temporada.js?v=3a9a8283",
+            "./js/engine/rating.js": "./js/engine/rating.js?v=9f90f144",
+            "./js/jobs/catalogo.js": "./js/jobs/catalogo.js?v=278c0ced",
+            "./js/engine/circuitos.js": "./js/engine/circuitos.js?v=51828bc2",
+            "./js/engine/prensa-ia.js": "./js/engine/prensa-ia.js?v=b37b5796",
+            "./js/jobs/mercado.js": "./js/jobs/mercado.js?v=cb03ef9e",
+            "./js/engine/pool.js": "./js/engine/pool.js?v=3044b215",
+            "./js/jobs/pilotos.js": "./js/jobs/pilotos.js?v=eb3d4cc2",
+            "./js/pages/control-partidas.js": "./js/pages/control-partidas.js?v=ef8ac286",
+            "./js/core/ui.js": "./js/core/ui.js?v=1c591241",
+            "./js/core/app.js": "./js/core/app.js?v=ea3c25ae",
+            "./js/config.js": "./js/config.js?v=b3e3cc46",
+            "./js/core/store.js": "./js/core/store.js?v=ded4e8d7",
+            "./js/core/partida-store.js": "./js/core/partida-store.js?v=73f3debe",
+            "./js/core/memstore.js": "./js/core/memstore.js?v=2f2c7cf2",
+            "./js/pages/control-simulador.js": "./js/pages/control-simulador.js?v=c138e65a",
+            "./js/pages/control-uso.js": "./js/pages/control-uso.js?v=5e734c97",
+            "./js/jobs/tick.js": "./js/jobs/tick.js?v=22142a2b",
+            "./js/jobs/partidas.js": "./js/jobs/partidas.js?v=0db26675",
+            "./js/engine/generador.js": "./js/engine/generador.js?v=f4b66b87",
+            "./js/jobs/juntas.js": "./js/jobs/juntas.js?v=692c9ce4",
+            "./js/jobs/ramas.js": "./js/jobs/ramas.js?v=5a8f1ef8",
+            "./js/engine/ramas.js": "./js/engine/ramas.js?v=0ce44df4",
+            "./js/engine/cronica.js": "./js/engine/cronica.js?v=530f1e39",
+            "./js/engine/ambiente.js": "./js/engine/ambiente.js?v=7c127b28",
+            "./js/engine/badwords.js": "./js/engine/badwords.js?v=d3a69fe6",
+            "./js/engine/rueda-prensa.js": "./js/engine/rueda-prensa.js?v=4f58e57b",
+            "./js/core/datos.js": "./js/core/datos.js?v=8f907566",
+            "./js/core/layout.js": "./js/core/layout.js?v=c01953f0",
+            "./js/core/avisos.js": "./js/core/avisos.js?v=0f90f3d0",
+            "./js/core/llamada-ui.js": "./js/core/llamada-ui.js?v=cd83ced3",
+            "./js/core/avatar.js": "./js/core/avatar.js?v=e3b987d6",
             "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
             "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
             "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
@@ -73,6 +129,25 @@
 <body>
     <header id="cabecera"></header>
     <main id="main"><div class="cargando"><span class="spinner"></span>Cargando…</div></main>
-    <script type="module" src="js/pages/control.js"></script>
+    <script>
+(function () {
+    function aviso(motivo) {
+        var m = document.getElementById('main');
+        if (!m || !m.querySelector('.cargando') || m.children.length !== 1) return;
+        m.innerHTML = '<div class="caja-auth tarjeta"><h1>Esto está tardando más de lo normal</h1><p class="muted">' + motivo + '</p>' +
+            '<div class="fila"><button class="btn" id="vig-recargar">Recargar</button><button class="btn btn-sec" id="vig-limpiar">Limpiar la caché y recargar</button></div></div>';
+        document.getElementById('vig-recargar').onclick = function () { location.reload(); };
+        document.getElementById('vig-limpiar').onclick = function () {
+            try { Object.keys(localStorage).filter(function (k) { return /^fx(res)?:/.test(k); }).forEach(function (k) { localStorage.removeItem(k); }); sessionStorage.removeItem('fx-demo-estado'); } catch (e) { }
+            if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+            location.reload();
+        };
+    }
+    setTimeout(function () { aviso('Puede ser tu conexión o una versión antigua guardada en el navegador.'); }, 12000);
+    // Un módulo de la web que no se descarga: se avisa al momento
+    addEventListener('error', function (e) { if (e.target && e.target.tagName === 'SCRIPT') setTimeout(function () { aviso('No se ha podido descargar parte de la web. Recarga para intentarlo de nuevo.'); }, 800); }, true);
+})();
+</script>
+    <script type="module" src="js/pages/control.js?v=d3a96707"></script>
 </body>
 </html>

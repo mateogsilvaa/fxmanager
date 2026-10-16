@@ -82,7 +82,7 @@ export function iniciar() {
         const app = initializeApp(FIREBASE_CONFIG);
         _auth = authMod.getAuth(app);
         _fb = { ...authMod, ...fsMod };
-        _store = new FirestoreStore(fsMod.getFirestore(app));
+        _store = new FirestoreStore(fsMod.initializeFirestore(app, { experimentalAutoDetectLongPolling: true }));
         if (PARTIDA) {
             const base = _store;
             _partida = await base.get(`partidas/${PARTIDA}`).catch(() => null);

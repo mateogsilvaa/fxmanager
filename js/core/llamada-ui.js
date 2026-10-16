@@ -224,7 +224,15 @@ function mostrarLlamada(l) {
 }
 
 // ---------- Carta ----------
+// La tipografía manuscrita solo se descarga cuando llega la primera carta
+function fuenteCarta() {
+    if (document.getElementById('fuente-carta')) return;
+    const a = document.createElement('link');
+    a.id = 'fuente-carta'; a.rel = 'stylesheet'; a.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap';
+    document.head.appendChild(a);
+}
 function mostrarCarta(l) {
+    fuenteCarta();
     const p = personajeDe(l);
     let parar = () => { }, terminado = false;
     const fecha = new Date(l.disponible || ahora()).toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', day: 'numeric', month: 'long' });

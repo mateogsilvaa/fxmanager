@@ -122,6 +122,7 @@ export async function abrirMercado(ctx, { tablas, deadline }) {
     };
     registrar(m, ctx, `Se abre el mercado: ${despidos.length} despidos, ${retiros.length} retiradas y ${galacticos.length} candidatos a Galáctico (solo se va uno por liga).`);
     await store.set(refMercado(temporada), m);
+    await store.merge('config/juego', { mercadoV: 2 }); ctx.cfg.mercadoV = 2;
     await store.set(`mercado_priv/T${temporada}`, { rookies: Object.fromEntries(rookies.map(r => [r.id, r.attrs])) });
 
     // 4. Avisos
@@ -473,10 +474,11 @@ export const ACCIONES_MERCADO = {
 // (hasta 3 por liga, solo se irá uno) y se rellena la bolsa de agentes libres. Se hace una sola vez.
 // ======================================================================
 export async function actualizarMercadoAbierto(ctx) {
-    if (!['mundial', 'mercado'].includes(ctx.cfg.fase)) return;
+    if (!['mundial', 'mercado'].includes(ctx.cfg.fase) || (ctx.cfg.mercadoV || 0) >= 2) return;
     const T = ctx.cfg.temporada;
     const m0 = await ctx.store.get(refMercado(T));
-    if (!m0 || m0.estado !== 'abierto' || (m0.v || 1) >= 2) return;
+    if (!m0) return;
+    if (m0.estado !== 'abierto' || (m0.v || 1) >= 2) { await ctx.store.merge('config/juego', { mercadoV: 2 }); ctx.cfg.mercadoV = 2; return; }
     await asegurarPool(ctx);
     const { m, pil } = await cargar(ctx);
     const doc = await ctx.store.get(`resumen/T${T}`);
@@ -498,6 +500,7 @@ export async function actualizarMercadoAbierto(ctx) {
     registrar(m, ctx, `Se amplían los candidatos a Galáctico: ${nuevos.length} nuevos. De cada liga solo se irá uno.`);
     noticia(ctx, { titulo: 'Más candidatos a Galáctico', texto: `La liga amplía la lista: ${LIGAS_NACIONALES.map(l => `${LIGAS[l].nombre}: ${m.galacticos.filter(g => g.liga === l).map(g => g.nombre).join(', ')}`).join(' · ')}. De cada liga solo cambiará uno. Además, ya se pueden fichar agentes libres para cubrir vacantes.`, tipo: 'mercado' });
     await guardar(ctx, m);
+    await ctx.store.merge('config/juego', { mercadoV: 2 }); ctx.cfg.mercadoV = 2;
     ctx.diferir = null;
     ctx.nota(`Mercado actualizado: ${nuevos.length} candidatos nuevos`);
 }

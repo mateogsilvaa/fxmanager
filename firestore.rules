@@ -12,7 +12,7 @@ service cloud.firestore {
     function ahora() { return request.time.toMillis(); }
     // Miembro de la liga original: administración, cuentas aprobadas o con escudería. La liga original es privada.
     function miembroOriginal() {
-      return autenticado() && exists(/databases/$(database)/documents/usuarios/$(uid()))
+      return autenticado()
         && (perfil().get('isAdmin', false) == true || perfil().get('estado', '') == 'aprobado' || perfil().get('equipoId', null) != null);
     }
     function config() { return get(/databases/$(database)/documents/config/juego).data; }

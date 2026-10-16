@@ -98,7 +98,7 @@ if (iArg < 0) {
 // ---------------- Modo continuo ----------------
 const minutos = +process.argv[iArg + 1] || 340;
 const hasta = Date.now() + minutos * 60_000;
-const HUECO_MIN = 1_000;          // entre dos ciclos seguidos (las acciones se procesan casi al momento)
+const HUECO_MIN = 400;            // entre dos ciclos seguidos (las acciones se procesan casi al momento)
 const log = (m) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${m}`);
 const lista = (snap) => snap.docs.map(d => ({ id: d.id, ...d.data() }));
 let despertar = null;
@@ -110,11 +110,12 @@ class Vigia {
     constructor(pid) {
         this.pid = pid; this.pre = pid ? `partidas/${pid}/` : '';
         this.reposo = pid ? 60 * 60_000 : 15 * 60_000;
-        this.vivo = { cfg: null, eventos: [], equipos: [], privs: [], acciones: [], decisiones: [], prensa: [], avisos: [], llamadas: [], gestion: [] };
-        this.listos = new Set(); this.quitar = []; this.ultimo = 0; this.atasco = { venc: null, t: 0 };
+        this.vivo = { cfg: null, eventos: [], equipos: [], privs: [], acciones: [], decisiones: [], prensa: [], avisos: [], llamadas: [], gestion: [], sombra: null };
+        // ultimo = último ciclo de cualquier tipo (para no encadenar dos seguidos) · ultimoCompleto = último ciclo entero
+        this.listos = new Set(); this.quitar = []; this.ultimo = 0; this.ultimoCompleto = 0; this.catalogoDesde = 0; this.atasco = { venc: null, t: 0 }; this.secreto = null;
         this.temporada = null; this.quitarEventos = null;
         const necesarios = ['cfg', 'eventos', 'equipos', 'privs', 'acciones', 'decisiones', 'prensa', 'llamadas'];
-        if (!pid) necesarios.push('avisos'); else necesarios.push('gestion');
+        if (!pid) necesarios.push('avisos', 'sombra'); else necesarios.push('gestion');
         this.necesarios = necesarios;
         const P = this.pre;
         this.escuchar('cfg', doc(db, `${P}config/juego`), (s) => {
@@ -133,6 +134,7 @@ class Vigia {
         this.escuchar('decisiones', query(collection(db, `${P}decisiones`), where('aplicada', '==', false)), (s) => { this.vivo.decisiones = lista(s); });
         this.escuchar('prensa', query(collection(db, `${P}prensa`), where('aplicada', '==', false)), (s) => { this.vivo.prensa = lista(s); });
         this.escuchar('llamadas', query(collection(db, `${P}llamadas`), where('aplicada', '==', false)), (s) => { this.vivo.llamadas = lista(s); });
+        if (!pid) this.escuchar('sombra', doc(db, 'secreto/sombra'), (s) => { this.vivo.sombra = s.exists() ? s.data() : null; });
         if (!pid) this.escuchar('avisos', query(collection(db, 'avisos_admin'), where('estado', '==', 'pendiente')), (s) => { this.vivo.avisos = lista(s); });
         else this.escuchar('gestion', query(collection(db, `${P}gestion`), where('estado', '==', 'pendiente')), (s) => { this.vivo.gestion = lista(s); });
     }
@@ -149,20 +151,27 @@ class Vigia {
         }
         for (const p of v.privs) for (const pr of p.proyectos || []) t = Math.min(t, pr.retenida || pr.fin);
         for (const d of [...v.decisiones, ...v.prensa, ...v.llamadas]) t = Math.min(t, d.expira);
-        return Math.min(t, this.ultimo + this.reposo);
+        if (this.catalogoDesde) t = Math.min(t, this.catalogoDesde + 45_000);
+        return Math.min(t, this.ultimoCompleto + this.reposo);
     }
+    // Qué toca hacer: { texto, solo }. Si solo hay cosas de jugadores (una llamada, una acción…) se ejecuta solo ese paso
+    // (vía rápida, un segundo en vez de varios); si hay algo por horario o repaso, el ciclo entero.
     motivo(ahora) {
-        const v = this.vivo;
-        if (v.acciones.length) return `${v.acciones.length} acción(es)`;
-        if (v.gestion.length) return 'gestión de la partida';
-        if (v.decisiones.some(d => d.eleccion)) return 'decisión elegida';
-        if (v.prensa.some(d => d.eleccion)) return 'respuesta a la prensa';
-        if (v.llamadas.some(d => d.eleccion)) return 'respuesta a una llamada';
-        if (push && v.avisos.length) return 'aviso de la organización';
+        const v = this.vivo, solo = [], texto = [];
+        const hay = (cond, paso, t) => { if (cond) { solo.push(paso); texto.push(t); } };
+        hay(v.acciones.length, 'procesarAcciones', `${v.acciones.length} acción(es)`);
+        hay(v.gestion.length, 'procesarGestion', 'gestión de la partida');
+        hay(v.decisiones.some(d => d.eleccion), 'procesarDecisiones', 'decisión elegida');
+        hay(v.prensa.some(d => d.eleccion), 'procesarPrensa', 'respuesta a la prensa');
+        hay(v.llamadas.some(d => d.eleccion), 'procesarLlamadas', 'respuesta a una llamada');
+        hay(push && v.avisos.length, 'avisosOrganizacion', 'aviso de la organización');
         const venc = this.proximo(ahora);
-        if (ahora - this.ultimo >= this.reposo) return 'repaso periódico';
+        if (ahora - this.ultimoCompleto >= this.reposo) return { texto: 'repaso periódico', solo: null };
         // si algo vencido no se resuelve (p. ej. un error), no insistir más de una vez por minuto
-        if (venc <= ahora && !(venc === this.atasco.venc && ahora - this.atasco.t < 60_000)) { this.atasco.venc = venc; this.atasco.t = ahora; return 'vencimiento'; }
+        if (venc <= ahora && !(venc === this.atasco.venc && ahora - this.atasco.t < 60_000)) { this.atasco.venc = venc; this.atasco.t = ahora; return { texto: 'vencimiento', solo: null }; }
+        if (solo.length) return { texto: texto.join(' + '), solo };
+        // Catálogo público pendiente de reconstruir (fans, reputación…): una vez cada 45 s como mucho
+        if (this.catalogoDesde && ahora - this.catalogoDesde >= 45_000) return { texto: 'catálogo', solo: ['__catalogo'] };
         return null;
     }
     async ciclo(ahora, m) {
@@ -170,15 +179,22 @@ class Vigia {
         const v = this.vivo;
         if (this.pid) fijarLigasDe(v.cfg);
         try {
+            // El secreto no cambia: se lee una sola vez
+            if (!this.secreto) this.secreto = (await store.get(`${this.pre}secreto/juego`).catch(() => null))?.clave || null;
             const r = await ejecutarTick(storeDe(store, this.pid), {
-                ahora, origen: 'worker', log: () => { }, precarga: { eventos: v.eventos, equipos: v.equipos, privs: v.privs },
+                ahora, origen: 'worker', log: () => { }, solo: m.solo,
+                precarga: { cfg: v.cfg, secreto: this.secreto, sombra: v.sombra, eventos: v.eventos, equipos: v.equipos, privs: v.privs, acciones: v.acciones, decisiones: v.decisiones, prensa: v.prensa, avisos: v.avisos, llamadas: v.llamadas, gestion: v.gestion },
                 extra: { continuoHasta: hasta }, push,
             });
-            if (r.errores?.length) { log(`${this.nombre} · ciclo (${m}) con errores: ${r.errores.join(' | ')}`); await registrarError(this.pid, 'worker', r.errores.join(' | ')); return false; }
-            if (!r.omitido) log(`${this.nombre} · ciclo (${m}) ${r.duracionMs} ms${r.notas?.length ? ' · ' + r.notas.slice(-4).join(' · ') : ''}`);
-            if (this.pid && v.cfg) await store.merge(`partidas/${this.pid}`, { fase: v.cfg.fase, temporada: v.cfg.temporada, ultimoCiclo: ahora }).catch(() => { });
+            if (!m.solo) { this.ultimoCompleto = ahora; this.catalogoDesde = 0; }
+            else if (m.solo.includes('__catalogo')) this.catalogoDesde = 0;
+            else if (r.catalogoSucio && !this.catalogoDesde) this.catalogoDesde = ahora;
+            const etiqueta = `${m.texto}${m.solo ? ' ⚡' : ''}`;
+            if (r.errores?.length) { log(`${this.nombre} · ciclo (${etiqueta}) con errores: ${r.errores.join(' | ')}`); await registrarError(this.pid, 'worker', r.errores.join(' | ')); return false; }
+            if (!r.omitido) log(`${this.nombre} · ciclo (${etiqueta}) ${r.duracionMs} ms${r.notas?.length ? ' · ' + r.notas.slice(-4).join(' · ') : ''}`);
+            if (!m.solo && this.pid && v.cfg) await store.merge(`partidas/${this.pid}`, { fase: v.cfg.fase, temporada: v.cfg.temporada, ultimoCiclo: ahora }).catch(() => { });
             return true;
-        } catch (e) { log(`${this.nombre} · ciclo (${m}) falló: ${e.stack || e}`); await registrarError(this.pid, 'worker', e.stack || e); return false; }
+        } catch (e) { log(`${this.nombre} · ciclo (${m.texto}) falló: ${e.stack || e}`); await registrarError(this.pid, 'worker', e.stack || e); return false; }
         finally { if (this.pid) fijarLigas(); }
     }
 }
@@ -210,7 +226,8 @@ while (Date.now() < hasta) {
     // 2. La primera partida a la que le toque un ciclo (la original va siempre primero)
     let hecho = false;
     for (const v of vigias.values()) {
-        if (!v.listo || ahora - v.ultimo < HUECO_MIN) continue;
+        if (!v.listo) continue;
+        if (ahora - v.ultimo < HUECO_MIN) continue;
         const m = v.motivo(ahora);
         if (!m) continue;
         ciclos++;
@@ -220,8 +237,10 @@ while (Date.now() < hasta) {
     }
     if (hecho) continue;
     // 3. Dormir hasta el próximo vencimiento de cualquier partida, un cambio en Firestore o como mucho 30 s
-    const venc = Math.min(...[...vigias.values()].map(v => v.listo ? v.proximo(ahora) : ahora + 2_000));
-    const espera = Math.max(1_000, Math.min(30_000, venc - ahora + 300, hasta - ahora));
+    //    (y como mucho hasta que acabe el hueco entre ciclos de una partida que acaba de trabajar: si en ese
+    //    momento llegó algo, se atiende al instante en vez de esperar a la siguiente señal)
+    const venc = Math.min(...[...vigias.values()].map(v => !v.listo ? ahora + 2_000 : Math.min(v.proximo(ahora), ahora - v.ultimo < HUECO_MIN ? v.ultimo + HUECO_MIN : Infinity)));
+    const espera = Math.max(150, Math.min(30_000, venc - ahora + 50, hasta - ahora));
     await new Promise(res => { const t = setTimeout(res, espera); despertar = () => { clearTimeout(t); setTimeout(res, 250); }; });
     despertar = null;
 }

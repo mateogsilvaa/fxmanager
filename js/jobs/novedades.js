@@ -278,6 +278,7 @@ async function aplicarEfectos(ctx, eq, ef, v, rng) {
 
 export async function procesarLlamadas(ctx) {
     if (!novedadesActivas(ctx.cfg)) return;
+    if (ctx.pre && !ctx.pre.llamadas?.length) return;
     const lista = await ctx.store.list('llamadas', [['aplicada', '==', false]]);
     if (!lista.length) return;
     await cargarEquipos(ctx); await cargarPrivs(ctx); await cargarPlantilla(ctx);

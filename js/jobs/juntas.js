@@ -50,6 +50,8 @@ export async function abrirJuntaSiToca(ctx) {
         }),
     };
     ctx.ops.push({ op: 'set', path: `juntas/${idJunta(T, n + 1)}`, data: doc });
+    ctx.ops.push({ op: 'merge', path: 'config/juego', data: { juntaCierra: doc.cierra } });
+    ctx.cfg.juntaCierra = doc.cierra;
     noticia(ctx, { titulo: `Junta de pilotos ${n + 1} de la temporada`, texto: `Se vota: ${doc.temas.map(t => t.titulo.toLowerCase()).join(', ')}. Cada piloto tiene un voto y la FIA ${VOTOS_FIA}. Hay 48 horas.`, tipo: 'fase' });
     for (const eq of Object.keys(ctx.equipos)) if (duenoReal(ctx, eq)) notificar(ctx, eq, { remitente: 'Asociación de pilotos', tipo: 'junta', titulo: 'Junta de pilotos: dales tu consigna', texto: `Se vota ${doc.temas.map(t => t.titulo.toLowerCase()).join(', ')}. Dile a tus pilotos qué votar en Mi escudería → Hoy (48 horas). Ojo: con la moral baja pueden ir por libre.` });
     ctx.juntaAbierta = true;
@@ -60,6 +62,8 @@ export async function abrirJuntaSiToca(ctx) {
 // En cada ciclo: cerrar las juntas cuyo plazo ha terminado
 export async function procesarJuntas(ctx) {
     if (!activas(ctx.cfg)) return;
+    // Con el worker en continuo basta saber cuándo cierra la junta abierta (config/juego.juntaCierra)
+    if (ctx.pre && (!ctx.cfg.juntaCierra || ctx.cfg.juntaCierra > ctx.ahora)) return;
     const abiertas = (await ctx.store.list('juntas', [['estado', '==', 'abierta']])).filter(j => j.cierra <= ctx.ahora);
     for (const j of abiertas) await cerrarJunta(ctx, j);
 }
@@ -111,8 +115,8 @@ export async function cerrarJunta(ctx, j) {
             notificar(ctx, o.eq, { remitente: 'Asociación de pilotos', tipo: 'junta', titulo: `Sanción a ${o.nombre}`, texto: op.valor === 'multa' ? `La junta multa a tu escudería con ${(MULTA_SANCION / 1000).toFixed(0)}.000 €.` : `${o.nombre} saldrá 5 puestos más atrás en su próxima carrera.` });
         }
     }
-    await ctx.store.merge('config/juego', { normas });
-    ctx.cfg.normas = normas;
+    await ctx.store.merge('config/juego', { normas, juntaCierra: null });
+    ctx.cfg.normas = normas; ctx.cfg.juntaCierra = null;
     ctx.ops.push({ op: 'merge', path: `juntas/${j.id}`, data: { estado: 'cerrada', cerrada: ctx.ahora, resultados, rebeldes: rebeldes.length, votantes: ids.length } });
     const resumen = resultados.map(r => `${j.temas.find(t => t.id === r.tema).titulo}: ${r.texto.toLowerCase()}`).join(' · ');
     noticia(ctx, { titulo: `La junta de pilotos decide`, texto: `${resumen}. Votaron ${ids.length} pilotos y la FIA (${VOTOS_FIA} votos). ${rebeldes.length ? `${rebeldes.length} votos fueron contra la consigna de su mánager.` : ''} Entra en vigor desde la próxima sesión.`, tipo: 'fase' });

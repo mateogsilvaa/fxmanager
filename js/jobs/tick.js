@@ -40,24 +40,30 @@ const M = (v) => `${(v / 1e6).toFixed(2).replace('.', ',')} M€`;
 
 // precarga: {eventos, equipos, privs} ya leídos (el worker continuo los mantiene con listeners y así no gasta lecturas)
 // push: función (sub, payload) => 'ok' | 'caducada' | 'error' para los avisos en el móvil (solo el worker la tiene)
-export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker', log = console.log, forzar = false, precarga = null, extra = {}, push = null } = {}) {
+// solo: lista de pasos a ejecutar (vía rápida para lo que hace un jugador: responder una llamada, mejorar el coche…).
+// En la vía rápida no se bloquea el ciclo ni se lee nada que el worker ya tenga escuchando (precarga con cfg y secreto).
+export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker', log = console.log, forzar = false, precarga = null, extra = {}, push = null, solo = null } = {}) {
     const inicio = Date.now();
-    const cfg = await store.get('config/juego');
+    const rapido = Array.isArray(solo) && !!precarga?.cfg && !!precarga?.secreto;
+    const cfg = rapido ? structuredClone(precarga.cfg) : await store.get('config/juego');
     if (!cfg) { log('No existe config/juego: inicializa la temporada desde el panel admin.'); return { ok: false }; }
-    if (!forzar && cfg.tick?.enCurso && ahora - cfg.tick.enCurso < 8 * 60_000) {
-        log('Otro ciclo está en marcha, se omite.'); return { ok: false, omitido: true };
+    if (!rapido) {
+        if (!forzar && cfg.tick?.enCurso && ahora - cfg.tick.enCurso < 8 * 60_000) {
+            log('Otro ciclo está en marcha, se omite.'); return { ok: false, omitido: true };
+        }
+        await store.merge('config/juego', { tick: { ...(cfg.tick || {}), enCurso: ahora } });
     }
-    await store.merge('config/juego', { tick: { ...(cfg.tick || {}), enCurso: ahora } });
 
-    let secreto = (await store.get('secreto/juego'))?.clave;
+    let secreto = rapido ? precarga.secreto : (await store.get('secreto/juego'))?.clave;
     if (!secreto) {
         secreto = Array.from({ length: 4 }, () => Math.random().toString(36).slice(2)).join('');
         await store.set('secreto/juego', { clave: secreto });
     }
     const ctx = crearContexto(store, { ahora, log });
     ctx.cfg = cfg; ctx.secreto = secreto; ctx.temporada = cfg.temporada || 1;
-    ctx.sombra = await store.get('secreto/sombra');
+    ctx.sombra = rapido ? (precarga.sombra ?? null) : await store.get('secreto/sombra');
     ctx.push = push;
+    ctx.pre = precarga;   // listas que el worker ya escucha en tiempo real (para no consultar si están vacías)
     if (precarga) {
         const copia = (v) => structuredClone(v);
         if (precarga.eventos) ctx.eventos = precarga.eventos.filter(e => e.temporada === ctx.temporada).map(copia);
@@ -65,13 +71,22 @@ export async function ejecutarTick(store, { ahora = Date.now(), origen = 'worker
         if (precarga.privs) ctx.privs = Object.fromEntries(precarga.privs.map(e => [e.id, copia(e)]));
     }
 
-    const pasos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarGestion, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, procesarLlamadas, procesarJuntas, diario, transicionesFase, actualizarMercadoAbierto, recordatorios, avisosOrganizacion, autoTemporada];
+    const todos = [sanearInscripciones, managersIA, simularPendientes, publicarPendientes, procesarGestion, procesarAcciones, completarProyectos, procesarDecisiones, procesarPrensa, procesarLlamadas, procesarJuntas, diario, transicionesFase, actualizarMercadoAbierto, recordatorios, avisosOrganizacion, autoTemporada];
+    const pasos = rapido ? todos.filter(p => solo.includes(p.name)) : todos;
     const errores = [];
     for (const paso of pasos) {
+        const t0 = Date.now();
         try { await paso(ctx); await volcar(ctx); }
         catch (e) { errores.push(`${paso.name}: ${e.message}`); log(`ERROR en ${paso.name}: ${e.stack || e}`); }
+        // Chivato de lentitud: lo que tarde más de 2,5 s queda anotado y se ve en Control → Estado
+        if (Date.now() - t0 > 2500) ctx.nota(`Paso lento: ${paso.name} ${((Date.now() - t0) / 1000).toFixed(1)} s`);
     }
-    if (ctx.catalogoSucio) await reconstruirCatalogo(store, ctx.cfg);
+    // Reconstruir el catálogo público cuesta ~300 lecturas. Las respuestas a llamadas, decisiones y prensa solo mueven
+    // fans y reputación: el worker las agrupa y lo reconstruye una vez cada pocos segundos ('__catalogo').
+    const diferible = rapido && !solo.includes('__catalogo') && solo.every(s => ['procesarLlamadas', 'procesarDecisiones', 'procesarPrensa'].includes(s));
+    if (ctx.catalogoSucio && diferible) return { ok: errores.length === 0, errores, duracionMs: Date.now() - inicio, rapido: true, catalogoSucio: true };
+    if (ctx.catalogoSucio || (rapido && solo.includes('__catalogo'))) await reconstruirCatalogo(store, ctx.cfg);
+    if (rapido) return { ok: errores.length === 0, errores, duracionMs: Date.now() - inicio, rapido: true };
 
     const resumenTick = {
         ...extra, ultimo: ahora, origen, duracionMs: Date.now() - inicio, enCurso: null,
@@ -323,6 +338,7 @@ async function tablaLiga(ctx, liga) {
 
 // Respuestas (o silencios) de la prensa: fans, moral y declaraciones publicadas
 async function procesarPrensa(ctx) {
+    if (ctx.pre && !ctx.pre.prensa?.length) return;
     const pendientes = await ctx.store.list('prensa', [['aplicada', '==', false]]);
     const aplicar = pendientes.filter(d => d.eleccion || d.expira <= ctx.ahora);
     if (!aplicar.length) return;
@@ -439,6 +455,7 @@ async function recordatorios(ctx) {
 async function avisosOrganizacion(ctx) {
     // Los avisos de la organización son globales: solo los envía el ciclo de la partida original
     if (!ctx.push || ctx.cfg?.partida) return;
+    if (ctx.pre && !ctx.pre.avisos?.length) return;
     const cola = await ctx.store.list('avisos_admin', [['estado', '==', 'pendiente']]);
     if (!cola.length) return;
     const docs = (await ctx.store.list('suscripciones')).filter(d => d.subs?.length);
@@ -866,6 +883,7 @@ async function cerrarEvento(ctx, ev) {
 // 3. Acciones de los mánagers
 // ======================================================================
 async function procesarAcciones(ctx) {
+    if (ctx.pre && !ctx.pre.acciones?.length) return;
     const acciones = await ctx.store.list('acciones', [['estado', '==', 'pendiente']]);
     if (!acciones.length) return;
     const equipos = await cargarEquipos(ctx);
@@ -1363,6 +1381,7 @@ async function informeEspionaje(ctx, eq, p, rng) {
 // 5. Decisiones del día
 // ======================================================================
 async function procesarDecisiones(ctx) {
+    if (ctx.pre && !ctx.pre.decisiones?.length) return;
     const pendientes = await ctx.store.list('decisiones', [['aplicada', '==', false]]);
     const aplicar = pendientes.filter(d => d.eleccion || d.expira <= ctx.ahora);
     if (!aplicar.length) return;
