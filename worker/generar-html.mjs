@@ -1,5 +1,5 @@
 // Genera las páginas HTML (todas con la misma estructura). Uso: node worker/generar-html.mjs
-import { writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { writeFileSync, readFileSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { dirname, join, relative } from 'node:path';
@@ -102,7 +102,6 @@ const PAGINAS = {
     partida: ['Gestionar la partida · FX Manager', 'partida'],
 };
 const icono = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#ff4d2e"/><text x="32" y="44" font-family="Arial Black,Arial" font-weight="900" font-size="30" text-anchor="middle" fill="#fff">X1</text></svg>')}`;
-rmSync(join(RAIZ, 'dist'), { recursive: true, force: true });
 const paginas = [...new Set(Object.values(PAGINAS).map(([, js]) => js))];
 const { metafile } = await build({
     entryPoints: Object.fromEntries(paginas.map(js => [js, `js/pages/${js}.js`])),
@@ -110,6 +109,14 @@ const { metafile } = await build({
     bundle: true, splitting: true, format: 'esm', platform: 'browser', target: ['es2022'],
     minify: true, metafile: true, legalComments: 'none', logLevel: 'warning',
 });
+// Los archivos de versiones anteriores se conservan 7 días: quien tenga en caché un HTML viejo (GitHub Pages lo
+// guarda 10 min) sigue encontrando sus archivos
+for (const sub of ['dist', 'dist/c']) {
+    for (const n of readdirSync(join(RAIZ, sub))) {
+        const p = join(RAIZ, sub, n), rel = `${sub}/${n}`;
+        if (n.endsWith('.js') && !metafile.outputs[rel] && Date.now() - statSync(p).mtimeMs > 7 * 864e5) rmSync(p);
+    }
+}
 // Archivo de entrada de cada página y todos los trozos que necesita para arrancar (para pedirlos a la vez, sin
 // cascada): los que importa, los que importan esos… y Firebase, que se carga bajo demanda pero siempre hace falta.
 const salidas = {};
