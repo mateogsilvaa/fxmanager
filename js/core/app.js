@@ -65,7 +65,7 @@ export function iniciar() {
             let guardado = null;
             try { guardado = JSON.parse(sessionStorage.getItem('fx-demo-estado')); } catch { }
             if (!guardado) {
-                const demo = await (await fetch(new URL(`../../data/${FICHEROS_DEMO[demoActivo] || 'demo.json'}`, import.meta.url))).json();
+                const demo = await (await fetch(new URL(`data/${FICHEROS_DEMO[demoActivo] || 'demo.json'}`, location.href))).json();
                 guardado = { offset: demo.ahora - Date.now(), datos: demo.datos };
             }
             _offset = guardado.offset;

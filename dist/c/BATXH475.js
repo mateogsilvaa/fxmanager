@@ -1,0 +1,1 @@
+var a={apiKey:"AIzaSyAE1PLVdULmXqkscQb9jK8gAkXbjIBETbk",authDomain:"fxmanager-c5868.firebaseapp.com",projectId:"fxmanager-c5868",storageBucket:"fxmanager-c5868.appspot.com",messagingSenderId:"652487009924",appId:"1:652487009924:web:c976804d6b48c4dda004d1"},e="BESzpHC1dCHYHVDxn7aHAn4rgvmkXX7q-aE6M8ZE4PBxBqnWqun7Ooevs_ZWyevC4m5xGeZwavGVlyHqi56ok2M";export{a,e as b};

@@ -1,30 +1,15 @@
 // Genera las páginas HTML (todas con la misma estructura). Uso: node worker/generar-html.mjs
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Todos los módulos que necesita una página (import estáticos y dinámicos), para precargarlos a la vez
-// en vez de que el navegador los descubra uno a uno en cascada.
-// Cada módulo lleva ?v=<hash de su contenido> (mapa de importación): así, tras subir una versión nueva, el navegador
-// nunca mezcla archivos viejos de la caché con archivos nuevos, y los que no han cambiado se reutilizan de la caché.
+// Cada página se empaqueta (esbuild) en un solo archivo con Firebase dentro, en dist/: una descarga en vez de ~45
+// módulos sueltos + el SDK desde otro dominio + mapa de importación. Las partes comunes y las que se cargan bajo
+// demanda van en trozos compartidos (dist/c/). El nombre lleva el hash del contenido: tras subir una versión nueva
+// el navegador nunca mezcla archivos viejos y nuevos, y lo que no cambia se reutiliza de la caché.
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
-function grafo(entrada) {
-    const vistos = new Set();
-    const pila = [join(RAIZ, entrada)];
-    while (pila.length) {
-        const f = pila.pop();
-        if (vistos.has(f)) continue;
-        vistos.add(f);
-        let src = '';
-        try { src = readFileSync(f, 'utf8'); } catch { continue; }
-        for (const m of src.matchAll(/^\s*(?:import|export)\s[^'"`;]*?from\s*['"](\.{1,2}\/[^'"]+)['"]/gm)) pila.push(join(dirname(f), m[1]));
-        for (const m of src.matchAll(/^\s*import\s*['"](\.{1,2}\/[^'"]+)['"]/gm)) pila.push(join(dirname(f), m[1]));
-        for (const m of src.matchAll(/import\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g)) pila.push(join(dirname(f), m[1]));
-    }
-    return [...vistos].map(f => relative(RAIZ, f).replace(/\\/g, '/'));
-}
-const FB = '10.12.2';
 const hashes = new Map();
 const version = (ruta) => {
     if (!hashes.has(ruta)) hashes.set(ruta, createHash('sha1').update(readFileSync(join(RAIZ, ruta))).digest('hex').slice(0, 8));
@@ -117,9 +102,33 @@ const PAGINAS = {
     partida: ['Gestionar la partida · FX Manager', 'partida'],
 };
 const icono = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#ff4d2e"/><text x="32" y="44" font-family="Arial Black,Arial" font-weight="900" font-size="30" text-anchor="middle" fill="#fff">X1</text></svg>')}`;
+rmSync(join(RAIZ, 'dist'), { recursive: true, force: true });
+const paginas = [...new Set(Object.values(PAGINAS).map(([, js]) => js))];
+const { metafile } = await build({
+    entryPoints: Object.fromEntries(paginas.map(js => [js, `js/pages/${js}.js`])),
+    absWorkingDir: RAIZ, outdir: 'dist', entryNames: '[name]-[hash]', chunkNames: 'c/[hash]',
+    bundle: true, splitting: true, format: 'esm', platform: 'browser', target: ['es2022'],
+    minify: true, metafile: true, legalComments: 'none', logLevel: 'warning',
+});
+// Archivo de entrada de cada página y todos los trozos que necesita para arrancar (para pedirlos a la vez, sin
+// cascada): los que importa, los que importan esos… y Firebase, que se carga bajo demanda pero siempre hace falta.
+const salidas = {};
+const ruta = (p) => p.replace(/\\/g, '/');
+const esFirebase = (o) => Object.keys(metafile.outputs[o]?.inputs || {}).some(i => /node_modules\/(@firebase|firebase)\//.test(i));
+for (const [out, info] of Object.entries(metafile.outputs)) {
+    if (!info.entryPoint) continue;
+    const js = info.entryPoint.split('/').pop().replace(/\.js$/, '');
+    const trozos = new Set(), pila = [out];
+    while (pila.length) {
+        for (const i of metafile.outputs[pila.pop()].imports) {
+            if (trozos.has(i.path) || i.external) continue;
+            if (i.kind === 'import-statement' || (i.kind === 'dynamic-import' && esFirebase(i.path))) { trozos.add(i.path); pila.push(i.path); }
+        }
+    }
+    salidas[js] = { entrada: ruta(out), trozos: [...trozos].map(ruta) };
+}
 for (const [archivo, [titulo, js]] of Object.entries(PAGINAS)) {
-    const modulos = grafo(`js/pages/${js}.js`);
-    const mapa = Object.fromEntries(modulos.map(m => [`./${m}`, `./${m}?v=${version(m)}`]));
+    const { entrada, trozos } = salidas[js];
     writeFileSync(new URL(`../${archivo}.html`, import.meta.url), `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -139,26 +148,13 @@ for (const [archivo, [titulo, js]] of Object.entries(PAGINAS)) {
     <noscript><link rel="stylesheet" href="${FUENTES}"></noscript>
     <link rel="stylesheet" href="css/app.css?v=${version('css/app.css')}">
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/${FB}/firebase-app.js">
-    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/${FB}/firebase-auth.js">
-    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/${FB}/firebase-firestore.js">
-${modulos.map(m => `    <link rel="modulepreload" href="${m}?v=${version(m)}">`).join('\n')}
-    <script type="importmap">
-    {
-        "imports": {
-            ${Object.entries(mapa).map(([k, v]) => `"${k}": "${v}"`).join(',\n            ')},
-            "firebase/app": "https://www.gstatic.com/firebasejs/${FB}/firebase-app.js",
-            "firebase/auth": "https://www.gstatic.com/firebasejs/${FB}/firebase-auth.js",
-            "firebase/firestore": "https://www.gstatic.com/firebasejs/${FB}/firebase-firestore.js"
-        }
-    }
-    </script>
+${trozos.map(t => `    <link rel="modulepreload" href="${t}">`).join('\n')}
 </head>
 <body>
     <header id="cabecera"></header>
     <main id="main"><div class="cargando"><span class="spinner"></span>Cargando…</div></main>
     ${VIGILANTE}
-    <script type="module" src="js/pages/${js}.js?v=${version(`js/pages/${js}.js`)}"></script>
+    <script type="module" src="${entrada}"></script>
 </body>
 </html>
 `);
