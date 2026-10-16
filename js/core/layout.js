@@ -19,6 +19,7 @@ const paginaActual = () => location.pathname.split('/').pop() || 'index.html';
 export const soloPublico = () => !PARTIDA && !DEMO && !esMiembroOriginal();
 
 export async function montar({ activo = '', liga = null } = {}) {
+    globalThis.__fx?.fase('página');
     await iniciar();
     globalThis.__fx?.fase('arranque');
     if (soloPublico() && !PAGINAS_PUBLICAS.includes(paginaActual())) {

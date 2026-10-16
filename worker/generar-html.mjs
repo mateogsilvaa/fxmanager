@@ -37,15 +37,34 @@ const FUENTES = 'https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;60
 // termina, la página lo sustituye) y, al acabar, las cargas lentas se guardan en Control → Errores.
 const VIGILANTE = `<script>
 (function () {
-    var fx = window.__fx = { t0: Date.now(), fases: [], vuelo: {}, lentas: [], n: 0 };
+    // t0 = cuando se pidió la página (no cuando llega este script): así se ve también lo que tarda el HTML
+    var fx = window.__fx = { t0: Math.round(performance.timeOrigin || Date.now()), fases: [], vuelo: {}, lentas: [], n: 0 };
     fx.fase = function (n) { fx.fases.push([n, Date.now() - fx.t0]); };
+    fx.fase('html');
     var s = function (ms) { return (ms / 1000).toFixed(1) + ' s'; };
+    var corto = function (u) { return u.split('/').pop().split('?')[0] || u; };
+    // Red: archivos de la web que aún no han llegado y los más lentos de los que sí
+    fx.red = function () {
+        try {
+            var hechos = {}, lentos = [];
+            performance.getEntriesByType('resource').forEach(function (r) {
+                hechos[r.name.split('?')[0]] = 1;
+                if (r.duration > 1500) lentos.push(corto(r.name) + ' ' + s(r.duration) + (r.transferSize ? '' : ' (caché)'));
+            });
+            var faltan = [].slice.call(document.querySelectorAll('link[rel=modulepreload], script[src]')).map(function (l) { return (l.href || l.src).split('?')[0]; })
+                .filter(function (u) { return !hechos[u]; }).map(corto);
+            var nav = performance.getEntriesByType('navigation')[0];
+            return 'HTML: ' + (nav ? s(nav.responseEnd) : '?') + ' · archivos: ' + Object.keys(hechos).length + '\\n' +
+                'Sin llegar: ' + (faltan.slice(0, 10).join(', ') || 'ninguno') + '\\n' +
+                'Lentos: ' + (lentos.slice(0, 8).join(' · ') || 'ninguno');
+        } catch (e) { return 'Red: ?'; }
+    };
     fx.diag = function () {
         var ahora = Date.now(), v = [];
         for (var k in fx.vuelo) v.push(fx.vuelo[k][0] + ' (' + s(ahora - fx.vuelo[k][1]) + ')');
         return location.pathname.split('/').pop() + ' · ' + s(ahora - fx.t0) + '\\n' +
             'Fases: ' + (fx.fases.map(function (f) { return f[0] + ' ' + s(f[1]); }).join(' · ') || 'ninguna') + '\\n' +
-            'Esperando: ' + (v.join(' · ') || 'nada de Firestore') + '\\n' +
+            'Esperando: ' + (v.join(' · ') || 'nada de Firestore') + '\\n' + fx.red() + '\\n' +
             (fx.lentas.length ? 'Lentas: ' + fx.lentas.slice(-8).map(function (l) { return l[0] + ' ' + s(l[1]); }).join(' · ') + '\\n' : '') +
             'Conexión: ' + (navigator.onLine ? 'sí' : 'NO') + (navigator.connection ? ' ' + navigator.connection.effectiveType : '');
     };

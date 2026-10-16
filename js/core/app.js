@@ -42,6 +42,7 @@ function registrarErrorWeb(texto) {
 // Diagnóstico de carga (lo crea el HTML): fases del arranque y aviso de cargas lentas
 const FX = globalThis.__fx || null;
 const fase = (n) => { FX?.fase(n); };
+fase('módulos');
 if (FX) FX.reportar = (texto) => { erroresEnviados = Math.min(erroresEnviados, 4); registrarErrorWeb(texto); };
 addEventListener('error', (e) => registrarErrorWeb(`${e.message} @ ${(e.filename || '').split('/').pop()}:${e.lineno}`));
 addEventListener('unhandledrejection', (e) => registrarErrorWeb(`Promesa: ${e.reason?.stack || e.reason}`));
