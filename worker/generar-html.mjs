@@ -32,24 +32,48 @@ const version = (ruta) => {
 };
 // Las tipografías se cargan sin bloquear el pintado de la página (antes iban con @import dentro del CSS)
 const FUENTES = 'https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&family=Space+Mono:wght@400;700&display=swap';
-// Si la página se queda en "Cargando…" (red, caché antigua, un módulo que no baja) se avisa con un botón para recargar
+// Diagnóstico de carga: cada fase (módulos, sesión, perfil, datos…) y cada lectura de Firestore en curso quedan
+// apuntadas en window.__fx. Si la página tarda, se enseña en qué se ha atascado (sin quitar la carga: cuando
+// termina, la página lo sustituye) y, al acabar, las cargas lentas se guardan en Control → Errores.
 const VIGILANTE = `<script>
 (function () {
+    var fx = window.__fx = { t0: Date.now(), fases: [], vuelo: {}, lentas: [], n: 0 };
+    fx.fase = function (n) { fx.fases.push([n, Date.now() - fx.t0]); };
+    var s = function (ms) { return (ms / 1000).toFixed(1) + ' s'; };
+    fx.diag = function () {
+        var ahora = Date.now(), v = [];
+        for (var k in fx.vuelo) v.push(fx.vuelo[k][0] + ' (' + s(ahora - fx.vuelo[k][1]) + ')');
+        return location.pathname.split('/').pop() + ' · ' + s(ahora - fx.t0) + '\\n' +
+            'Fases: ' + (fx.fases.map(function (f) { return f[0] + ' ' + s(f[1]); }).join(' · ') || 'ninguna') + '\\n' +
+            'Esperando: ' + (v.join(' · ') || 'nada de Firestore') + '\\n' +
+            (fx.lentas.length ? 'Lentas: ' + fx.lentas.slice(-8).map(function (l) { return l[0] + ' ' + s(l[1]); }).join(' · ') + '\\n' : '') +
+            'Conexión: ' + (navigator.onLine ? 'sí' : 'NO') + (navigator.connection ? ' ' + navigator.connection.effectiveType : '');
+    };
+    var cargando = function () { var m = document.getElementById('main'); return m && m.children.length && m.querySelector(':scope > .cargando, :scope > .vig-caja') && m.children.length <= 2; };
     function aviso(motivo) {
         var m = document.getElementById('main');
-        if (!m || !m.querySelector('.cargando') || m.children.length !== 1) return;
-        m.innerHTML = '<div class="caja-auth tarjeta"><h1>Esto está tardando más de lo normal</h1><p class="muted">' + motivo + '</p>' +
-            '<div class="fila"><button class="btn" id="vig-recargar">Recargar</button><button class="btn btn-sec" id="vig-limpiar">Limpiar la caché y recargar</button></div></div>';
+        if (!cargando() || document.getElementById('vig-caja')) return;
+        var c = document.createElement('div');
+        c.id = 'vig-caja'; c.className = 'vig-caja caja-auth tarjeta';
+        c.innerHTML = '<h2 style="margin-top:0">Esto está tardando más de lo normal</h2><p class="muted">' + motivo + '</p>' +
+            '<pre id="vig-diag" style="white-space:pre-wrap;font-size:12px;line-height:1.45;margin:10px 0"></pre>' +
+            '<div class="fila"><button class="btn" id="vig-recargar">Recargar</button><button class="btn btn-sec" id="vig-copiar">Copiar diagnóstico</button></div>';
+        m.appendChild(c);
+        var pintar = function () { var d = document.getElementById('vig-diag'); if (!d) return clearInterval(t); d.textContent = fx.diag(); };
+        var t = setInterval(pintar, 1000); pintar();
         document.getElementById('vig-recargar').onclick = function () { location.reload(); };
-        document.getElementById('vig-limpiar').onclick = function () {
-            try { Object.keys(localStorage).filter(function (k) { return /^fx(res)?:/.test(k); }).forEach(function (k) { localStorage.removeItem(k); }); sessionStorage.removeItem('fx-demo-estado'); } catch (e) { }
-            if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
-            location.reload();
-        };
+        document.getElementById('vig-copiar').onclick = function (e) { try { navigator.clipboard.writeText(fx.diag()); e.target.textContent = 'Copiado'; } catch (x) { } };
     }
-    setTimeout(function () { aviso('Puede ser tu conexión o una versión antigua guardada en el navegador.'); }, 12000);
+    setTimeout(function () { aviso('Te dejamos aquí en qué se ha quedado esperando. La página sigue cargando sola.'); }, 10000);
+    // Cuando la página termina de pintar, si ha tardado, se guarda el diagnóstico (Control → Errores)
+    var vig = setInterval(function () {
+        if (cargando() || !document.getElementById('main')) return;
+        clearInterval(vig); fx.fase('pintada');
+        var total = Date.now() - fx.t0;
+        if (total > 6000 && fx.reportar) fx.reportar('Carga lenta (' + s(total) + ')\\n' + fx.diag());
+    }, 250);
     // Un módulo de la web que no se descarga: se avisa al momento
-    addEventListener('error', function (e) { if (e.target && e.target.tagName === 'SCRIPT') setTimeout(function () { aviso('No se ha podido descargar parte de la web. Recarga para intentarlo de nuevo.'); }, 800); }, true);
+    addEventListener('error', function (e) { if (e.target && e.target.tagName === 'SCRIPT') { fx.fase('falló ' + (e.target.src || '').split('/').pop()); setTimeout(function () { aviso('No se ha podido descargar parte de la web. Recarga para intentarlo de nuevo.'); }, 800); } }, true);
 })();
 </script>`;
 const PAGINAS = {

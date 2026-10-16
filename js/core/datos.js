@@ -76,6 +76,7 @@ export async function cargarDatos() {
             if (r) { r.id = sid; compactas.push(compactar(r)); } else procesando.push(sid);
         } catch { procesando.push(sid); }
     }));
+    globalThis.__fx?.fase('datos');
     return new Datos(cfg || {}, cat || { equipos: {}, pilotos: {}, eventos: {} }, compactas.map(descompactar), vivos, procesando);
 }
 

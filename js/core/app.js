@@ -39,6 +39,10 @@ function registrarErrorWeb(texto) {
         uid: _usuario?.uid || null, t: Date.now(), ua: navigator.userAgent.slice(0, 300),
     }).catch(() => { });
 }
+// Diagnóstico de carga (lo crea el HTML): fases del arranque y aviso de cargas lentas
+const FX = globalThis.__fx || null;
+const fase = (n) => { FX?.fase(n); };
+if (FX) FX.reportar = (texto) => { erroresEnviados = Math.min(erroresEnviados, 4); registrarErrorWeb(texto); };
 addEventListener('error', (e) => registrarErrorWeb(`${e.message} @ ${(e.filename || '').split('/').pop()}:${e.lineno}`));
 addEventListener('unhandledrejection', (e) => registrarErrorWeb(`Promesa: ${e.reason?.stack || e.reason}`));
 
@@ -79,6 +83,7 @@ export function iniciar() {
         const [{ initializeApp }, authMod, fsMod, { FirestoreStore }, { FIREBASE_CONFIG }] = await Promise.all([
             import('firebase/app'), import('firebase/auth'), import('firebase/firestore'), import('./store.js'), import('../config.js'),
         ]);
+        fase('firebase');
         const app = initializeApp(FIREBASE_CONFIG);
         _auth = authMod.getAuth(app);
         _fb = { ...authMod, ...fsMod };
@@ -104,7 +109,9 @@ export function iniciar() {
                 if (perfil) guardarPerfil(u.uid, perfil);
                 return perfil;
             };
+            if (FX) FX.vuelo.auth = ['sesión (Firebase Auth)', Date.now()];
             authMod.onAuthStateChanged(_auth, async (u) => {
+                if (primera && FX) { delete FX.vuelo.auth; fase(u ? 'sesión' : 'sin sesión'); }
                 if (u) {
                     // El perfil de la visita anterior sirve para pintar ya; el del servidor llega en segundo plano
                     const guardado = perfilGuardado(u.uid);
@@ -123,7 +130,7 @@ export function iniciar() {
                     if (PARTIDA) { _miembro = await _store.get(`miembros/${u.uid}`).catch(() => null); _usuario.perfil = adaptarPerfil(_usuario.perfil); }
                     else await sombraAdmin(u.uid);
                 } else _usuario = null;
-                if (primera) { primera = false; res(); } else oyentes.forEach(f => f(_usuario));
+                if (primera) { primera = false; fase('perfil'); res(); } else oyentes.forEach(f => f(_usuario));
             });
         });
     })();
@@ -261,7 +268,8 @@ export function escuchar(path, cb) {
         f();
         return () => { vivo = false; };
     }
-    return _fb.onSnapshot(_fb.doc(_store.db, ruta(path)), s => cb(s.exists() ? { id: s.id, ...s.data() } : null), () => { });
+    const fin = vigilarEscucha(path);
+    return _fb.onSnapshot(_fb.doc(_store.db, ruta(path)), s => { fin(); cb(s.exists() ? { id: s.id, ...s.data() } : null); }, (e) => { fin(); console.warn('escuchar', path, e.code); });
 }
 export function escucharConsulta(coll, filtros, cb) {
     if (DEMO || !_fb) {
@@ -271,5 +279,12 @@ export function escucharConsulta(coll, filtros, cb) {
         return () => { vivo = false; };
     }
     const q = _fb.query(_fb.collection(_store.db, ruta(coll)), ...filtros.map(([c, o, v]) => _fb.where(c, o, v)));
-    return _fb.onSnapshot(q, s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), () => { });
+    const fin = vigilarEscucha(coll);
+    return _fb.onSnapshot(q, s => { fin(); cb(s.docs.map(d => ({ id: d.id, ...d.data() }))); }, (e) => { fin(); console.warn('escuchar', coll, e.code); });
+}
+function vigilarEscucha(etiqueta) {
+    if (!FX) return () => { };
+    const id = 'e' + (++FX.n), t = Date.now();
+    FX.vuelo[id] = ['en vivo ' + etiqueta, t];
+    return () => { if (!FX.vuelo[id]) return; delete FX.vuelo[id]; const ms = Date.now() - t; if (ms > 3000) FX.lentas.push(['en vivo ' + etiqueta, ms]); };
 }

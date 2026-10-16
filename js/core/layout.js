@@ -20,6 +20,7 @@ export const soloPublico = () => !PARTIDA && !DEMO && !esMiembroOriginal();
 
 export async function montar({ activo = '', liga = null } = {}) {
     await iniciar();
+    globalThis.__fx?.fase('arranque');
     if (soloPublico() && !PAGINAS_PUBLICAS.includes(paginaActual())) {
         // Los registrados van a sus partidas; los visitantes, a la landing. Esta página no sigue cargando.
         location.replace(usuario() ? 'partidas.html' : 'descubre.html');

@@ -29,15 +29,15 @@
     <link rel="modulepreload" href="js/engine/neumaticos.js?v=f86fb7e1">
     <link rel="modulepreload" href="js/engine/juntas.js?v=cdd9da56">
     <link rel="modulepreload" href="js/core/componentes.js?v=0986ed83">
-    <link rel="modulepreload" href="js/core/app.js?v=ea3c25ae">
+    <link rel="modulepreload" href="js/core/app.js?v=afc6e71b">
     <link rel="modulepreload" href="js/config.js?v=b3e3cc46">
-    <link rel="modulepreload" href="js/core/store.js?v=ded4e8d7">
+    <link rel="modulepreload" href="js/core/store.js?v=b17a9041">
     <link rel="modulepreload" href="js/core/partida-store.js?v=73f3debe">
     <link rel="modulepreload" href="js/core/memstore.js?v=2f2c7cf2">
     <link rel="modulepreload" href="js/core/ui.js?v=1c591241">
-    <link rel="modulepreload" href="js/core/datos.js?v=8f907566">
+    <link rel="modulepreload" href="js/core/datos.js?v=bcb95d71">
     <link rel="modulepreload" href="js/engine/rating.js?v=9f90f144">
-    <link rel="modulepreload" href="js/core/layout.js?v=c01953f0">
+    <link rel="modulepreload" href="js/core/layout.js?v=f75defdc">
     <link rel="modulepreload" href="js/core/avisos.js?v=0f90f3d0">
     <link rel="modulepreload" href="js/core/llamada-ui.js?v=cd83ced3">
     <link rel="modulepreload" href="js/engine/llamadas.js?v=b466df18">
@@ -54,15 +54,15 @@
             "./js/engine/neumaticos.js": "./js/engine/neumaticos.js?v=f86fb7e1",
             "./js/engine/juntas.js": "./js/engine/juntas.js?v=cdd9da56",
             "./js/core/componentes.js": "./js/core/componentes.js?v=0986ed83",
-            "./js/core/app.js": "./js/core/app.js?v=ea3c25ae",
+            "./js/core/app.js": "./js/core/app.js?v=afc6e71b",
             "./js/config.js": "./js/config.js?v=b3e3cc46",
-            "./js/core/store.js": "./js/core/store.js?v=ded4e8d7",
+            "./js/core/store.js": "./js/core/store.js?v=b17a9041",
             "./js/core/partida-store.js": "./js/core/partida-store.js?v=73f3debe",
             "./js/core/memstore.js": "./js/core/memstore.js?v=2f2c7cf2",
             "./js/core/ui.js": "./js/core/ui.js?v=1c591241",
-            "./js/core/datos.js": "./js/core/datos.js?v=8f907566",
+            "./js/core/datos.js": "./js/core/datos.js?v=bcb95d71",
             "./js/engine/rating.js": "./js/engine/rating.js?v=9f90f144",
-            "./js/core/layout.js": "./js/core/layout.js?v=c01953f0",
+            "./js/core/layout.js": "./js/core/layout.js?v=f75defdc",
             "./js/core/avisos.js": "./js/core/avisos.js?v=0f90f3d0",
             "./js/core/llamada-ui.js": "./js/core/llamada-ui.js?v=cd83ced3",
             "./js/engine/llamadas.js": "./js/engine/llamadas.js?v=b466df18",
@@ -79,21 +79,43 @@
     <main id="main"><div class="cargando"><span class="spinner"></span>Cargando…</div></main>
     <script>
 (function () {
+    var fx = window.__fx = { t0: Date.now(), fases: [], vuelo: {}, lentas: [], n: 0 };
+    fx.fase = function (n) { fx.fases.push([n, Date.now() - fx.t0]); };
+    var s = function (ms) { return (ms / 1000).toFixed(1) + ' s'; };
+    fx.diag = function () {
+        var ahora = Date.now(), v = [];
+        for (var k in fx.vuelo) v.push(fx.vuelo[k][0] + ' (' + s(ahora - fx.vuelo[k][1]) + ')');
+        return location.pathname.split('/').pop() + ' · ' + s(ahora - fx.t0) + '\n' +
+            'Fases: ' + (fx.fases.map(function (f) { return f[0] + ' ' + s(f[1]); }).join(' · ') || 'ninguna') + '\n' +
+            'Esperando: ' + (v.join(' · ') || 'nada de Firestore') + '\n' +
+            (fx.lentas.length ? 'Lentas: ' + fx.lentas.slice(-8).map(function (l) { return l[0] + ' ' + s(l[1]); }).join(' · ') + '\n' : '') +
+            'Conexión: ' + (navigator.onLine ? 'sí' : 'NO') + (navigator.connection ? ' ' + navigator.connection.effectiveType : '');
+    };
+    var cargando = function () { var m = document.getElementById('main'); return m && m.children.length && m.querySelector(':scope > .cargando, :scope > .vig-caja') && m.children.length <= 2; };
     function aviso(motivo) {
         var m = document.getElementById('main');
-        if (!m || !m.querySelector('.cargando') || m.children.length !== 1) return;
-        m.innerHTML = '<div class="caja-auth tarjeta"><h1>Esto está tardando más de lo normal</h1><p class="muted">' + motivo + '</p>' +
-            '<div class="fila"><button class="btn" id="vig-recargar">Recargar</button><button class="btn btn-sec" id="vig-limpiar">Limpiar la caché y recargar</button></div></div>';
+        if (!cargando() || document.getElementById('vig-caja')) return;
+        var c = document.createElement('div');
+        c.id = 'vig-caja'; c.className = 'vig-caja caja-auth tarjeta';
+        c.innerHTML = '<h2 style="margin-top:0">Esto está tardando más de lo normal</h2><p class="muted">' + motivo + '</p>' +
+            '<pre id="vig-diag" style="white-space:pre-wrap;font-size:12px;line-height:1.45;margin:10px 0"></pre>' +
+            '<div class="fila"><button class="btn" id="vig-recargar">Recargar</button><button class="btn btn-sec" id="vig-copiar">Copiar diagnóstico</button></div>';
+        m.appendChild(c);
+        var pintar = function () { var d = document.getElementById('vig-diag'); if (!d) return clearInterval(t); d.textContent = fx.diag(); };
+        var t = setInterval(pintar, 1000); pintar();
         document.getElementById('vig-recargar').onclick = function () { location.reload(); };
-        document.getElementById('vig-limpiar').onclick = function () {
-            try { Object.keys(localStorage).filter(function (k) { return /^fx(res)?:/.test(k); }).forEach(function (k) { localStorage.removeItem(k); }); sessionStorage.removeItem('fx-demo-estado'); } catch (e) { }
-            if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
-            location.reload();
-        };
+        document.getElementById('vig-copiar').onclick = function (e) { try { navigator.clipboard.writeText(fx.diag()); e.target.textContent = 'Copiado'; } catch (x) { } };
     }
-    setTimeout(function () { aviso('Puede ser tu conexión o una versión antigua guardada en el navegador.'); }, 12000);
+    setTimeout(function () { aviso('Te dejamos aquí en qué se ha quedado esperando. La página sigue cargando sola.'); }, 10000);
+    // Cuando la página termina de pintar, si ha tardado, se guarda el diagnóstico (Control → Errores)
+    var vig = setInterval(function () {
+        if (cargando() || !document.getElementById('main')) return;
+        clearInterval(vig); fx.fase('pintada');
+        var total = Date.now() - fx.t0;
+        if (total > 6000 && fx.reportar) fx.reportar('Carga lenta (' + s(total) + ')\n' + fx.diag());
+    }, 250);
     // Un módulo de la web que no se descarga: se avisa al momento
-    addEventListener('error', function (e) { if (e.target && e.target.tagName === 'SCRIPT') setTimeout(function () { aviso('No se ha podido descargar parte de la web. Recarga para intentarlo de nuevo.'); }, 800); }, true);
+    addEventListener('error', function (e) { if (e.target && e.target.tagName === 'SCRIPT') { fx.fase('falló ' + (e.target.src || '').split('/').pop()); setTimeout(function () { aviso('No se ha podido descargar parte de la web. Recarga para intentarlo de nuevo.'); }, 800); } }, true);
 })();
 </script>
     <script type="module" src="js/pages/cronica.js?v=c551417c"></script>
