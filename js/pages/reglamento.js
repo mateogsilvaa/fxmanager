@@ -118,7 +118,7 @@ ${tablaTexto(['Sale dinero por', 'Cuánto'], [
     ['Entrenar a un piloto', `${dinero(ENTRENO.coste)} cada vez`],
     ['Espionaje', `De ${dinero(ECO.costeInvestigacion.piloto)} a ${dinero(ECO.costeInvestigacion.estrategia)} por misión`],
     ['Pedir un Galáctico', 'Lo que ofrezcas, solo si la operación se hace'],
-    ['Nombre / colores / filial', `${dinero(ECO.cambioNombre)} / ${dinero(ECO.cambioColor)} / ${dinero(ECO.compraFilial)} (solo fuera del periodo de carreras)`],
+    ['Nombre / colores / filial', `${dinero(ECO.cambioNombre)} / ${dinero(ECO.cambioColor)} / de ${dinero(ECO.compraFilialPorPuesto.at(-1))} a ${dinero(ECO.compraFilialPorPuesto[0])} según su puesto la temporada anterior (solo fuera del periodo de carreras)`],
 ])}
 <p>El coche tiene cuatro áreas (motor, aerodinámica, chasis y fiabilidad) con 10 niveles. Puedes tener ${SLOTS_ID} mejoras en marcha a la vez; tardan horas y pueden fallar (si fallan recuperas la mitad). Cada circuito premia más unas áreas que otras.</p>
 <p><b>Cierre técnico:</b> desde que termina tu liga nacional hasta que acaba el Mundial no se pueden encargar mejoras del coche (las que ya estaban en marcha terminan con normalidad).</p>
@@ -144,7 +144,7 @@ ${seccion('club', 'Imagen, filiales y ofertas', `
 <p>En <b>pretemporada</b> y <b>al acabar la temporada</b> (nunca con las carreras en marcha), desde Mi escudería → Equipo puedes:</p>
 <ul>
 <li><b>Cambiar el nombre</b> (y el nombre corto) por ${dinero(ECO.cambioNombre)}, y <b>los colores</b> por ${dinero(ECO.cambioColor)}. Los nombres ofensivos no se aceptan.</li>
-<li><b>Comprar una escudería extranjera</b> sin mánager ni grupo por ${dinero(ECO.compraFilial)} (hasta ${ECO.maxFiliales}, una por país). Pasa a ser tu filial: la sigue llevando la IA, formáis grupo (−25% en I+D cuando una mejora un área) y te paga ${dinero(ECO.dividendoFilial)} al día. También puedes cambiarle el nombre y los colores.</li>
+<li><b>Comprar una escudería extranjera</b> sin mánager ni grupo (hasta ${ECO.maxFiliales}, una por país). El precio depende de dónde acabó en su liga la temporada anterior: ${ECO.compraFilialPorPuesto.map((p, i) => `${i + 1}º ${dinero(p)}`).join(', ')}. Pasa a ser tu filial: la sigue llevando la IA, formáis grupo (−25% en I+D cuando una mejora un área) y te paga ${dinero(ECO.dividendoFilial)} al día. También puedes cambiarle el nombre y los colores.</li>
 </ul>
 <p><b>Ofertas de otras escuderías.</b> Si haces una temporada excepcional (top 3 de escuderías de tu liga, o top 3 del Mundial en pilotos o escuderías), al acabar puede llamarte otra escudería: un ${Math.round(ECO.probOfertaHermanas * 100)}% de probabilidad de que sea una de un grupo con hermanas y un ${Math.round(ECO.probOfertaNormal * 100)}% de que sea una normal. Tienes ${ECO.diasOfertaPlaza} días para decidir. Si aceptas, tu escudería actual pasa a la IA y te quedas con el presupuesto, el coche y los pilotos de la nueva.</p>`)}
 

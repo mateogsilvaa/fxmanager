@@ -15,7 +15,7 @@ barraDirecto(d);
 main.innerHTML = `
 <div class="cabecera-pagina"><div><div class="etiqueta">Desde la temporada 1</div><h1>Estadísticas</h1><p class="sub">Récords históricos acumulados. Pulsa cualquiera para ver el ranking completo.</p></div></div>
 <div class="barra-opciones">
-  <div class="sub-pestanas" style="margin:0"><button data-modo="historico" class="activa">Histórico</button><button data-modo="temporada">Temporada ${d.temporada}</button><button data-modo="global">Clasificación global</button><button data-modo="managers">Mánagers</button><button data-modo="palmares">Palmarés</button></div>
+  <div class="sub-pestanas" style="margin:0"><button data-modo="historico" class="activa">Histórico</button><button data-modo="temporada">Temporada ${d.temporada}</button><button data-modo="global">Clasificación global</button><button data-modo="managers">Mánagers</button><button data-modo="temporadas">Temporadas anteriores</button><button data-modo="palmares">Palmarés</button></div>
   <select id="filtro"><option value="TODAS">Todas las ligas</option><optgroup label="Ligas nacionales">${LIGAS_NACIONALES.map(l => `<option value="${l}">${esc(LIGAS[l].nombre)}</option>`).join('')}</optgroup><optgroup label="Final"><option value="INT">Intercontinental</option></optgroup></select>
 </div>
 <div id="cuerpo"></div>`;
@@ -30,6 +30,7 @@ const pintar = () => {
     if (modo === 'palmares') return palmares(cuerpo);
     if (modo === 'managers') return managers(cuerpo);
     if (modo === 'global') return global(cuerpo);
+    if (modo === 'temporadas') return temporadas(cuerpo, l);
     const base = modo === 'historico' ? historico : d.sesiones;
     const sesionesSel = base.filter(s => l === 'TODAS' ? s.liga !== 'INT' : s.liga === l);
     const t = construirTemporada(sesionesSel);
@@ -91,6 +92,41 @@ function global(cuerpo) {
         </tbody></table></div></section>
     </div>`}`;
     $$('[data-g]', cuerpo).forEach(b => b.addEventListener('click', () => { globalHistorico = b.dataset.g === '1'; global(cuerpo); }));
+}
+
+// Clasificaciones finales de pilotos y escuderías de cada temporada terminada
+let tempSel = null;
+const fichas = {};
+async function temporadas(cuerpo, liga) {
+    const pasadas = [...new Set(historico.map(s => s.temporada).filter(Boolean))].sort((a, b) => b - a);
+    if (!pasadas.length) { cuerpo.innerHTML = vacio('Aún no ha terminado ninguna temporada.'); return; }
+    if (!pasadas.includes(tempSel)) tempSel = pasadas[0];
+    const base = historico.filter(s => s.temporada === tempSel && (liga === 'TODAS' ? s.liga !== 'INT' : s.liga === liga));
+    const t = construirTemporada(base);
+    const P = t.clasPilotos, E = t.clasEquipos;
+    // Pilotos que ya no están en el catálogo (retirados): se leen de su ficha
+    const faltan = P.map(p => p.pid).filter(id => !d.piloto(id) && !(id in fichas));
+    await Promise.all(faltan.map(async id => { fichas[id] = await store().get(`pilotos/${id}`).catch(() => null); }));
+    const nom = (id) => d.piloto(id) ? celdaPiloto(d, id) : fichas[id] ? `<a href="piloto.html?id=${esc(id)}">${bandera(fichas[id].nac)} ${esc(fichas[id].nombre)} <b>${esc(fichas[id].apellido)}</b></a>` : '<span class="muted">Piloto retirado</span>';
+    const ligaDe = (eq) => d.equipo(eq)?.liga;
+    const titulo = liga === 'TODAS' ? 'Todas las ligas nacionales' : LIGAS[liga].nombre;
+    cuerpo.innerHTML = `
+    <div class="sub-pestanas">${pasadas.map(n => `<button data-t="${n}" class="${n === tempSel ? 'activa' : ''}">Temporada ${n}</button>`).join('')}</div>
+    <p class="muted" style="margin:0 0 18px">${esc(titulo)} · clasificación final de la temporada ${tempSel}. Cambia de liga con el selector de arriba.</p>
+    ${!P.length ? vacio('No hay datos de esta temporada para esta liga.') : `
+    <div class="rejilla rejilla-lado">
+      <section class="tarjeta"><div class="tarjeta-titulo"><h2>Pilotos</h2><span>${P.length}</span></div>
+        <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Piloto</th><th class="ancho">Escudería</th><th class="cen" title="Carreras">Car</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="cen ancho" title="Poles">Pole</th><th class="der">Pts</th></tr></thead><tbody>
+        ${P.map((p, i) => `<tr><td>${pos(i + 1)}</td><td>${nom(p.pid)}</td><td class="ancho">${celdaEquipo(d, p.eq)}</td>
+          <td class="cen num">${p.carreras || 0}</td><td class="cen num">${p.victorias || 0}</td><td class="cen num">${p.podios || 0}</td><td class="cen num ancho">${p.poles || 0}</td><td class="pts">${p.pts}</td></tr>`).join('')}
+        </tbody></table></div></section>
+      <section class="tarjeta"><div class="tarjeta-titulo"><h2>Escuderías</h2><span>${E.length}</span></div>
+        <div class="tabla-scroll"><table class="tabla"><thead><tr><th>Pos</th><th>Escudería</th><th class="cen" title="Victorias">V</th><th class="cen" title="Podios">Pod</th><th class="der">Pts</th></tr></thead><tbody>
+        ${E.map((e, i) => `<tr><td>${pos(i + 1)}</td><td><span class="con-bandera">${liga === 'TODAS' && ligaDe(e.eq) ? banderaLiga(ligaDe(e.eq), { ancho: 16 }) : ''}${celdaEquipo(d, e.eq)}</span></td>
+          <td class="cen num">${e.victorias || 0}</td><td class="cen num">${e.podios || 0}</td><td class="pts">${e.pts}</td></tr>`).join('')}
+        </tbody></table></div></section>
+    </div>`}`;
+    $$('[data-t]', cuerpo).forEach(b => b.addEventListener('click', () => { tempSel = Number(b.dataset.t); temporadas(cuerpo, liga); }));
 }
 
 function destacado(t, nombre, v) {

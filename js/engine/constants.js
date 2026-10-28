@@ -81,7 +81,9 @@ export const ECO = {
     limpiezaPorNivel: 60_000,             // limpieza de una instalación al empezar la temporada (por nivel)
     cambioNombre: 1_250_000,
     cambioColor: 500_000,
-    compraFilial: 9_000_000,
+    compraFilial: 9_000_000,             // precio si la escudería no tiene temporada anterior
+    // Precio de una filial según su puesto en la liga la temporada anterior (1º … 10º)
+    compraFilialPorPuesto: [20_000_000, 17_000_000, 15_000_000, 13_500_000, 12_000_000, 11_000_000, 10_000_000, 9_000_000, 8_000_000, 7_000_000],
     maxFiliales: 2,
     dividendoFilial: 90_000,              // al día, por cada filial
     // Ofertas para dirigir otra escudería tras una temporada excepcional
@@ -109,6 +111,13 @@ export function bonusGlobal(pos) {
 // Fases en las que se puede cambiar nombre/colores o comprar una filial (no durante las carreras)
 export const FASES_IDENTIDAD = ['pretemporada', 'mercado', 'cerrada'];
 export const identidadAbierta = (fase) => FASES_IDENTIDAD.includes(fase);
+// Puesto de una escudería en su liga la última temporada terminada (posAnterior se guarda al acabar la temporada)
+export function posAnteriorEquipo(e) {
+    if (e?.posAnterior) return e.posAnterior;
+    const h = (e?.historia || []).filter(x => x.liga === e.liga).sort((a, b) => b.temporada - a.temporada)[0];
+    return h?.pos || null;
+}
+export const precioFilial = (pos) => (pos ? ECO.compraFilialPorPuesto[Math.min(pos, ECO.compraFilialPorPuesto.length) - 1] : null) ?? ECO.compraFilial;
 
 export const AREAS = {
     motor: { nombre: 'Motor', icono: '' },

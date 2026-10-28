@@ -9,7 +9,7 @@ import { esc, bandera, banderaLiga, vacio, fecha, hace, toast, confirmar, modal,
 import {
     LIGAS, LIGAS_NACIONALES, SESIONES, SESION_INFO, esCarrera, esQualy, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST,
     SLOTS_ID, costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion, ECO,
-    SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, NAC_LOCAL, tandasSimulador, identidadAbierta, costeMejoraFinal, descuentoTunel, ENTRENO, probEntreno,
+    SETUP_PARAMS, ESTRATEGIA_DEF, diaMadrid, NAC_LOCAL, tandasSimulador, precioFilial, identidadAbierta, costeMejoraFinal, descuentoTunel, ENTRENO, probEntreno,
 } from '../engine/constants.js';
 import { validarNombreEscuderia } from '../engine/badwords.js';
 import { avatar, avatarPiloto, avatarPatrocinador } from '../core/avatar.js';
@@ -642,9 +642,10 @@ function identidadHtml() {
         ${abierto && puedeComprar ? (comprables.length ? `<form id="f-filial" class="fila" style="margin-top:10px;gap:8px;flex-wrap:wrap">
             <select name="equipoId" style="flex:1;min-width:200px">${LIGAS_NACIONALES.filter(l => l !== liga).map(l => {
                 const cs = comprables.filter(([, e]) => e.liga === l);
-                return cs.length ? `<optgroup label="${esc(LIGAS[l].nombre)}">${cs.map(([id, e]) => `<option value="${esc(id)}">${esc(e.nombre)}</option>`).join('')}</optgroup>` : '';
+                return cs.length ? `<optgroup label="${esc(LIGAS[l].nombre)}">${cs.map(([id, e]) => `<option value="${esc(id)}">${esc(e.nombre)}${e.posAnterior ? ` (${e.posAnterior}º)` : ''} · ${dinero(precioFilial(e.posAnterior))}</option>`).join('')}</optgroup>` : '';
             }).join('')}</select>
-            <button class="btn btn-peq" ${enCola ? 'disabled' : ''}>Comprar · ${dinero(ECO.compraFilial)}</button></form>`
+            <button class="btn btn-peq" ${enCola ? 'disabled' : ''}>Comprar</button></form>
+            <p class="muted peq" style="margin-top:6px">El precio depende de su puesto en la liga la temporada anterior: de ${dinero(ECO.compraFilialPorPuesto[0])} la campeona a ${dinero(ECO.compraFilialPorPuesto.at(-1))} la última.</p>`
             : '<p class="muted peq">No quedan escuderías disponibles.</p>') : ''}
       </div>
     </div>`;
@@ -674,8 +675,9 @@ function activarIdentidad(el) {
         e.preventDefault();
         const id = e.target.equipoId.value;
         const obj = d.equipo(id);
-        if (ECO.compraFilial > (E.priv.presupuesto || 0)) return toast('No tienes presupuesto suficiente.', 'error');
-        if (!await confirmar(`¿Comprar <b>${esc(obj.nombre)}</b> por <b>${dinero(ECO.compraFilial)}</b>? Pasará a ser tu filial en ${esc(LIGAS[obj.liga].nombre)}.`)) return;
+        const precio = precioFilial(obj.posAnterior);
+        if (precio > (E.priv.presupuesto || 0)) return toast('No tienes presupuesto suficiente.', 'error');
+        if (!await confirmar(`¿Comprar <b>${esc(obj.nombre)}</b> por <b>${dinero(precio)}</b>? Pasará a ser tu filial en ${esc(LIGAS[obj.liga].nombre)}.`)) return;
         await lanzar('comprar_filial', { equipoId: id }, 'Compra enviada');
     });
     $$('[data-filial-editar]', el).forEach(b => b.addEventListener('click', () => {
