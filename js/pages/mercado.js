@@ -325,7 +325,7 @@ function miMercado(el) {
             return `<optgroup label="${esc(LIGAS[l].nombre)}">${ps.map(([id, p]) => `<option value="${esc(id)}" data-valor="${valorPiloto(posPil[id])}">${esc(p.nombre)} ${esc(p.apellido)} (${p.nac.toUpperCase()}) · ${esc(d.nombreEquipo(p.equipoId))} · ${posPil[id] ? `${posPil[id]}º` : '—'}</option>`).join('')}</optgroup>`;
         }).join('');
         const companero = suyos[0];
-        // Con la liga ya en 11 locales, una escudería del top 5 puede llevar dos extranjeros
+        // Con la liga ya en 11 locales, una escudería del top 3 de la temporada anterior puede llevar dos extranjeros
         const localesLiga = Object.values(d.cat.pilotos).filter(p => p.liga === liga && p.equipoId && p.nac === NAC_LOCAL[liga]).length;
         const debeLocal = (!companero || companero.nac !== NAC_LOCAL[liga]) && !(localesLiga >= MERCADO.minLocales && puedeSinLocal(m.posiciones?.equipos || {}, miEq));
         bloques.push(`<section class="tarjeta tarjeta-acento"><div class="tarjeta-titulo"><h2>Tienes una vacante</h2></div>

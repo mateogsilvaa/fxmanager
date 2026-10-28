@@ -13,6 +13,7 @@ import { compactar } from '../engine/stats.js';
 import { pintarUso as dibujarUso } from './control-uso.js';
 import { pintarSimulador as dibujarSimulador } from './control-simulador.js';
 import { pintarPartidas as dibujarPartidas, pintarErrores as dibujarErrores } from './control-partidas.js';
+import { posicionesAnteriores } from '../engine/mercado.js';
 import {
     inicializarJuego, borrarTodo, validarParrilla, importarParrilla, crearEvento, guardarEventos, borrarEvento,
     prepararMercado, cerrarMercado, nuevaTemporada,
@@ -300,12 +301,12 @@ async function pintarParrilla() {
     $('#ejemplo').addEventListener('click', async () => { $('#json').value = await (await fetch('data/parrilla.json')).text(); toast('Parrilla de ejemplo cargada en el cuadro. Pulsa Validar e Importar.', 'info'); });
     $('#validar').addEventListener('click', () => {
         const j = leer(); if (!j) return;
-        const { errores, avisos } = validarParrilla(j);
+        const { errores, avisos } = validarParrilla(j, posicionesAnteriores(Object.fromEntries(equipos.map(e => [e.id, e]))));
         $('#val').innerHTML = errores.length ? `<div class="aviso-caja">${errores.map(esc).join('<br>')}</div>` : `<div class="info-caja">✓ Válida: ${j.equipos.length} equipos, ${j.pilotos.length} pilotos.${avisos.length ? '<br>' + avisos.map(esc).join('<br>') : ''}</div>`;
     });
     $('#importar').addEventListener('click', (e) => ocupado(e.target, async () => {
         const j = leer(); if (!j) return;
-        const { errores } = validarParrilla(j);
+        const { errores } = validarParrilla(j, posicionesAnteriores(Object.fromEntries(equipos.map(e => [e.id, e]))));
         if (errores.length) { $('#val').innerHTML = `<div class="aviso-caja">${errores.map(esc).join('<br>')}</div>`; return; }
         if (!await confirmar(`Se importarán ${j.equipos.length} equipos y ${j.pilotos.length} pilotos. Los presupuestos y coches se reinician.`)) return;
         await importarParrilla(store(), j, { semilla: `parrilla-${Date.now()}` });

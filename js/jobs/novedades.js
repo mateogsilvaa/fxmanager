@@ -8,7 +8,8 @@ import {
 } from '../engine/ingenieros.js';
 import { GUIONES, rellenar, probLlamada, horaHabitual } from '../engine/llamadas.js';
 import { REP_INICIAL, ajustarRep, margenIA, descuentoPrimaIngeniero, factorSponsor } from '../engine/reputacion.js';
-import { cuotaTrasCambios, asignarRoles, MERCADO } from '../engine/mercado.js';
+import { cuotaTrasCambios, asignarRoles, posicionesAnteriores, MERCADO } from '../engine/mercado.js';
+import { refMercado } from './mercado.js';
 import { cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, noticia, notificar, movimiento, duenoReal, nombrePiloto } from './comun.js';
 
 export const novedadesActivas = (cfg) => (cfg?.temporada || 1) >= 2 || cfg?.novedades === true;
@@ -130,7 +131,10 @@ async function validar(ctx, n) {
         if (!identidadAbierta(ctx.cfg.fase)) throw new Error('Los pilotos solo se pueden negociar en pretemporada o al acabar la temporada.');
         if (n.doy.pilotos.length !== n.pido.pilotos.length) throw new Error('Los pilotos se cambian uno por uno (cada escudería necesita dos).');
         const cambios = [...n.doy.pilotos.map(pid => ({ pid, eq: n.a })), ...n.pido.pilotos.map(pid => ({ pid, eq: n.de }))];
-        const r = cuotaTrasCambios(Object.values(pil).filter(p => p.equipoId), ctx.equipos, cambios);
+        // Puestos de la temporada anterior: los del mercado si ya ha abierto (temporada recién acabada); si no, la historia
+        const m = await ctx.store.get(refMercado(ctx.cfg.temporada)).catch(() => null);
+        const pos = m?.posiciones?.equipos || posicionesAnteriores(ctx.equipos);
+        const r = cuotaTrasCambios(Object.values(pil).filter(p => p.equipoId), ctx.equipos, cambios, pos);
         if (!r.ok) throw new Error(r.motivo);
     }
 }

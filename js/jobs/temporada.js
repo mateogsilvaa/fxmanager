@@ -4,6 +4,7 @@ import { crearRng } from '../engine/rng.js';
 import { atributosAleatorios, salarioPiloto } from '../engine/juego.js';
 import { descompactar, construirTemporada } from '../engine/stats.js';
 import { abrirMercado, cerrarMercado, aplicarPendientes } from './mercado.js';
+import { MERCADO, puedeSinLocal, posicionesAnteriores } from '../engine/mercado.js';
 import { nombreManagerIA, conIA } from '../engine/prensa-ia.js';
 import { normalizarCircuito } from '../engine/circuitos.js';
 import {
@@ -43,7 +44,8 @@ export async function borrarTodo(store, { progreso = () => {} } = {}) {
 
 // ---------- Importar parrilla ----------
 // json: { equipos: [{id, nombre, corto?, liga, grupo?, color, coche?}], pilotos: [{id?, nombre, apellido, nac, equipo, rol, numero?, edad?, attrs?}] }
-export function validarParrilla(json) {
+// posAnterior: {eq: puesto en su liga la temporada anterior}. Con 11 locales en la liga, el top 3 puede no llevar ninguno.
+export function validarParrilla(json, posAnterior = {}) {
     const errores = [], avisos = [];
     const equipos = json.equipos || [], pilotos = json.pilotos || [];
     const ids = new Set();
@@ -63,7 +65,7 @@ export function validarParrilla(json) {
             if (suyos.length !== 2) errores.push(`${e.nombre}: tiene ${suyos.length} pilotos (deben ser 2).`);
             const p1 = suyos.find(p => p.rol === 'P1');
             if (!p1) errores.push(`${e.nombre}: falta el Piloto 1.`);
-            else if (p1.nac !== NAC_LOCAL[liga]) errores.push(`${e.nombre}: el Piloto 1 (${p1.nombre} ${p1.apellido}) debe ser de nacionalidad ${LIGAS[liga].gentilicio}.`);
+            else if (p1.nac !== NAC_LOCAL[liga] && !(locales >= MERCADO.minLocales && puedeSinLocal(posAnterior, e.id))) errores.push(`${e.nombre}: el Piloto 1 (${p1.nombre} ${p1.apellido}) debe ser de nacionalidad ${LIGAS[liga].gentilicio}.`);
         }
     }
     for (const p of pilotos) if (!ids.has(p.equipo)) errores.push(`Piloto ${p.nombre} ${p.apellido}: equipo desconocido "${p.equipo}".`);
@@ -71,10 +73,10 @@ export function validarParrilla(json) {
 }
 
 export async function importarParrilla(store, json, { semilla = 'parrilla' } = {}) {
-    const { errores } = validarParrilla(json);
+    const anteriores = Object.fromEntries((await store.list('equipos')).map(e => [e.id, e]));
+    const { errores } = validarParrilla(json, posicionesAnteriores(anteriores));
     if (errores.length) throw new Error(errores.join('\n'));
     const rng = crearRng(semilla);
-    const anteriores = Object.fromEntries((await store.list('equipos')).map(e => [e.id, e]));
     const ops = [];
     for (const e of json.equipos) {
         const prev = anteriores[e.id];
