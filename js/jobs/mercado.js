@@ -11,7 +11,7 @@
 import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL } from '../engine/constants.js';
 import { crearRng } from '../engine/rng.js';
 import { atributosAleatorios, salarioPiloto } from '../engine/juego.js';
-import { MERCADO, planDespidos, elegirGalacticos, tacticoDe, cuotaTrasCambios, valorPiloto, generarRookies, estrellasRookie, asignarRoles } from '../engine/mercado.js';
+import { MERCADO, puedeSinLocal, planDespidos, elegirGalacticos, tacticoDe, cuotaTrasCambios, valorPiloto, generarRookies, estrellasRookie, asignarRoles } from '../engine/mercado.js';
 import { nombreAleatorio, EXTRANJEROS } from '../engine/nombres.js';
 import { cargarEquipos, cargarPrivs, cargarPilotos, cargarPilotosPriv, noticia, notificar, nombrePiloto, movimiento, duenoReal, volcar } from './comun.js';
 import { asegurarPool, elegirRetiros, esLibre } from './pilotos.js';
@@ -213,8 +213,8 @@ function retirarCandidato(ctx, m, pid, motivo) {
     for (const o of m.ofertas || []) if (o.estado === 'pendiente' && o.pid === pid) { o.estado = 'anulada'; notificar(ctx, o.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: `${c.nombre} ya no es candidato`, texto: `${motivo}. Tu oferta queda anulada sin coste.` }); }
 }
 
-function comprobarCuota(ctx, pil, cambios) {
-    const r = cuotaTrasCambios(activos(pil), ctx.equipos, cambios);
+function comprobarCuota(ctx, m, pil, cambios) {
+    const r = cuotaTrasCambios(activos(pil), ctx.equipos, cambios, m.posiciones?.equipos);
     if (!r.ok) throw new Error(r.motivo);
 }
 
@@ -225,7 +225,7 @@ function ejecutarGalactico(ctx, m, pil, pp, g, { eq, importe, via, cobra }) {
     // El comprador siempre entrega a su segundo piloto (si no, se quedaría con tres)
     if (!t && deEquipo(pil, eq).length >= 2) return { ok: false, motivo: 'No tiene un segundo piloto que entregar.' };
     const cambios = [{ pid: g.pid, eq }, ...(t ? [{ pid: t.id, eq: g.eq }] : [])];
-    const r = cuotaTrasCambios(activos(pil), ctx.equipos, cambios);
+    const r = cuotaTrasCambios(activos(pil), ctx.equipos, cambios, m.posiciones?.equipos);
     if (!r.ok) return r;
     if (ctx.privs[eq]) movimiento(priv(ctx, eq), `Fichaje del Galáctico ${g.nombre}`, -importe, ctx.ahora);
     if (ctx.privs[g.eq]) movimiento(priv(ctx, g.eq), via === 'aceptada' ? `Venta de ${g.nombre} (Galáctico)` : `Compensación de la liga por ${g.nombre}`, cobra, ctx.ahora);
@@ -303,7 +303,7 @@ export const ACCIONES_MERCADO = {
         if ((priv(ctx, eq).presupuesto || 0) < importe) throw new Error('No tienes ese dinero.');
         const t = tacticoSeguro(m, pil, eq, ctx.equipos[eq].liga, g.pid);
         if (!t) throw new Error('No tienes un segundo piloto que dar a cambio.');
-        comprobarCuota(ctx, pil, [{ pid: g.pid, eq }, ...(t ? [{ pid: t.id, eq: g.eq }] : [])]);
+        comprobarCuota(ctx, m, pil, [{ pid: g.pid, eq }, ...(t ? [{ pid: t.id, eq: g.eq }] : [])]);
         m.ofertas.forEach(o => { if (o.eq === eq && o.pid === g.pid && o.estado === 'pendiente') o.estado = 'anulada'; });
         m.ofertas.push({ id: `o${m.ofertas.length}_${ctx.ahora % 1e6}`, pid: g.pid, eq, importe, estado: 'pendiente', fecha: ctx.ahora });
         await guardar(ctx, m);
@@ -368,7 +368,7 @@ export const ACCIONES_MERCADO = {
         const importe = Math.round(+a.params?.importe || 0);
         if (importe < MERCADO.fichajeMinimo) throw new Error(`La oferta mínima es de ${M(MERCADO.fichajeMinimo)}.`);
         if ((priv(ctx, eq).presupuesto || 0) < importe) throw new Error('No tienes ese dinero.');
-        comprobarCuota(ctx, pil, [{ pid: p.id, eq }]);
+        comprobarCuota(ctx, m, pil, [{ pid: p.id, eq }]);
         const f = { id: `f${m.fichajes.length}_${ctx.ahora % 1e6}`, eq, pid: p.id, nombre: nombrePiloto(p), eqVendedor: p.equipoId, importe, estado: 'pendiente', fecha: ctx.ahora };
         m.fichajes.push(f);
         if (!duenoReal(ctx, p.equipoId)) {
@@ -389,7 +389,7 @@ export const ACCIONES_MERCADO = {
         if (!a.params?.acepta) { f.estado = 'rechazada'; notificar(ctx, f.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: `Rechazan tu oferta por ${f.nombre}`, texto: 'Busca otra opción o se te asignará un rookie al cerrar el mercado.' }); await guardar(ctx, m); return { ok: true }; }
         if (!vacantesDe(pil, f.eq)) throw new Error('Esa escudería ya ha cubierto su vacante.');
         if ((ctx.privs[f.eq]?.presupuesto || 0) < f.importe) throw new Error('Esa escudería ya no tiene el dinero.');
-        comprobarCuota(ctx, pil, [{ pid: f.pid, eq: f.eq }]);
+        comprobarCuota(ctx, m, pil, [{ pid: f.pid, eq: f.eq }]);
         ejecutarFichaje(ctx, m, pil, pp, f);
         await guardar(ctx, m);
         return { ok: true };
@@ -416,7 +416,7 @@ export const ACCIONES_MERCADO = {
         const da = pil[a.params?.da], recibe = pil[a.params?.recibe];
         if (da?.equipoId !== eq || recibe?.equipoId !== conEq) throw new Error('Pilotos no válidos.');
         if (galacticoPendiente(m, da.id) || galacticoPendiente(m, recibe.id)) throw new Error('Un Galáctico en venta no puede entrar en un trueque.');
-        comprobarCuota(ctx, pil, [{ pid: da.id, eq: conEq }, { pid: recibe.id, eq }]);
+        comprobarCuota(ctx, m, pil, [{ pid: da.id, eq: conEq }, { pid: recibe.id, eq }]);
         const tr = { id: `t${m.trueques.length}_${ctx.ahora % 1e6}`, eq, conEq, da: da.id, recibe: recibe.id, nombreDa: nombrePiloto(da), nombreRecibe: nombrePiloto(recibe), estado: 'pendiente', fecha: ctx.ahora };
         m.trueques.push(tr);
         if (!duenoReal(ctx, conEq)) {
@@ -435,7 +435,7 @@ export const ACCIONES_MERCADO = {
         if (!tr) throw new Error('Propuesta no disponible.');
         if (!a.params?.acepta) { tr.estado = 'rechazada'; notificar(ctx, tr.eq, { remitente: 'Mercado', tipo: 'mercado', titulo: 'Trueque rechazado', texto: `${ctx.equipos[tr.conEq].nombre} no quiere cambiar a ${tr.nombreRecibe}.` }); await guardar(ctx, m); return { ok: true }; }
         if (pil[tr.da]?.equipoId !== tr.eq || pil[tr.recibe]?.equipoId !== tr.conEq) throw new Error('Los pilotos ya no están en sus equipos.');
-        comprobarCuota(ctx, pil, [{ pid: tr.da, eq: tr.conEq }, { pid: tr.recibe, eq: tr.eq }]);
+        comprobarCuota(ctx, m, pil, [{ pid: tr.da, eq: tr.conEq }, { pid: tr.recibe, eq: tr.eq }]);
         ejecutarTrueque(ctx, m, pil, pp, tr);
         await guardar(ctx, m);
         return { ok: true };
@@ -450,7 +450,7 @@ export const ACCIONES_MERCADO = {
         if (!esLibre(p)) throw new Error('Ese piloto ya no está libre.');
         const precio = p.precio ?? precioLibre(pp[p.id]?.attrs);
         if ((priv(ctx, eq).presupuesto || 0) < precio) throw new Error(`Necesitas ${M(precio)}.`);
-        comprobarCuota(ctx, pil, [{ pid: p.id, eq }]);
+        comprobarCuota(ctx, m, pil, [{ pid: p.id, eq }]);
         movimiento(priv(ctx, eq), `Fichaje de ${nombrePiloto(p)} (agente libre)`, -precio, ctx.ahora);
         mover(ctx, pil, pp, p.id, eq);
         registrar(m, ctx, `${ctx.equipos[eq].nombre} ficha al agente libre ${nombrePiloto(p)} por ${M(precio)}.`, { tipo: 'libre', pid: p.id, eq });
@@ -530,7 +530,7 @@ export async function iaMercadoDiario(ctx, dia) {
         if (importe > tope || (suya && suya.importe >= importe)) continue;
         const t = tacticoSeguro(m, pil, eq, ctx.equipos[eq].liga, g.pid);
         if (!t) continue;
-        if (!cuotaTrasCambios(activos(pil), ctx.equipos, [{ pid: g.pid, eq }, ...(t ? [{ pid: t.id, eq: g.eq }] : [])]).ok) continue;
+        if (!cuotaTrasCambios(activos(pil), ctx.equipos, [{ pid: g.pid, eq }, ...(t ? [{ pid: t.id, eq: g.eq }] : [])], m.posiciones?.equipos).ok) continue;
         if (suya) suya.estado = 'anulada';
         m.ofertas.push({ id: `o${m.ofertas.length}_${ctx.ahora % 1e6}_ia`, pid: g.pid, eq, importe, estado: 'pendiente', fecha: ctx.ahora, ia: true });
         registrar(m, ctx, `${ctx.equipos[eq].nombre} (IA) puja ${M(importe)} por ${g.nombre}.`, { tipo: 'puja', pid: g.pid, eq });
@@ -617,7 +617,8 @@ export async function cerrarMercado(ctx) {
         const suyos = deEquipo(pil, v.eq);
         const locales = activos(pil).filter(p => p.liga === liga && p.nac === NAC_LOCAL[liga]).length;
         const huecos = Object.keys(ctx.equipos).filter(e => ctx.equipos[e].liga === liga).reduce((s, e) => s + vacantesDe(pil, e), 0);
-        const debeSerLocal = !suyos.some(p => p.nac === NAC_LOCAL[liga]) || locales + huecos <= MERCADO.minLocales;
+        const sinLocalOk = locales >= MERCADO.minLocales && puedeSinLocal(posEq, v.eq);
+        const debeSerLocal = (!suyos.some(p => p.nac === NAC_LOCAL[liga]) && !sinLocalOk) || locales + huecos <= MERCADO.minLocales;
         const valido = (r) => r && r.liga === liga && (!debeSerLocal || r.nac === NAC_LOCAL[liga]);
         let r = (m.preferencias?.[v.eq] || []).map(id => disponibles.get(id)).find(valido);
         if (!r) r = [...disponibles.values()].filter(valido).sort((a, b) => (b.estrellas - a.estrellas) || (rng.next() - 0.5))[0];

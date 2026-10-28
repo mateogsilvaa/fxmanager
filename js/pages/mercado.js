@@ -7,7 +7,7 @@ import { avatarPiloto } from '../core/avatar.js';
 import { LIGAS, LIGAS_NACIONALES, NAC_LOCAL, PAISES } from '../engine/constants.js';
 import { calcularRiesgo } from '../engine/stats.js';
 import { candidatosGalactico } from '../core/mercado-ui.js';
-import { MERCADO, valorPiloto, tacticoDe } from '../engine/mercado.js';
+import { MERCADO, puedeSinLocal, valorPiloto, tacticoDe } from '../engine/mercado.js';
 import { novedadesActivas, minimoBlindaje } from '../jobs/novedades.js';
 
 const u = await montar({ activo: 'mercado' });
@@ -325,7 +325,9 @@ function miMercado(el) {
             return `<optgroup label="${esc(LIGAS[l].nombre)}">${ps.map(([id, p]) => `<option value="${esc(id)}" data-valor="${valorPiloto(posPil[id])}">${esc(p.nombre)} ${esc(p.apellido)} (${p.nac.toUpperCase()}) · ${esc(d.nombreEquipo(p.equipoId))} · ${posPil[id] ? `${posPil[id]}º` : '—'}</option>`).join('')}</optgroup>`;
         }).join('');
         const companero = suyos[0];
-        const debeLocal = !companero || companero.nac !== NAC_LOCAL[liga];
+        // Con la liga ya en 11 locales, una escudería del top 5 puede llevar dos extranjeros
+        const localesLiga = Object.values(d.cat.pilotos).filter(p => p.liga === liga && p.equipoId && p.nac === NAC_LOCAL[liga]).length;
+        const debeLocal = (!companero || companero.nac !== NAC_LOCAL[liga]) && !(localesLiga >= MERCADO.minLocales && puedeSinLocal(m.posiciones?.equipos || {}, miEq));
         bloques.push(`<section class="tarjeta tarjeta-acento"><div class="tarjeta-titulo"><h2>Tienes una vacante</h2></div>
           ${debeLocal ? `<div class="aviso-caja" style="margin-bottom:12px">Necesitas un piloto ${esc(LIGAS[liga].gentilicio)} para el asiento de Piloto 1.</div>` : ''}
           <div class="vias">
