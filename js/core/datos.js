@@ -229,7 +229,7 @@ export async function cargarHistorico(d) {
             json = doc?.json || null;
             if (json && !DEMO) { try { localStorage.setItem(k, json); } catch { } }
         }
-        if (json) todas.push(...JSON.parse(json).sesiones.map(descompactar));
+        if (json) todas.push(...JSON.parse(json).sesiones.map(c => ({ ...descompactar(c), temporada: t })));
     }
     return todas;
 }

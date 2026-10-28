@@ -195,7 +195,9 @@ for (const liga of LIGAS_NACIONALES) {
     const equipos = [...new Set(pl.map(p => p.equipoId))];
     equipos.forEach(eq => {
         ok(pl.filter(p => p.equipoId === eq).length === 2, `${eq} no tiene 2 pilotos`);
-        ok(pl.some(p => p.equipoId === eq && p.nac === NAC[liga] && p.rol === 'P1'), `${eq} no tiene Piloto 1 local`);
+        // Excepción: con 11 locales en la liga, el top 3 de la temporada anterior puede no llevar ningún local
+        const exento = locales >= 11 && (m.posiciones?.equipos?.[eq] || 99) <= 3;
+        ok(exento || pl.some(p => p.equipoId === eq && p.nac === NAC[liga] && p.rol === 'P1'), `${eq} no tiene Piloto 1 local`);
     });
 }
 const privAna = await store.get('equipos_priv/tramontana');

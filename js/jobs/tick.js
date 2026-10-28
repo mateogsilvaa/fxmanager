@@ -2,7 +2,7 @@
 import {
     SESION_INFO, esCarrera, esQualy, ECO, AREAS, INSTALACIONES, NIVEL_MAX_AREA, NIVEL_MAX_INST, SLOTS_ID,
     costeMejora, horasMejora, probExitoMejora, RECARGO_URGENTE, costeInstalacion, horasInstalacion,
-    ESTRATEGIA_DEF, diaMadrid, finDiaMadrid, LIGAS, LIGAS_NACIONALES, SETUP_PARAMS, SETUP_BASE, identidadAbierta,
+    ESTRATEGIA_DEF, diaMadrid, finDiaMadrid, LIGAS, LIGAS_NACIONALES, SETUP_PARAMS, SETUP_BASE, identidadAbierta, posAnteriorEquipo, precioFilial,
     costeMejoraFinal, bonusExitoTunel, bonusExitoIngenieros, factorHorasIngenieros, nivelSimulador, tienePlano, ENTRENO, probEntreno, horaMadrid,
 } from '../engine/constants.js';
 import { preguntaTrasCarrera, preguntaOpinion, efectosRespuesta, MAX_PREGUNTAS_JORNADA } from '../engine/rueda-prensa.js';
@@ -1154,8 +1154,9 @@ const ACCIONES = {
         if (filiales.length >= ECO.maxFiliales) throw new Error(`Como mucho puedes tener ${ECO.maxFiliales} filiales.`);
         if (filiales.some(e => e.liga === obj.liga)) throw new Error('Ya tienes una filial en esa liga.');
         const priv = privDe(ctx, a.equipoId);
-        if ((priv.presupuesto || 0) < ECO.compraFilial) throw new Error(`Presupuesto insuficiente (necesitas ${M(ECO.compraFilial)}).`);
-        movimiento(priv, `Compra de ${obj.nombre}`, -ECO.compraFilial, ctx.ahora);
+        const precio = precioFilial(posAnteriorEquipo(obj));
+        if ((priv.presupuesto || 0) < precio) throw new Error(`Presupuesto insuficiente (necesitas ${M(precio)}).`);
+        movimiento(priv, `Compra de ${obj.nombre}`, -precio, ctx.ahora);
         if (!mio.grupo) {
             mio.grupo = mio.corto || mio.nombre; mio.grupoPropio = true;
             ctx.ops.push({ op: 'merge', path: `equipos/${a.equipoId}`, data: { grupo: mio.grupo, grupoPropio: true } });
@@ -1165,7 +1166,7 @@ const ACCIONES = {
         ctx.catalogoSucio = true;
         notificar(ctx, a.equipoId, { remitente: 'Consejo de administración', tipo: 'grupo', titulo: `${obj.nombre} ya es tuya`, texto: `Compartís tecnología (−25% en I+D cuando una de las dos mejora un área) y te paga ${M(ECO.dividendoFilial)} al día en dividendos.` });
         noticia(ctx, { titulo: `${mio.nombre} compra ${obj.nombre}`, texto: `El grupo ${mio.grupo} ya tiene equipos en ${[mio.liga, ...filiales.map(f => f.liga), obj.liga].map(l => LIGAS[l]?.nombre || l).join(', ').replace(/, ([^,]*)$/, ' y $1')}.`, liga: obj.liga, tipo: 'mercado' });
-        return { ok: true, coste: ECO.compraFilial };
+        return { ok: true, coste: precio };
     },
 
     // Responder a una oferta para dirigir otra escudería

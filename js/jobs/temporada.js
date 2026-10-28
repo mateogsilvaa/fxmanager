@@ -149,9 +149,10 @@ export async function prepararMercado(ctx) {
     const privs = await cargarPrivs(ctx);
     const nombre = (pid) => nombrePiloto(pilotosMap[pid]);
 
-    // Premios de fin de temporada por posición en cada liga
+    // Premios de fin de temporada por posición en cada liga (y el puesto queda guardado: fija el precio de compra)
     for (const liga of LIGAS_NACIONALES) {
         tablas[liga].clasEquipos.forEach((e, i) => {
+            if (equipos[e.eq]) { equipos[e.eq].posAnterior = i + 1; ctx.ops.push({ op: 'merge', path: `equipos/${e.eq}`, data: { posAnterior: i + 1 } }); }
             const premio = ECO.premiosLiga[i] || 0;
             if (!premio || !privs[e.eq]) return;
             movimiento(privs[e.eq], `Premio de liga: ${i + 1}º de ${LIGAS[liga].nombre}`, premio, ctx.ahora);

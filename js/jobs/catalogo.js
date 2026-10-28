@@ -1,3 +1,4 @@
+import { posAnteriorEquipo } from '../engine/constants.js';
 // Documento "catalogo/actual": toda la información pública en una sola lectura
 export async function reconstruirCatalogo(store, cfg) {
     const temporada = cfg?.temporada || 1;
@@ -10,6 +11,7 @@ export async function reconstruirCatalogo(store, cfg) {
         equipos: Object.fromEntries(equipos.map(e => [e.id, {
             nombre: e.nombre, corto: e.corto || e.nombre, liga: e.liga, grupo: e.grupo || null, filialDe: e.filialDe || null, color: e.color || '#888',
             ownerId: e.ownerId || null, ownerNombre: e.ownerNombre || null, managerIA: e.managerIA || null, fans: e.fans || 0, reputacion: e.reputacion ?? null,
+            posAnterior: posAnteriorEquipo(e),
             // las de grupo, las filiales y (en secreto) la que lleva el admin no se pueden elegir
             inscribible: !e.grupo && !e.filialDe && e.id !== sombra?.equipoId,
         }])),
