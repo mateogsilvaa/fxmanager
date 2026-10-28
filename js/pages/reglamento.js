@@ -40,7 +40,7 @@ ${seccion('formato', 'El campeonato', `
 <ul>
 <li><b>Cinco ligas nacionales:</b> España, Italia, Reino Unido, Alemania y Australia. Cada una tiene 10 escuderías, 20 pilotos y 5 jornadas.</li>
 <li><b>Los pilotos se mueven en el mercado de fin de temporada</b>, siempre con las normas de la liga (Galácticos, vacantes y trueques).</li>
-<li><b>Cuota nacional (55%):</b> el Piloto 1 de cada escudería es siempre de la nacionalidad de la liga, y cada liga tiene al menos 11 de sus 20 pilotos locales. Ningún movimiento del mercado puede romperlo.</li>
+<li><b>Cuota nacional (55%):</b> el Piloto 1 de cada escudería es siempre de la nacionalidad de la liga, y cada liga tiene al menos 11 de sus 20 pilotos locales. Ningún movimiento del mercado puede romperlo. Excepción: si una escudería quedó en el top ${MERCADO.topSinLocal} de su liga la temporada anterior y la liga sigue teniendo 11 pilotos locales, puede no llevar ningún local (ni siquiera de Piloto 1).</li>
 <li>Algunas marcas (Valcor, Kessler, Altair, Stellari, Northline) tienen escuderías en varios países. Cuando una mejora un área del coche, sus hermanas la desarrollan un 25% más barata. Esas escuderías no se pueden elegir al inscribirse: solo se llega a ellas por una oferta.</li>
 <li>Las escuderías sin mánager las dirige la IA, cada una con su propio mánager ficticio (lo verás como «Nombre (IA)», también en la prensa).</li>
 <li>Al terminar las ligas se juega la <b>Liga Intercontinental</b> (el Mundial) en una sede neutral.</li>
@@ -65,7 +65,7 @@ ${seccion('mundial', 'El Mundial', `
 </ul>`)}
 
 ${seccion('mercado', 'El mercado', `
-<p>El mercado <b>abre al empezar el Mundial y cierra 2 días después de que termine</b>. Lo que se cierre mientras se juega el Mundial se aplica en cuanto acaba, para que nadie cambie de equipo a mitad de competición. Todo se hace desde la página de Mercado y cada operación se ve en directo. Ningún movimiento puede dejar una liga por debajo del <b>55% de pilotos locales</b> ni a una escudería sin piloto local.</p>
+<p>El mercado <b>abre al empezar el Mundial y cierra 2 días después de que termine</b>. Lo que se cierre mientras se juega el Mundial se aplica en cuanto acaba, para que nadie cambie de equipo a mitad de competición. Todo se hace desde la página de Mercado y cada operación se ve en directo. Ningún movimiento puede dejar una liga por debajo del <b>55% de pilotos locales</b> ni a una escudería sin piloto local (salvo las del top ${MERCADO.topSinLocal} de la temporada anterior, que pueden llevar dos extranjeros si su liga sigue teniendo 11 locales).</p>
 <p><b>Los Galácticos (sale uno por liga).</b> Cada liga presenta hasta <b>${MERCADO.candidatos} candidatos</b> de su top 5, pero <b>solo uno cambia de liga</b>: el primero por el que se cierre un traspaso o, al cerrar el mercado, el que decida la liga. En cuanto uno se va, los demás candidatos de su liga se quedan y las pujas por ellos se anulan sin coste. Solo puede ser candidato un piloto cuyo compañero sea local, para que su escudería conserve a su Piloto 1. Las escuderías de la IA también pujan por candidatos de otras ligas y venden a los suyos si les pagan bien.</p>
 <ul>
 <li><b>Si te quitan a tu Galáctico</b> tienes dos opciones: aceptar una oferta de otra escudería (cobras lo que ofrece y recibes a su segundo piloto) o dejar que decida la liga (cobras la compensación de la liga, ${dinero(MERCADO.compensacionLiga)}, y recibes al segundo piloto de quien se lo lleve).</li>

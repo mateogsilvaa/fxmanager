@@ -15,6 +15,7 @@ export const MERCADO = {
     probSuerte: 0.04,           // probabilidad de que la liga se lo dé a una escudería al azar
     diasVentana: 3,             // días de mercado tras el Mundial
     minLocales: 11,             // 55% de los 20 pilotos de cada liga deben ser locales
+    topSinLocal: 3,             // con la liga en 11 locales, el top 3 de la temporada anterior puede no tener ningún local
     fichajeMinimo: 250_000,     // oferta mínima por un piloto para cubrir una vacante
 };
 
@@ -27,7 +28,8 @@ export function valorPiloto(pos, n = 20) {
 // ---------- Regla del 55% de pilotos locales ----------
 // pilotos: [{id, nac, equipoId, liga}] · equipos: {id: {liga}}
 // Una vacante cuenta como posible local (el draft la cubre con un rookie local si hace falta).
-export function estadoCuota(pilotos, equipos) {
+// posEquipo: {eq: posición en su liga la temporada anterior}. Si la liga tiene 11 locales, el top 3 puede no tener ninguno.
+export function estadoCuota(pilotos, equipos, posEquipo = {}) {
     const out = {};
     for (const liga of LIGAS_NACIONALES) {
         const eqs = Object.entries(equipos).filter(([, e]) => e.liga === liga).map(([id]) => id);
@@ -38,17 +40,30 @@ export function estadoCuota(pilotos, equipos) {
             locales += loc; vacantes += Math.max(0, 2 - suyos.length);
             if (suyos.length >= 2 && !loc) sinLocal.push(eq);
         }
+        if (locales >= MERCADO.minLocales) sinLocal = sinLocal.filter(eq => !puedeSinLocal(posEquipo, eq));
         out[liga] = { locales, vacantes, sinLocal, ok: locales + vacantes >= MERCADO.minLocales && !sinLocal.length };
+    }
+    return out;
+}
+
+export const puedeSinLocal = (posEquipo, eq) => (posEquipo[eq] || 99) <= MERCADO.topSinLocal;
+
+// Puesto de cada escudería en su liga la última temporada terminada (de su historia). equipos: {id: {liga, historia}}
+export function posicionesAnteriores(equipos) {
+    const out = {};
+    for (const [id, e] of Object.entries(equipos || {})) {
+        const h = (e.historia || []).filter(x => x.liga === e.liga).sort((a, b) => b.temporada - a.temporada)[0];
+        if (h?.pos) out[id] = h.pos;
     }
     return out;
 }
 
 // ¿Se puede hacer este cambio sin romper la regla? cambios: [{pid, eq}] (eq null = sale de la parrilla)
 // Solo falla si una liga que cumplía deja de cumplir (o una que no cumplía empeora).
-export function cuotaTrasCambios(pilotos, equipos, cambios) {
-    const antes = estadoCuota(pilotos, equipos);
+export function cuotaTrasCambios(pilotos, equipos, cambios, posEquipo = {}) {
+    const antes = estadoCuota(pilotos, equipos, posEquipo);
     const mov = Object.fromEntries(cambios.map(c => [c.pid, c.eq]));
-    const despues = estadoCuota(pilotos.map(p => p.id in mov ? { ...p, equipoId: mov[p.id], liga: mov[p.id] ? equipos[mov[p.id]]?.liga : null } : p), equipos);
+    const despues = estadoCuota(pilotos.map(p => p.id in mov ? { ...p, equipoId: mov[p.id], liga: mov[p.id] ? equipos[mov[p.id]]?.liga : null } : p), equipos, posEquipo);
     for (const liga of LIGAS_NACIONALES) {
         const a = antes[liga], d = despues[liga];
         if (d.ok) continue;
