@@ -159,9 +159,12 @@ export class Datos {
         LIGAS_NACIONALES.forEach(l => { tablas[l] = this.tabla(l); });
         return proyeccionMundial(tablas);
     }
-    // Mundial real (si ya está fijado) o proyección
+    // Mundial real (si ya está fijado esta temporada) o proyección. Los clasificados de la temporada pasada no cuentan
+    // (antes no se borraban al empezar la temporada; los fijados sin temporada solo valen desde la fase del Mundial).
     clasificadosMundial() {
-        if (this.cfg.mundial?.clasificados?.length) return { fijado: true, clasificados: this.cfg.mundial.clasificados };
+        const m = this.cfg.mundial;
+        const deEsta = m?.temporada != null ? m.temporada === this.temporada : ['mundial', 'mercado', 'cerrada'].includes(this.cfg.fase);
+        if (m?.clasificados?.length && deEsta) return { fijado: true, clasificados: this.cfg.mundial.clasificados };
         return { fijado: false, ...this.proyeccionMundial() };
     }
     nombreSesion(tipo) { return SESION_INFO[tipo]?.nombre || tipo; }
