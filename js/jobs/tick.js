@@ -1570,7 +1570,7 @@ async function transicionesFase(ctx) {
         const proy = proyeccionMundial(tablas);
         const participantes = proy.clasificados.map(c => c.pid);
         const pilotos = await cargarPilotos(ctx);
-        const mundial = { ...(ctx.cfg.mundial || {}), participantes, clasificados: proy.clasificados, fijado: ctx.ahora };
+        const mundial = { ...(ctx.cfg.mundial || {}), participantes, clasificados: proy.clasificados, fijado: ctx.ahora, temporada: ctx.temporada };
         const privs = await cargarPrivs(ctx);
         await cargarEquipos(ctx);
         for (const pid of participantes) {

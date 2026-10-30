@@ -350,7 +350,7 @@ export async function nuevaTemporada(store, { ahora = Date.now(), reglamento = '
         tipo: 'fase',
     });
     await volcar(ctx);
-    await store.merge('config/juego', { temporada: temporada + 1, fase: 'pretemporada', inscripcion: true, inscripcionCerrada: null, mundial: { pais: cfg.mundial?.pais || null, nombre: cfg.mundial?.nombre || null, participantes: [] }, palmares: [...(cfg.palmares || []), palmares], ultimoDiario: null, reglamento: { temporada: temporada + 1, cambio } });
+    await store.merge('config/juego', { temporada: temporada + 1, fase: 'pretemporada', inscripcion: true, inscripcionCerrada: null, mundial: { pais: cfg.mundial?.pais || null, nombre: cfg.mundial?.nombre || null, participantes: [], clasificados: null, fijado: null, temporada: null }, palmares: [...(cfg.palmares || []), palmares], ultimoDiario: null, reglamento: { temporada: temporada + 1, cambio } });
     if (novedadesActivas({ ...cfg, temporada: temporada + 1 })) {
         const ctx2 = crearContexto(store, { ahora });
         ctx2.cfg = await store.get('config/juego');
